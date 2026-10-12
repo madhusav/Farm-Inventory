@@ -1,0 +1,8 @@
+{
+  "name": "FarmTrack India — Easy Farm Animals Diary",
+  "description": "Simple farm app for Indian farmers. Track cows, goats, sheep and chickens with photos, birth dates, family tree, vaccines, weight, and daily milk.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
