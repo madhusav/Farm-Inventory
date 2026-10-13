@@ -155,6 +155,9 @@ export const AddAnimalModal: React.FC<AddAnimalModalProps> = ({
         ? 'Yearly Wool' 
         : 'Eggs Each Week',
       currentProductivityValue: productivityValue,
+      healthStatus: 'Healthy & Fit',
+      milkStatus: sex === 'Male' ? 'Not Milking (Male/Kid)' : (species === 'Chicken' ? 'Laying Eggs' : 'Giving Milk'),
+      dailyMilkLitres: sex === 'Female' && (species === 'Cow' || species === 'Goat') ? (parseFloat(productivityValue) || 12) : undefined,
       createdAt: new Date().toISOString().split('T')[0],
       createdBy: currentUser.name,
       growthHistory: [

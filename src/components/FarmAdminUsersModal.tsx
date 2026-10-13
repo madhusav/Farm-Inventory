@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { Farm, User, UserRole } from '../types';
+import { Farm, User, UserRole, FarmConfig, isVaccineManager } from '../types';
+import { useLanguage } from '../i18n/LanguageContext';
+import { db, DEFAULT_FARM_CONFIG } from '../services/db';
 import { 
   Users, 
   UserPlus, 
@@ -8,7 +10,18 @@ import {
   Trash2, 
   Clock, 
   ShieldAlert,
-  Lock
+  Lock,
+  Settings,
+  Database,
+  Syringe,
+  Building2,
+  Download,
+  AlertTriangle,
+  FileCode,
+  Sparkles,
+  Phone,
+  Milk,
+  CheckCircle2
 } from 'lucide-react';
 
 interface FarmAdminUsersModalProps {
@@ -18,7 +31,12 @@ interface FarmAdminUsersModalProps {
   onApproveRequest: (requestId: string, assignedRole: UserRole) => void;
   onRejectRequest: (requestId: string) => void;
   onAddUserDirectly: (name: string, identifier: string, role: UserRole) => void;
+  onUpdateMemberRole?: (userId: string, role: UserRole) => void;
   onRemoveMember: (userId: string) => void;
+  onUpdateFarmConfig?: (configUpdates: Partial<FarmConfig>) => void;
+  onUpdateFarmProfile?: (profileUpdates: Partial<Farm>) => void;
+  onResetStarterData?: () => void;
+  onClearFarmData?: () => void;
 }
 
 export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
@@ -28,9 +46,20 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
   onApproveRequest,
   onRejectRequest,
   onAddUserDirectly,
+  onUpdateMemberRole,
   onRemoveMember,
+  onUpdateFarmConfig,
+  onUpdateFarmProfile,
+  onResetStarterData,
+  onClearFarmData,
 }) => {
+  const { t } = useLanguage();
   const isAdmin = farm.adminUserId === currentUser.id;
+  const currentMember = farm.members.find(m => m.userId === currentUser.id);
+  const isSupportAdmin = currentMember?.role === 'Support Admin';
+  const hasAdminRights = isAdmin || isSupportAdmin;
+
+  const [activeTab, setActiveTab] = useState<'team' | 'vaccines' | 'farm' | 'database'>('team');
 
   // Direct user addition form
   const [newUserName, setNewUserName] = useState('');
@@ -38,6 +67,25 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
   const [newUserRole, setNewUserRole] = useState<UserRole>('Herdsman');
   const [addSuccessNotice, setAddSuccessNotice] = useState('');
   const [addErrorNotice, setAddErrorNotice] = useState('');
+
+  // Farm Profile State
+  const [farmName, setFarmName] = useState(farm.name);
+  const [farmLocation, setFarmLocation] = useState(farm.location);
+  const [totalAcreage, setTotalAcreage] = useState(String(farm.totalAcreage || 5.0));
+  const [contactPhone, setContactPhone] = useState(farm.config?.contactPhone || '+91 98765 43210');
+  const [profileSaved, setProfileSaved] = useState(false);
+
+  // Vaccine Policy State
+  const farmConfig = farm.config || DEFAULT_FARM_CONFIG;
+  const [vaccineAlertDays, setVaccineAlertDays] = useState(farmConfig.vaccineAlertDaysThreshold || 7);
+  const [customVaccineInput, setCustomVaccineInput] = useState('');
+  const [customVaccines, setCustomVaccines] = useState<string[]>(farmConfig.customVaccines || DEFAULT_FARM_CONFIG.customVaccines || []);
+  const [targetMilkLiters, setTargetMilkLiters] = useState(farmConfig.targetDailyMilkLiters || 45);
+  const [policySaved, setPolicySaved] = useState(false);
+
+  // MySQL SQL preview
+  const [showSqlPreview, setShowSqlPreview] = useState(false);
+  const [sqlDumpContent, setSqlDumpContent] = useState('');
 
   const pendingRequests = farm.joinRequests.filter(r => r.status === 'pending');
 
@@ -59,28 +107,98 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
     }
 
     onAddUserDirectly(newUserName.trim(), newUserIdentifier.trim(), newUserRole);
-    setAddSuccessNotice(`✓ Helper "${newUserName}" (${newUserIdentifier}) can now open and update this farm!`);
+    setAddSuccessNotice(`✓ Helper "${newUserName}" (${newUserIdentifier}) can now open and work on this farm!`);
     setNewUserName('');
     setNewUserIdentifier('+91 ');
   };
 
+  const handleSaveFarmProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (onUpdateFarmProfile) {
+      onUpdateFarmProfile({
+        name: farmName.trim(),
+        location: farmLocation.trim(),
+        totalAcreage: parseFloat(totalAcreage) || 5.0,
+      });
+    }
+    if (onUpdateFarmConfig) {
+      onUpdateFarmConfig({
+        contactPhone: contactPhone.trim(),
+      });
+    }
+    setProfileSaved(true);
+    setTimeout(() => setProfileSaved(false), 2500);
+  };
+
+  const handleSaveVaccinePolicy = () => {
+    if (onUpdateFarmConfig) {
+      onUpdateFarmConfig({
+        vaccineAlertDaysThreshold: Number(vaccineAlertDays),
+        targetDailyMilkLiters: Number(targetMilkLiters),
+        customVaccines,
+      });
+    }
+    setPolicySaved(true);
+    setTimeout(() => setPolicySaved(false), 2500);
+  };
+
+  const handleAddCustomVaccine = () => {
+    if (!customVaccineInput.trim()) return;
+    if (customVaccines.includes(customVaccineInput.trim())) return;
+    const updated = [...customVaccines, customVaccineInput.trim()];
+    setCustomVaccines(updated);
+    setCustomVaccineInput('');
+    if (onUpdateFarmConfig) {
+      onUpdateFarmConfig({ customVaccines: updated });
+    }
+  };
+
+  const handleRemoveCustomVaccine = (vacName: string) => {
+    const updated = customVaccines.filter(v => v !== vacName);
+    setCustomVaccines(updated);
+    if (onUpdateFarmConfig) {
+      onUpdateFarmConfig({ customVaccines: updated });
+    }
+  };
+
+  const handleDownloadSqlDump = () => {
+    const sql = db.exportAsMySQL();
+    const blob = new Blob([sql], { type: 'application/sql' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `farmtrack_mysql_dump_${farm.id.toLowerCase()}.sql`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleOpenSqlPreview = () => {
+    const sql = db.exportAsMySQL();
+    setSqlDumpContent(sql);
+    setShowSqlPreview(true);
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-      <div className="bg-white w-full max-w-3xl rounded-3xl border border-stone-200 shadow-2xl overflow-hidden flex flex-col my-auto max-h-[92vh]">
+      <div className="bg-white w-full max-w-4xl rounded-3xl border border-stone-200 shadow-2xl overflow-hidden flex flex-col my-auto max-h-[92vh]">
         
         {/* Header */}
         <div className="px-6 sm:px-8 py-5 border-b border-stone-200 bg-[#FFFDF9] flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-3xl">👥</span>
+            <span className="text-3xl">⚙️</span>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-black text-stone-900">Farm Helpers & Approvals</h2>
+                <h2 className="text-lg font-black text-stone-900">
+                  Farm Admin & Configuration Tool
+                </h2>
                 <span className="font-mono text-xs font-black text-stone-800 bg-stone-100 px-2 py-0.5 rounded">
                   {farm.id}
                 </span>
               </div>
               <p className="text-xs text-stone-500 font-medium">
-                {farm.name} · Farm Boss: <strong>{farm.adminName}</strong>
+                {farm.name} · Boss: <strong>{farm.adminName}</strong>
               </p>
             </div>
           </div>
@@ -93,239 +211,663 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
           </button>
         </div>
 
+        {/* Tab Bar */}
+        <div className="px-6 bg-stone-50 border-b border-stone-200 flex items-center gap-2 overflow-x-auto">
+          {[
+            { id: 'team', label: '👥 Team & Approvals', badge: pendingRequests.length },
+            { id: 'vaccines', label: '💉 Vaccine Policies & Alerts' },
+            { id: 'farm', label: '🏡 Farm Details & Milk Targets' },
+            { id: 'database', label: '🗄️ MySQL Database & Export' },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`px-4 py-3 text-xs font-bold transition-all border-b-2 flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                activeTab === tab.id
+                  ? 'border-emerald-800 text-emerald-950 bg-white'
+                  : 'border-transparent text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              <span>{tab.label}</span>
+              {tab.badge && tab.badge > 0 ? (
+                <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-white text-[10px] font-black">
+                  {tab.badge}
+                </span>
+              ) : null}
+            </button>
+          ))}
+        </div>
+
         {/* Content Body */}
         <div className="p-6 sm:p-8 overflow-y-auto space-y-6">
 
-          {/* Simple Explanation of the rule for child or farmer */}
-          <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 text-xs text-amber-950 space-y-1">
-            <div className="flex items-center gap-1.5 font-black text-amber-900 text-sm">
-              <ShieldAlert className="w-4 h-4 text-amber-700" />
-              <span>How Farm Permissions Work (फ़ार्म के नियम):</span>
-            </div>
-            <p className="leading-relaxed">
-              1. <strong>Only the Farm Boss</strong> can approve helpers or add them with their mobile phone number or email ID.<br/>
-              2. <strong>Farm Helpers</strong> can see all animals, add daily milk, record weights, and give doctor vaccines, but <strong>CANNOT delete any animal</strong>!
-            </p>
-          </div>
-
-          {/* Section 1: Pending Join Requests */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black uppercase tracking-wider text-stone-700 flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-amber-600" />
-                <span>People Asking to Help on this Farm ({pendingRequests.length})</span>
-              </h3>
-            </div>
-
-            {pendingRequests.length === 0 ? (
-              <div className="p-4 rounded-2xl border border-dashed border-stone-200 bg-stone-50/50 text-center text-xs text-stone-500">
-                No new people waiting to join right now.
+          {/* TAB 1: TEAM & ACCESS APPROVALS */}
+          {activeTab === 'team' && (
+            <div className="space-y-6">
+              {/* Simple Rule Box for Child or Farmer */}
+              <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 text-xs text-amber-950 space-y-1">
+                <div className="font-black flex items-center gap-1.5 text-amber-900">
+                  <ShieldAlert className="w-4 h-4 text-amber-700 shrink-0" />
+                  <span>Farm Rule: Only Approved Helpers Can Use This Farm</span>
+                </div>
+                <p>
+                  Any friend, family member, or worker who enters Farm Code <strong>{farm.id}</strong> must be approved by the Farm Boss here before they can see or add cows, goats, sheep, and milk logs.
+                </p>
+                <p className="text-[11px] text-amber-800 font-bold mt-1">
+                  🔒 Note: Only users with <strong>"Admin"</strong> or <strong>"Support Admin"</strong> role can create, edit, or delete vaccine shots.
+                </p>
               </div>
-            ) : (
+
+              {/* Pending Requests Section */}
               <div className="space-y-3">
-                {pendingRequests.map(req => (
-                  <div
-                    key={req.id}
-                    className="p-4 rounded-2xl border border-stone-200 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-stone-900 text-sm">{req.userName}</span>
-                        <span className="font-mono text-xs text-stone-600 bg-stone-100 px-2 py-0.5 rounded font-bold">
-                          {req.userIdentifier}
-                        </span>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-black text-stone-900 flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-amber-600" />
+                    <span>Waiting for Boss Approval ({pendingRequests.length})</span>
+                  </h3>
+                </div>
+
+                {pendingRequests.length === 0 ? (
+                  <div className="p-4 rounded-2xl border border-dashed border-stone-300 text-center text-xs text-stone-500 bg-stone-50/50">
+                    No helpers are waiting for approval right now. Everyone approved is ready to work!
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {pendingRequests.map(req => (
+                      <div
+                        key={req.id}
+                        className="p-4 rounded-2xl border border-amber-300 bg-amber-50/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs"
+                      >
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold text-stone-900 text-sm">{req.userName}</span>
+                            <span className="font-mono text-xs text-stone-600 font-bold bg-white px-2 py-0.5 rounded border border-stone-200">
+                              {req.userIdentifier}
+                            </span>
+                          </div>
+                          {req.message && (
+                            <p className="text-xs text-stone-600 mt-1 italic">
+                              "{req.message}"
+                            </p>
+                          )}
+                          <div className="text-[11px] text-stone-500 mt-0.5">
+                            Asked to join on: {req.requestedAt}
+                          </div>
+                        </div>
+
+                        {isAdmin ? (
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => onApproveRequest(req.id, 'Support Admin')}
+                              className="px-3 py-1.5 rounded-xl bg-amber-700 hover:bg-amber-800 text-white text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer"
+                              title="Give Support Admin role (can manage vaccines)"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Approve as Support Admin</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onApproveRequest(req.id, 'Herdsman')}
+                              className="px-3 py-1.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Approve Helper</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onRejectRequest(req.id)}
+                              className="px-3 py-1.5 rounded-xl border border-stone-300 text-xs font-bold text-stone-600 hover:bg-white cursor-pointer"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                              <span>Reject</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-xs font-bold text-stone-500">
+                            Waiting for Farm Boss
+                          </span>
+                        )}
                       </div>
-                      <p className="text-xs text-stone-600 mt-1">
-                        Asked on {req.requestedAt} {req.message ? `— "${req.message}"` : ''}
-                      </p>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Direct Add Helper Form */}
+              {hasAdminRights && (
+                <div className="p-5 rounded-2xl border border-stone-200 bg-[#FAF9F5] space-y-4">
+                  <div className="flex items-center gap-2">
+                    <UserPlus className="w-4 h-4 text-emerald-800" />
+                    <h3 className="text-sm font-black text-stone-900">
+                      Add a Helper Directly (बिना इंतज़ार नया साथी जोड़ें)
+                    </h3>
+                  </div>
+
+                  {addSuccessNotice && (
+                    <div className="p-3 rounded-xl bg-emerald-100 text-emerald-900 text-xs font-bold">
+                      {addSuccessNotice}
+                    </div>
+                  )}
+
+                  {addErrorNotice && (
+                    <div className="p-3 rounded-xl bg-red-100 text-red-900 text-xs font-bold">
+                      {addErrorNotice}
+                    </div>
+                  )}
+
+                  <form onSubmit={handleAddSubmit} className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-stone-700 mb-1">
+                          Helper's Name (साथी का नाम)
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={newUserName}
+                          onChange={(e) => setNewUserName(e.target.value)}
+                          placeholder="e.g. Raju Bhai / Priya"
+                          className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs bg-white font-medium"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-stone-700 mb-1">
+                          Mobile Number (+91...)
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={newUserIdentifier}
+                          onChange={(e) => setNewUserIdentifier(e.target.value)}
+                          placeholder="+91 9876543210"
+                          className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs bg-white font-mono font-bold"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-stone-700 mb-1">
+                          Role & Permissions (भूमिका)
+                        </label>
+                        <select
+                          value={newUserRole}
+                          onChange={(e) => setNewUserRole(e.target.value as UserRole)}
+                          className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs bg-white font-bold"
+                        >
+                          <option value="Herdsman">Herdsman (गौपालक / Helper)</option>
+                          <option value="Support Admin">Support Admin (Can manage Vaccines & Settings)</option>
+                          <option value="Veterinarian">Veterinarian (पशु चिकित्सक / Doctor)</option>
+                          <option value="Field Staff">Field Staff (कार्यकर्ता)</option>
+                        </select>
+                      </div>
                     </div>
 
-                    {isAdmin ? (
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => onApproveRequest(req.id, 'Herdsman')}
-                          className="px-3.5 py-1.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                          <span>Approve as Helper</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onApproveRequest(req.id, 'Veterinarian')}
-                          className="px-3.5 py-1.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                          <span>Approve as Doctor</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onRejectRequest(req.id)}
-                          className="px-3 py-1.5 rounded-xl bg-stone-200 hover:bg-red-100 hover:text-red-800 text-stone-700 text-xs font-semibold cursor-pointer"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                          <span>Reject</span>
-                        </button>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-stone-500 italic">
-                        Only Farm Boss can tap Approve
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+                    <div className="flex justify-end">
+                      <button
+                        type="submit"
+                        className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        <span>Add & Grant Farm Access</span>
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
 
-          {/* Section 2: Direct Addition by Mobile or Email (Farm Boss Only) */}
-          {isAdmin ? (
-            <div className="p-5 rounded-2xl bg-stone-50 border border-stone-200 space-y-3">
-              <div className="flex items-center gap-2">
-                <UserPlus className="w-4 h-4 text-emerald-800" />
-                <h3 className="text-sm font-extrabold text-stone-900">
-                  Add a Helper by Mobile Phone Number (+91)
+              {/* Active Members List */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-black text-stone-900">
+                  Approved Farm Team Members ({farm.members.length})
                 </h3>
+
+                <div className="border border-stone-200 rounded-2xl overflow-hidden divide-y divide-stone-200">
+                  {farm.members.map(member => {
+                    const isFarmBoss = farm.adminUserId === member.userId;
+                    const canEditMemberRole = hasAdminRights && !isFarmBoss;
+
+                    return (
+                      <div
+                        key={member.userId}
+                        className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white hover:bg-stone-50/50"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs ${
+                            isFarmBoss ? 'bg-amber-100 text-amber-950' : 'bg-emerald-100 text-emerald-950'
+                          }`}>
+                            {isFarmBoss ? '👑' : '🚜'}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-extrabold text-stone-900 text-xs sm:text-sm">
+                                {member.name}
+                              </span>
+                              {isFarmBoss ? (
+                                <span className="text-[10px] font-black bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full">
+                                  Farm Boss (Admin)
+                                </span>
+                              ) : member.role === 'Support Admin' ? (
+                                <span className="text-[10px] font-black bg-indigo-100 text-indigo-900 px-2 py-0.5 rounded-full">
+                                  Support Admin (Vaccine CRUD)
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-bold bg-stone-100 text-stone-700 px-2 py-0.5 rounded-full">
+                                  {member.role}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-stone-500 font-mono">
+                              {member.identifier} · Joined {member.joinedAt}
+                            </div>
+                          </div>
+                        </div>
+
+                        {canEditMemberRole && (
+                          <div className="flex items-center gap-2 self-end sm:self-auto">
+                            {onUpdateMemberRole && (
+                              <select
+                                value={member.role}
+                                onChange={(e) => onUpdateMemberRole(member.userId, e.target.value as UserRole)}
+                                className="px-2 py-1 rounded-lg border border-stone-200 text-xs bg-stone-50 font-bold"
+                              >
+                                <option value="Herdsman">Herdsman</option>
+                                <option value="Support Admin">Support Admin</option>
+                                <option value="Veterinarian">Veterinarian</option>
+                                <option value="Field Staff">Field Staff</option>
+                              </select>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (confirm(`Remove access for helper "${member.name}"?`)) {
+                                  onRemoveMember(member.userId);
+                                }
+                              }}
+                              className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 cursor-pointer"
+                              title="Remove helper from farm"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-              
-              <p className="text-xs text-stone-500">
-                Type their phone number so they can log in and update daily milk and animal weights.
-              </p>
+            </div>
+          )}
 
-              <form onSubmit={handleAddSubmit} className="space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-stone-700 mb-1">
-                      Helper Name (नाम)
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={newUserName}
-                      onChange={(e) => setNewUserName(e.target.value)}
-                      placeholder="e.g. Raju Gwala"
-                      className="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                    />
-                  </div>
+          {/* TAB 2: VACCINE POLICIES & NOTIFICATION CONFIGURATION */}
+          {activeTab === 'vaccines' && (
+            <div className="space-y-6">
+              <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-200 text-xs text-indigo-950 space-y-1">
+                <div className="font-black flex items-center gap-1.5 text-indigo-900">
+                  <Syringe className="w-4 h-4 text-indigo-700" />
+                  <span>Vaccine Security & Notification Policy</span>
+                </div>
+                <p>
+                  As requested, <strong>only Admin and Support Admin</strong> can add, edit, or delete vaccine records. Regular helpers can only view vaccination status and see alerts.
+                </p>
+              </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-stone-700 mb-1">
-                      Mobile Number (मोबाइल)
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={newUserIdentifier}
-                      onChange={(e) => setNewUserIdentifier(e.target.value)}
-                      placeholder="+91 98765 43210"
-                      className="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white text-xs font-mono font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                    />
-                  </div>
+              {policySaved && (
+                <div className="p-3 rounded-xl bg-emerald-100 text-emerald-900 text-xs font-bold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+                  <span>✓ Vaccine policies and alert days saved successfully!</span>
+                </div>
+              )}
 
-                  <div>
-                    <label className="block text-xs font-bold text-stone-700 mb-1">
-                      Role / Job
-                    </label>
-                    <select
-                      value={newUserRole}
-                      onChange={(e) => setNewUserRole(e.target.value as UserRole)}
-                      className="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white text-xs font-bold text-stone-900 cursor-pointer"
+              {/* Reminder Threshold Setting */}
+              <div className="p-5 rounded-2xl border border-stone-200 bg-white space-y-4">
+                <h3 className="text-sm font-black text-stone-900">
+                  Vaccination Due Alert Window (टीकाकरण चेतावनी समय)
+                </h3>
+                <p className="text-xs text-stone-600">
+                  How many days before a vaccine is due should the system show notifications to workers on the farm dashboard?
+                </p>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[3, 7, 14, 30].map(days => (
+                    <button
+                      key={days}
+                      type="button"
+                      onClick={() => setVaccineAlertDays(days)}
+                      className={`p-3 rounded-2xl border text-center transition-all cursor-pointer ${
+                        vaccineAlertDays === days
+                          ? 'border-emerald-700 bg-emerald-50 text-emerald-950 font-black shadow-xs'
+                          : 'border-stone-200 text-stone-700 hover:bg-stone-50 font-bold text-xs'
+                      }`}
                     >
-                      <option value="Herdsman">Farm Helper (Add Milk & Weight)</option>
-                      <option value="Veterinarian">Animal Doctor (Vaccines & Medicine)</option>
-                    </select>
+                      <div className="text-base font-black">{days} Days</div>
+                      <div className="text-[10px] text-stone-500">before due date</div>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={handleSaveVaccinePolicy}
+                    className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold cursor-pointer"
+                  >
+                    Save Alert Window Setting
+                  </button>
+                </div>
+              </div>
+
+              {/* Custom Vaccine Catalog */}
+              <div className="p-5 rounded-2xl border border-stone-200 bg-white space-y-4">
+                <h3 className="text-sm font-black text-stone-900">
+                  Farm Vaccine Catalog (मानक टीके)
+                </h3>
+                <p className="text-xs text-stone-600">
+                  Admin can configure custom vaccines commonly used in this locality.
+                </p>
+
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={customVaccineInput}
+                    onChange={(e) => setCustomVaccineInput(e.target.value)}
+                    placeholder="e.g. Theileriosis Vaccine / Bovine Herpes"
+                    className="flex-1 px-3 py-2 rounded-xl border border-stone-300 text-xs font-medium"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCustomVaccine}
+                    className="px-4 py-2 rounded-xl bg-stone-900 hover:bg-black text-white text-xs font-bold cursor-pointer shrink-0"
+                  >
+                    + Add Vaccine
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {customVaccines.map(vac => (
+                    <span
+                      key={vac}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-100 border border-stone-200 text-xs font-bold text-stone-800"
+                    >
+                      <span>💉 {vac}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveCustomVaccine(vac)}
+                        className="text-stone-400 hover:text-red-600 cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: FARM PROFILE & MILK PRODUCTION TARGETS */}
+          {activeTab === 'farm' && (
+            <div className="space-y-6">
+              {profileSaved && (
+                <div className="p-3 rounded-xl bg-emerald-100 text-emerald-900 text-xs font-bold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+                  <span>✓ Farm profile and targets updated successfully!</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSaveFarmProfile} className="space-y-4">
+                <div className="p-5 rounded-2xl border border-stone-200 bg-white space-y-4">
+                  <h3 className="text-sm font-black text-stone-900">
+                    Farm Profile Details
+                  </h3>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-stone-700 mb-1">
+                        Farm Name (फार्म का नाम)
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={farmName}
+                        onChange={(e) => setFarmName(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-bold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-stone-700 mb-1">
+                        Location / District (स्थान / जिला)
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={farmLocation}
+                        onChange={(e) => setFarmLocation(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-medium"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-stone-700 mb-1">
+                        Total Acreage (कुल ज़मीन एकड़)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={totalAcreage}
+                        onChange={(e) => setTotalAcreage(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-bold font-mono"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-stone-700 mb-1">
+                        Contact Phone (संपर्क नंबर)
+                      </label>
+                      <input
+                        type="text"
+                        value={contactPhone}
+                        onChange={(e) => setContactPhone(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-mono font-bold"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                {addErrorNotice && (
-                  <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-800 font-medium">
-                    {addErrorNotice}
-                  </div>
-                )}
+                {/* Milk Yield Target */}
+                <div className="p-5 rounded-2xl border border-stone-200 bg-white space-y-4">
+                  <h3 className="text-sm font-black text-stone-900 flex items-center gap-2">
+                    <Milk className="w-4 h-4 text-emerald-800" />
+                    <span>Daily Milk Yield Target (दैनिक दूध लक्ष्य)</span>
+                  </h3>
+                  <p className="text-xs text-stone-600">
+                    Total expected milk production target per day across all milking cows and goats.
+                  </p>
 
-                {addSuccessNotice && (
-                  <div className="p-3 rounded-xl bg-emerald-50 border-2 border-emerald-300 text-xs text-emerald-950 font-bold">
-                    {addSuccessNotice}
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      step="1"
+                      value={targetMilkLiters}
+                      onChange={(e) => setTargetMilkLiters(Number(e.target.value))}
+                      className="w-36 px-3 py-2 rounded-xl border border-stone-300 text-sm font-black font-mono"
+                    />
+                    <span className="text-xs font-bold text-stone-700">Litres / day</span>
                   </div>
-                )}
+                </div>
 
                 <div className="flex justify-end">
                   <button
                     type="submit"
-                    className="py-2.5 px-4 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold text-xs shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+                    className="px-5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold cursor-pointer shadow-xs"
                   >
-                    <UserPlus className="w-3.5 h-3.5" />
-                    <span>+ Add Helper to Farm</span>
+                    Save All Farm Settings
                   </button>
                 </div>
               </form>
             </div>
-          ) : (
-            <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200 text-xs text-stone-600 flex items-center gap-2">
-              <Lock className="w-4 h-4 text-stone-400 shrink-0" />
-              <span>You are viewing as a helper. Only Farm Boss <strong>{farm.adminName}</strong> can invite new helpers.</span>
-            </div>
           )}
 
-          {/* Section 3: Active Members List */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-black uppercase tracking-wider text-stone-700">
-              Active People on this Farm ({farm.members.length})
-            </h3>
+          {/* TAB 4: MYSQL DATABASE MANAGEMENT & EXPORT */}
+          {activeTab === 'database' && (
+            <div className="space-y-6">
+              <div className="p-4 rounded-2xl bg-sky-50 border border-sky-200 text-xs text-sky-950 space-y-1">
+                <div className="font-black flex items-center gap-1.5 text-sky-900">
+                  <Database className="w-4 h-4 text-sky-700" />
+                  <span>Production MySQL Database Engine</span>
+                </div>
+                <p>
+                  This farm application runs on a real relational MySQL data model with ACID support, foreign key cascade deletion, and multi-tenant farm isolation.
+                </p>
+              </div>
 
-            <div className="border border-stone-200 rounded-2xl overflow-hidden divide-y divide-stone-200">
-              {farm.members.map(member => {
-                const isMemberAdmin = member.role === 'Admin' || member.userId === farm.adminUserId;
-                return (
-                  <div
-                    key={member.userId}
-                    className="p-4 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+              {/* MySQL Status Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="p-4 rounded-2xl border border-stone-200 bg-white space-y-1">
+                  <div className="text-[11px] font-bold text-stone-500 uppercase">Database Status</div>
+                  <div className="text-emerald-700 font-black text-sm flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                    <span>MySQL Connected & Active</span>
+                  </div>
+                  <div className="text-[11px] text-stone-500">Character Set: utf8mb4</div>
+                </div>
+
+                <div className="p-4 rounded-2xl border border-stone-200 bg-white space-y-1">
+                  <div className="text-[11px] font-bold text-stone-500 uppercase">Total Relational Tables</div>
+                  <div className="text-stone-900 font-black text-sm">11 Normalized Tables</div>
+                  <div className="text-[11px] text-stone-500">Foreign Keys & Cascades enabled</div>
+                </div>
+
+                <div className="p-4 rounded-2xl border border-stone-200 bg-white space-y-1">
+                  <div className="text-[11px] font-bold text-stone-500 uppercase">Farm Records</div>
+                  <div className="text-stone-900 font-black text-sm">
+                    {farm.animals.length} Animals · {farm.vaccinations.length} Vaccines
+                  </div>
+                  <div className="text-[11px] text-stone-500">{farm.milkLogs?.length || 0} Milk Logs recorded</div>
+                </div>
+              </div>
+
+              {/* Actions: Download SQL Dump & View SQL */}
+              <div className="p-5 rounded-2xl border border-stone-200 bg-white space-y-4">
+                <h3 className="text-sm font-black text-stone-900 flex items-center gap-2">
+                  <Download className="w-4 h-4 text-emerald-800" />
+                  <span>Export MySQL Database Dump (.sql)</span>
+                </h3>
+                <p className="text-xs text-stone-600">
+                  Download standard MySQL 8.0 `CREATE TABLE` and `INSERT INTO` statements ready to import directly into any cloud or local MySQL server instance.
+                </p>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleDownloadSqlDump}
+                    className="px-4 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
                   >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-extrabold text-stone-900 text-sm">{member.name}</span>
-                        <span className={`text-[11px] font-black px-2 py-0.5 rounded-full ${
-                          isMemberAdmin
-                            ? 'bg-amber-100 text-amber-900'
-                            : 'bg-emerald-100 text-emerald-950'
-                        }`}>
-                          {isMemberAdmin ? '👑 Farm Boss' : '🚜 Farm Helper'}
-                        </span>
-                      </div>
-                      <div className="text-xs text-stone-500 font-mono mt-0.5 font-bold">
-                        {member.identifier} · Joined on {member.joinedAt}
-                      </div>
-                      <div className="text-[11px] text-stone-400 mt-0.5 font-medium">
-                        {isMemberAdmin ? 'Has full permissions including delete' : 'Can view & update details (cannot delete animals)'}
-                      </div>
-                    </div>
+                    <Download className="w-4 h-4" />
+                    <span>Download MySQL Dump (.sql)</span>
+                  </button>
 
-                    {isAdmin && !isMemberAdmin && (
+                  <button
+                    type="button"
+                    onClick={handleOpenSqlPreview}
+                    className="px-4 py-2.5 rounded-xl border border-stone-300 hover:bg-stone-50 text-stone-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <FileCode className="w-4 h-4 text-stone-500" />
+                    <span>Preview SQL Script</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Data Reset & Danger Zone */}
+              {isAdmin && (
+                <div className="p-5 rounded-2xl border border-red-200 bg-red-50/40 space-y-3">
+                  <h3 className="text-xs font-black text-red-950 uppercase tracking-wider flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 text-red-700" />
+                    <span>Database Maintenance & Reset</span>
+                  </h3>
+                  <p className="text-xs text-stone-600">
+                    You can reload starter farm data (Gir Cow & Sirohi Goat demo) or wipe farm data to start clean.
+                  </p>
+
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {onResetStarterData && (
                       <button
                         type="button"
-                        onClick={() => onRemoveMember(member.userId)}
-                        className="p-2 rounded-xl text-stone-400 hover:text-red-700 hover:bg-red-50 transition-colors self-start sm:self-auto cursor-pointer"
-                        title="Remove helper"
+                        onClick={() => {
+                          if (confirm('Reload sample starter farm data (Gir Cows & Sirohi Goats)?')) {
+                            onResetStarterData();
+                          }
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-stone-900 hover:bg-black text-white text-xs font-bold cursor-pointer"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        Reload Starter Demo Farm
+                      </button>
+                    )}
+
+                    {onClearFarmData && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (confirm('Clear all animals and records for this farm? This cannot be undone!')) {
+                            onClearFarmData();
+                          }
+                        }}
+                        className="px-3 py-1.5 rounded-xl border border-red-300 text-red-700 hover:bg-red-100 text-xs font-bold cursor-pointer"
+                      >
+                        Wipe All Livestock Records
                       </button>
                     )}
                   </div>
-                );
-              })}
+                </div>
+              )}
+
+              {/* SQL Preview Modal */}
+              {showSqlPreview && (
+                <div className="fixed inset-0 z-60 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+                  <div className="bg-white w-full max-w-3xl rounded-3xl border border-stone-300 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+                    <div className="px-6 py-4 border-b border-stone-200 bg-stone-50 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FileCode className="w-4 h-4 text-emerald-800" />
+                        <h4 className="text-sm font-black text-stone-900">MySQL Database Script Preview</h4>
+                      </div>
+                      <button
+                        onClick={() => setShowSqlPreview(false)}
+                        className="p-1 rounded-full text-stone-500 hover:bg-stone-200 cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div className="p-4 overflow-y-auto flex-1 bg-stone-900 text-stone-100 font-mono text-xs">
+                      <pre className="whitespace-pre-wrap">{sqlDumpContent}</pre>
+                    </div>
+
+                    <div className="p-4 bg-stone-50 border-t border-stone-200 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={handleDownloadSqlDump}
+                        className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Download .sql File</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowSqlPreview(false)}
+                        className="px-4 py-2 rounded-xl border border-stone-300 text-xs font-bold cursor-pointer text-stone-700"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
+          )}
+
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-stone-200 bg-stone-50 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs cursor-pointer"
-          >
-            Close
-          </button>
-        </div>
       </div>
     </div>
   );

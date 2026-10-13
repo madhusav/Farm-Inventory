@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { User } from '../types';
 import { DEFAULT_USERS } from '../data/initialData';
+import { useLanguage } from '../i18n/LanguageContext';
+import { SUPPORTED_LANGUAGES } from '../i18n/translations';
 import { 
   ShieldCheck, 
   ArrowRight, 
@@ -13,7 +15,8 @@ import {
   Check,
   Heart,
   Baby,
-  Smile
+  Smile,
+  ChevronDown
 } from 'lucide-react';
 
 interface LandingPageProps {
@@ -27,7 +30,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   onLogin,
   onRegister,
 }) => {
+  const { lang, setLang, t } = useLanguage();
   const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [showLangMenu, setShowLangMenu] = useState(false);
   
   // Login fields
   const [loginIdentifier, setLoginIdentifier] = useState('+91 98765 43210');
@@ -127,30 +132,72 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       
       {/* Top Header */}
       <header className="border-b border-stone-200 bg-white sticky top-0 z-30">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <span className="text-3xl">🐄</span>
             <div>
               <span className="text-xl font-extrabold tracking-tight text-emerald-900">
-                FarmTrack India
+                {t('appTitle', 'FarmTrack India')}
               </span>
               <span className="text-[11px] block text-stone-500 font-semibold">
-                Easy Farm Animals Diary
+                {t('appSubtitle', 'Easy Farm Animals Diary')}
               </span>
             </div>
           </div>
 
-          <button
-            onClick={() => {
-              setMode(mode === 'login' ? 'register' : 'login');
-              setIsOtpSent(false);
-              setLoginError('');
-              setOtpError('');
-            }}
-            className="text-xs sm:text-sm font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-3.5 py-1.5 rounded-xl border border-emerald-300 transition-colors cursor-pointer"
-          >
-            {mode === 'login' ? 'New Farmer? Register' : 'Already Registered? Sign In'}
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Language Dropdown */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowLangMenu(!showLangMenu)}
+                className="px-2.5 py-1.5 rounded-xl border border-stone-300 bg-stone-50 hover:bg-stone-100 text-xs font-bold flex items-center gap-1.5 cursor-pointer text-stone-800"
+              >
+                <span>{SUPPORTED_LANGUAGES.find(l => l.code === lang)?.flag}</span>
+                <span>{SUPPORTED_LANGUAGES.find(l => l.code === lang)?.nativeName}</span>
+                <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
+              </button>
+
+              {showLangMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowLangMenu(false)} />
+                  <div className="absolute right-0 mt-1.5 w-44 bg-white rounded-2xl shadow-xl border border-stone-200 py-1.5 z-50">
+                    {SUPPORTED_LANGUAGES.map(item => (
+                      <button
+                        type="button"
+                        key={item.code}
+                        onClick={() => {
+                          setLang(item.code);
+                          setShowLangMenu(false);
+                        }}
+                        className={`w-full px-3 py-1.5 text-left text-xs flex items-center justify-between cursor-pointer ${
+                          lang === item.code ? 'bg-emerald-50 text-emerald-900 font-black' : 'text-stone-700 hover:bg-stone-50 font-medium'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span>{item.flag}</span>
+                          <span>{item.nativeName}</span>
+                        </div>
+                        {lang === item.code && <Check className="w-3.5 h-3.5 text-emerald-700" />}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <button
+              onClick={() => {
+                setMode(mode === 'login' ? 'register' : 'login');
+                setIsOtpSent(false);
+                setLoginError('');
+                setOtpError('');
+              }}
+              className="text-xs sm:text-sm font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-3.5 py-1.5 rounded-xl border border-emerald-300 transition-colors cursor-pointer"
+            >
+              {mode === 'login' ? 'New Farmer? Register' : 'Already Registered? Sign In'}
+            </button>
+          </div>
         </div>
       </header>
 

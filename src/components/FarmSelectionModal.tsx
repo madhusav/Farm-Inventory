@@ -432,9 +432,9 @@ export const FarmSelectionModal: React.FC<FarmSelectionModalProps> = ({
                     Which animals live on this farm?
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    {(['Cow', 'Goat', 'Sheep', 'Chicken'] as Species[]).map(s => {
+                    {(['Cow', 'Goat', 'Sheep', 'Chicken', 'Buffalo'] as Species[]).map(s => {
                       const isSelected = newSpecies.includes(s);
-                      const icon = s === 'Cow' ? '🐄 Cow (गाय)' : s === 'Goat' ? '🐐 Goat (बकरी)' : s === 'Sheep' ? '🐑 Sheep (भेड़)' : '🐔 Chicken (मुर्गी)';
+                      const icon = s === 'Cow' ? '🐄 Cow (गाय)' : s === 'Goat' ? '🐐 Goat (बकरी)' : s === 'Sheep' ? '🐑 Sheep (भेड़)' : s === 'Chicken' ? '🐔 Chicken (मुर्गी)' : '🐃 Buffalo (भैंस)';
                       return (
                         <button
                           key={s}

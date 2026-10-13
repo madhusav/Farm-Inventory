@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Animal, Farm, User, GrowthMetric, VaccinationRecord, HealthRecord } from '../types';
+import { Animal, Farm, User, GrowthMetric, VaccinationRecord, HealthRecord, isVaccineManager } from '../types';
 import { calculateAge } from './LivestockList';
 import { 
   X, 
@@ -29,6 +29,7 @@ interface AnimalDetailModalProps {
   onAddHealthRecord: (record: Omit<HealthRecord, 'id'>) => void;
   onDeleteAnimal: (animalId: string) => void;
   onUpdateAnimalPhoto: (animalId: string, newPhoto: string) => void;
+  onOpenMilkModal?: (animal: Animal) => void;
 }
 
 export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
@@ -43,8 +44,11 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
   onAddHealthRecord,
   onDeleteAnimal,
   onUpdateAnimalPhoto,
+  onOpenMilkModal,
 }) => {
   const isAdmin = farm.adminUserId === currentUser.id;
+  const currentMember = farm.members.find(m => m.userId === currentUser.id);
+  const canManageVaccine = isVaccineManager(currentMember?.role, isAdmin);
   const [activeTab, setActiveTab] = useState<'lineage' | 'growth' | 'health'>('lineage');
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -272,6 +276,35 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
                     <span className="text-sm font-bold text-stone-900">
                       {calculateAge(animal.dateOfBirth)} ({animal.dateOfBirth})
                     </span>
+                  </div>
+                </div>
+
+                {/* Health & Milk Status Badges in Modal */}
+                <div className="grid grid-cols-2 gap-2.5 p-3 rounded-2xl bg-white border border-amber-200">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">🩺</span>
+                    <div>
+                      <span className="text-[10px] font-black uppercase text-stone-400 block">Health Status</span>
+                      <span className="text-xs font-black text-stone-900">{animal.healthStatus || 'Healthy & Fit'}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">🥛</span>
+                      <div>
+                        <span className="text-[10px] font-black uppercase text-stone-400 block">Milk / Production</span>
+                        <span className="text-xs font-black text-stone-900">{animal.milkStatus || (animal.species === 'Chicken' ? 'Laying Eggs' : 'Giving Milk')}</span>
+                      </div>
+                    </div>
+                    {onOpenMilkModal && (animal.species === 'Cow' || animal.species === 'Goat' || animal.species === 'Buffalo') && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenMilkModal(animal)}
+                        className="px-2.5 py-1 rounded-xl bg-sky-700 hover:bg-sky-800 text-white text-[11px] font-black shadow-2xs transition-colors cursor-pointer shrink-0"
+                      >
+                        + Log Milk
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -638,14 +671,21 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
                     <span>Vaccine Injections & Protection Shots</span>
                   </h3>
                   
-                  <button
-                    type="button"
-                    onClick={() => setShowVacForm(!showVacForm)}
-                    className="px-3 py-1.5 rounded-xl border border-stone-300 hover:bg-stone-50 text-stone-800 text-xs font-bold flex items-center gap-1 cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Schedule Next Shot</span>
-                  </button>
+                  {canManageVaccine ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowVacForm(!showVacForm)}
+                      className="px-3 py-1.5 rounded-xl border border-stone-300 hover:bg-stone-50 text-stone-800 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Schedule Next Shot</span>
+                    </button>
+                  ) : (
+                    <span className="text-[11px] font-bold text-stone-500 bg-stone-100 px-2.5 py-1 rounded-lg flex items-center gap-1">
+                      <Lock className="w-3 h-3 text-stone-400" />
+                      <span>Admin/Support only</span>
+                    </span>
+                  )}
                 </div>
 
                 {showVacForm && (

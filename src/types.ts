@@ -1,6 +1,64 @@
-export type Species = 'Cow' | 'Goat' | 'Sheep' | 'Chicken';
+export type Species = 'Cow' | 'Goat' | 'Sheep' | 'Chicken' | 'Buffalo' | string;
 
-export type UserRole = 'Admin' | 'Herdsman' | 'Veterinarian' | 'Field Staff';
+export type AnimalHealthStatus = 
+  | 'Healthy & Fit' 
+  | 'Needs Medicine' 
+  | 'Vaccine Due' 
+  | 'Pregnant Care' 
+  | 'Under Observation';
+
+export type AnimalMilkStatus = 
+  | 'Giving Milk' 
+  | 'Dry Period' 
+  | 'Laying Eggs' 
+  | 'Rest Period' 
+  | 'Not Milking (Male/Kid)';
+
+export type MilkingSession = 'Morning' | 'Evening' | 'Afternoon';
+
+export interface MilkYieldLog {
+  id: string;
+  animalId: string;
+  cowTag: string;
+  cowName: string;
+  date: string;
+  session: MilkingSession;
+  liters: number;
+  fatPercentage?: number;
+  recordedBy: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export type UserRole = 'Admin' | 'Support Admin' | 'Herdsman' | 'Veterinarian' | 'Field Staff';
+
+export function isVaccineManager(role?: UserRole | null, isAdmin?: boolean): boolean {
+  if (isAdmin) return true;
+  return role === 'Admin' || role === 'Support Admin';
+}
+
+export interface FarmConfig {
+  vaccineAlertDaysThreshold: number; // e.g. 7 days before due date
+  targetDailyMilkLiters: number;
+  defaultMilkUnit: 'Litres' | 'Gallons';
+  contactPhone?: string;
+  customVaccines?: string[];
+}
+
+export interface VaccineAlert {
+  id: string;
+  animalId: string;
+  animalName: string;
+  animalTag: string;
+  species: string;
+  photoUrl?: string;
+  vaccineId: string;
+  vaccineName: string;
+  diseaseTarget: string;
+  dueDate: string;
+  daysLeft: number;
+  status: 'Overdue' | 'Due Soon' | 'Today';
+}
 
 export interface User {
   id: string;
@@ -108,6 +166,10 @@ export interface Animal {
   targetMatureWeightKg: number;
   productivityLabel: string;
   currentProductivityValue: string;
+  healthStatus?: AnimalHealthStatus;
+  milkStatus?: AnimalMilkStatus;
+  dailyMilkLitres?: number;
+  milkLogs?: MilkYieldLog[];
   growthHistory: GrowthMetric[];
   createdAt: string;
   createdBy: string;
@@ -127,5 +189,7 @@ export interface Farm {
   animals: Animal[];
   vaccinations: VaccinationRecord[];
   healthRecords: HealthRecord[];
+  milkLogs?: MilkYieldLog[];
+  config?: FarmConfig;
   createdAt: string;
 }
