@@ -30,11 +30,11 @@ export interface MilkYieldLog {
   createdAt: string;
 }
 
-export type UserRole = 'Admin' | 'Support Admin' | 'Herdsman' | 'Veterinarian' | 'Field Staff';
+export type UserRole = 'Super Admin' | 'Admin' | 'Support Admin' | 'Herdsman' | 'Veterinarian' | 'Field Staff';
 
 export function isVaccineManager(role?: UserRole | null, isAdmin?: boolean): boolean {
   if (isAdmin) return true;
-  return role === 'Admin' || role === 'Support Admin';
+  return role === 'Super Admin' || role === 'Admin' || role === 'Support Admin';
 }
 
 export interface FarmConfig {
@@ -68,6 +68,7 @@ export interface User {
   phone?: string;
   email?: string;
   avatar?: string;
+  isSuperAdmin?: boolean;
   createdAt: string;
 }
 
@@ -175,6 +176,38 @@ export interface Animal {
   createdBy: string;
 }
 
+export type TransactionType = 'income' | 'expense';
+
+export type ExpenseCategory = 
+  | 'Feed & Fodder' 
+  | 'Medicine & Doctor' 
+  | 'Vaccination' 
+  | 'Worker Wages' 
+  | 'Equipment & Shed' 
+  | 'Transport & Fuel' 
+  | 'Other Expense';
+
+export type IncomeCategory = 
+  | 'Milk Sales' 
+  | 'Animal Sale' 
+  | 'Dung & Manure' 
+  | 'Eggs & Wool' 
+  | 'Government Aid' 
+  | 'Other Income';
+
+export interface FinancialRecord {
+  id: string;
+  farmId: string;
+  date: string;
+  type: TransactionType;
+  category: ExpenseCategory | IncomeCategory | string;
+  amount: number;
+  title: string;
+  notes?: string;
+  recordedBy: string;
+  createdAt: string;
+}
+
 export interface Farm {
   id: string; // unique farm ID (e.g. FARM-7821)
   name: string;
@@ -190,6 +223,7 @@ export interface Farm {
   vaccinations: VaccinationRecord[];
   healthRecords: HealthRecord[];
   milkLogs?: MilkYieldLog[];
+  financialRecords?: FinancialRecord[];
   config?: FarmConfig;
   createdAt: string;
 }

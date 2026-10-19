@@ -1,6 +1,6 @@
 {
-  "name": "FarmTrack India — Easy Farm Animals Diary",
-  "description": "Simple farm app for Indian farmers. Track cows, goats, sheep and chickens with photos, birth dates, family tree, vaccines, weight, and daily milk.",
+  "name": "Sheep & Goat Tracker — Phase 1 Flock Diary",
+  "description": "Specialized sheep and goat flock tracker (Phase 1). Monitor ear tags, Sirohi/Deccani breeds, breeding pedigree, ovine/caprine vaccines (PPR, ET, Pox), and weight records, with architecture ready for other livestock in future phases.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

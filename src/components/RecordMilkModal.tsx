@@ -30,20 +30,22 @@ export const RecordMilkModal: React.FC<RecordMilkModalProps> = ({
   onClose,
   onSaveMilkLog,
 }) => {
-  const { t } = useLanguage();
+  const { lang, t } = useLanguage();
 
-  // Find all cows or milking animals in the farm
+  // Find all milking does (goats) or dairy animals in the farm
   const eligibleAnimals = farm.animals.filter(
-    a => a.sex === 'Female' && (a.species === 'Cow' || a.species === 'Goat' || a.species === 'Buffalo')
+    a => a.sex === 'Female' && (a.species === 'Goat' || a.species === 'Cow' || a.species === 'Buffalo')
   );
 
   const [selectedAnimalId, setSelectedAnimalId] = useState<string>(() => {
-    if (preSelectedAnimal) return preSelectedAnimal.id;
+    if (preSelectedAnimal && (preSelectedAnimal.species === 'Goat' || preSelectedAnimal.species === 'Cow' || preSelectedAnimal.species === 'Buffalo')) {
+      return preSelectedAnimal.id;
+    }
     if (eligibleAnimals.length > 0) return eligibleAnimals[0].id;
-    return farm.animals[0]?.id || '';
+    return '';
   });
 
-  const selectedAnimal = farm.animals.find(a => a.id === selectedAnimalId) || eligibleAnimals[0] || farm.animals[0];
+  const selectedAnimal = eligibleAnimals.find(a => a.id === selectedAnimalId) || eligibleAnimals[0];
 
   // Default time based on current hour
   const currentHour = new Date().getHours();
@@ -55,7 +57,7 @@ export const RecordMilkModal: React.FC<RecordMilkModalProps> = ({
       // Half of daily yield for session
       return Math.round((selectedAnimal.dailyMilkLitres / 2) * 10) / 10;
     }
-    return selectedAnimal?.species === 'Goat' ? 1.5 : 8.0;
+    return selectedAnimal?.species === 'Goat' ? 1.5 : selectedAnimal?.species === 'Buffalo' ? 6.0 : 8.0;
   });
 
   const [date, setDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
@@ -102,35 +104,57 @@ export const RecordMilkModal: React.FC<RecordMilkModalProps> = ({
       <div className="bg-white rounded-3xl max-w-xl w-full max-h-[92vh] overflow-y-auto shadow-2xl border border-stone-200 flex flex-col">
         
         {/* Header */}
-        <div className="p-5 sm:p-6 border-b border-stone-200 flex items-center justify-between bg-gradient-to-r from-sky-800 to-emerald-800 text-white rounded-t-3xl sticky top-0 z-10">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">🥛</span>
+        <div className="p-4 sm:p-5 border-b border-stone-200 flex items-center justify-between bg-gradient-to-r from-sky-800 to-emerald-800 text-white rounded-t-3xl sticky top-0 z-10">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <span className="text-2xl sm:text-3xl">🥛</span>
             <div>
-              <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2">
-                <span>Record Daily Milk Log</span>
+              <h2 className="text-lg sm:text-xl font-black tracking-tight text-white flex items-center gap-2">
+                <span>{lang === 'hi' ? 'दूध डायरी दर्ज करें' : 'Record Daily Milk Log'}</span>
               </h2>
               <p className="text-xs text-sky-100 font-medium mt-0.5">
-                Write morning or evening milk yield in liters for your cows
+                {lang === 'hi' ? 'दुधारू बकरी (Doe) या गाय का सुबह/शाम का दूध दर्ज करें' : 'Write morning or evening milk yield in liters for your milking does or cattle'}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-full hover:bg-white/20 text-white transition-colors cursor-pointer"
+            className="p-1.5 sm:p-2 rounded-full hover:bg-white/20 text-white transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Form Body */}
+        {/* Form Body or Empty State */}
+        {eligibleAnimals.length === 0 ? (
+          <div className="p-6 sm:p-8 text-center space-y-3.5">
+            <div className="text-4xl">🥛</div>
+            <h3 className="text-base font-black text-stone-900">
+              {lang === 'hi' ? 'कोई दुधारू मादा पशु नहीं मिला' : 'No Milking Females Found'}
+            </h3>
+            <p className="text-xs text-stone-600 max-w-sm mx-auto">
+              {lang === 'hi' 
+                ? 'दूध रिकॉर्डिंग दुधारू बकरियों (Does) और गायों के लिए उपलब्ध है। दूध दर्ज करने के लिए फार्म में मादा बकरी जोड़ें।'
+                : 'Milk recording is available for milking does (female goats) and dairy cattle. Add a female goat to record daily milk.'}
+            </p>
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-5 py-2.5 rounded-xl bg-stone-200 text-stone-800 text-xs font-bold hover:bg-stone-300 cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        ) : (
         <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-5">
           
           {/* Cow Selector */}
           <div className="space-y-2">
             <label className="text-xs font-black text-stone-800 uppercase tracking-wider flex items-center justify-between">
-              <span>1. Choose Cow (गाय चुनें)</span>
+              <span>{lang === 'hi' ? '1. गाय / भैंस चुनें' : '1. Choose Cow or Buffalo'}</span>
               <span className="text-[11px] font-bold text-stone-500">
-                {eligibleAnimals.length} Milking Animals
+                {eligibleAnimals.length} {lang === 'hi' ? 'दुधारू पशु' : 'Milking Animals'}
               </span>
             </label>
 
@@ -234,7 +258,7 @@ export const RecordMilkModal: React.FC<RecordMilkModalProps> = ({
           {/* Milking Session: Morning vs Evening */}
           <div className="space-y-2">
             <label className="text-xs font-black text-stone-800 uppercase tracking-wider block">
-              2. Milking Time (दोहन का समय - सुबह या शाम?)
+              {lang === 'hi' ? '2. दोहन का समय (सुबह या शाम?) : ' : '2. Milking Time'}
             </label>
             <div className="grid grid-cols-2 gap-3">
               <button
@@ -248,7 +272,7 @@ export const RecordMilkModal: React.FC<RecordMilkModalProps> = ({
               >
                 <Sun className={`w-5 h-5 ${session === 'Morning' ? 'text-amber-600' : 'text-stone-400'}`} />
                 <div className="text-left">
-                  <div className="text-sm font-black leading-tight">Morning (सुबह)</div>
+                  <div className="text-sm font-black leading-tight">{lang === 'hi' ? 'सुबह' : 'Morning'}</div>
                   <div className="text-[10px] font-medium text-stone-500">6:00 AM – 9:00 AM</div>
                 </div>
               </button>
@@ -264,7 +288,7 @@ export const RecordMilkModal: React.FC<RecordMilkModalProps> = ({
               >
                 <Moon className={`w-5 h-5 ${session === 'Evening' ? 'text-indigo-600' : 'text-stone-400'}`} />
                 <div className="text-left">
-                  <div className="text-sm font-black leading-tight">Evening (शाम)</div>
+                  <div className="text-sm font-black leading-tight">{lang === 'hi' ? 'शाम' : 'Evening'}</div>
                   <div className="text-[10px] font-medium text-stone-500">5:00 PM – 8:00 PM</div>
                 </div>
               </button>
@@ -276,7 +300,7 @@ export const RecordMilkModal: React.FC<RecordMilkModalProps> = ({
             <div className="flex items-center justify-between">
               <label className="text-xs font-black text-sky-950 uppercase tracking-wider flex items-center gap-1.5">
                 <MilkIcon className="w-4 h-4 text-sky-700" />
-                <span>3. Milk Amount (कितना लीटर दूध?)</span>
+                <span>{lang === 'hi' ? '3. दूध की मात्रा (लीटर)' : '3. Milk Amount (Liters)'}</span>
               </label>
               <span className="text-xs font-bold text-sky-900 font-mono">
                 Session: {session}
@@ -361,7 +385,7 @@ export const RecordMilkModal: React.FC<RecordMilkModalProps> = ({
             <div className="space-y-1">
               <label className="text-xs font-bold text-stone-700 flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5 text-stone-400" />
-                <span>Date of Milking (तारीख)</span>
+                <span>{lang === 'hi' ? 'तारीख' : 'Date of Milking'}</span>
               </label>
               <input
                 type="date"
@@ -374,8 +398,8 @@ export const RecordMilkModal: React.FC<RecordMilkModalProps> = ({
             {/* Fat % (Dairy standard) */}
             <div className="space-y-1">
               <label className="text-xs font-bold text-stone-700 flex items-center justify-between">
-                <span>Fat % (फैट प्रतिशत)</span>
-                <span className="text-[10px] text-stone-400 font-normal">Optional</span>
+                <span>{lang === 'hi' ? 'फैट %' : 'Fat %'}</span>
+                <span className="text-[10px] text-stone-400 font-normal">{lang === 'hi' ? 'वैकल्पिक' : 'Optional'}</span>
               </label>
               <div className="flex items-center gap-1.5">
                 <input
@@ -396,14 +420,14 @@ export const RecordMilkModal: React.FC<RecordMilkModalProps> = ({
           {/* Optional Short Notes */}
           <div className="space-y-1">
             <label className="text-xs font-bold text-stone-700 flex items-center justify-between">
-              <span>Farmer Note (टिप्पणी)</span>
-              <span className="text-[10px] text-stone-400 font-normal">Optional</span>
+              <span>{lang === 'hi' ? 'टिप्पणी' : 'Note'}</span>
+              <span className="text-[10px] text-stone-400 font-normal">{lang === 'hi' ? 'वैकल्पिक' : 'Optional'}</span>
             </label>
             <input
               type="text"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g. Clean bucket, cow ate sweet green grass, good froth..."
+              placeholder="e.g. Clean bucket, good froth..."
               className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
             />
           </div>
@@ -443,10 +467,11 @@ export const RecordMilkModal: React.FC<RecordMilkModalProps> = ({
               className="px-6 py-3 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-black shadow-md transition-colors flex items-center gap-2 cursor-pointer"
             >
               <Check className="w-4 h-4" />
-              <span>Save Milk Record (दूध दर्ज करें)</span>
+              <span>{lang === 'hi' ? 'दूध दर्ज करें' : 'Save Milk Record'}</span>
             </button>
           </div>
         </form>
+        )}
       </div>
     </div>
   );

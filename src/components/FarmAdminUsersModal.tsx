@@ -54,10 +54,11 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
   onClearFarmData,
 }) => {
   const { t } = useLanguage();
+  const isSuperAdmin = currentUser.isSuperAdmin || currentUser.identifier.toLowerCase() === 'admin@farmtrack.io';
   const isAdmin = farm.adminUserId === currentUser.id;
   const currentMember = farm.members.find(m => m.userId === currentUser.id);
   const isSupportAdmin = currentMember?.role === 'Support Admin';
-  const hasAdminRights = isAdmin || isSupportAdmin;
+  const hasAdminRights = isAdmin || isSupportAdmin || isSuperAdmin;
 
   const [activeTab, setActiveTab] = useState<'team' | 'vaccines' | 'farm' | 'database'>('team');
 
@@ -184,20 +185,25 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
     <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
       <div className="bg-white w-full max-w-4xl rounded-3xl border border-stone-200 shadow-2xl overflow-hidden flex flex-col my-auto max-h-[92vh]">
         
-        {/* Header */}
-        <div className="px-6 sm:px-8 py-5 border-b border-stone-200 bg-[#FFFDF9] flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">⚙️</span>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-black text-stone-900">
-                  Farm Admin & Configuration Tool
+        {/* Header - Responsive Mobile First */}
+        <div className="px-4 sm:px-8 py-3.5 sm:py-5 border-b border-stone-200 bg-[#FFFDF9] flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <span className="text-2xl sm:text-3xl shrink-0">⚙️</span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base sm:text-lg font-black text-stone-900 truncate">
+                  Farm Admin & Configuration
                 </h2>
                 <span className="font-mono text-xs font-black text-stone-800 bg-stone-100 px-2 py-0.5 rounded">
                   {farm.id}
                 </span>
+                {isSuperAdmin && (
+                  <span className="text-[10px] font-black text-purple-900 bg-purple-100 px-2 py-0.5 rounded-full">
+                    Super Admin
+                  </span>
+                )}
               </div>
-              <p className="text-xs text-stone-500 font-medium">
+              <p className="text-xs text-stone-500 font-medium truncate">
                 {farm.name} · Boss: <strong>{farm.adminName}</strong>
               </p>
             </div>
@@ -205,14 +211,14 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
 
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-stone-200/80 hover:bg-stone-300 flex items-center justify-center text-stone-600 cursor-pointer"
+            className="w-8 h-8 rounded-full bg-stone-200/80 hover:bg-stone-300 flex items-center justify-center text-stone-600 cursor-pointer shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Tab Bar */}
-        <div className="px-6 bg-stone-50 border-b border-stone-200 flex items-center gap-2 overflow-x-auto">
+        {/* Tab Bar - Clean horizontal scroll on mobile */}
+        <div className="px-3 sm:px-6 bg-stone-50 border-b border-stone-200 flex items-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar">
           {[
             { id: 'team', label: '👥 Team & Approvals', badge: pendingRequests.length },
             { id: 'vaccines', label: '💉 Vaccine Policies & Alerts' },

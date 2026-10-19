@@ -7,13 +7,14 @@ import {
   CHICKEN_ILLUSTRATION 
 } from '../data/initialData';
 import { useLanguage } from '../i18n/LanguageContext';
-import { X, Sparkles, Check, ChevronRight } from 'lucide-react';
+import { X, Check, Tag } from 'lucide-react';
 
 interface BulkAddAnimalModalProps {
   farm: Farm;
   currentUser: User;
   onClose: () => void;
   onBulkAdd: (animals: Animal[]) => void;
+  initialSpecies?: Species;
 }
 
 const SPECIES_ILLUSTRATIONS: Record<string, string> = {
@@ -25,71 +26,107 @@ const SPECIES_ILLUSTRATIONS: Record<string, string> = {
 };
 
 const BREED_SUGGESTIONS: Record<string, string[]> = {
-  Goat: ['Sirohi Brown Goat', 'Jamnapari Goat', 'Barbari White Goat', 'Black Bengal Goat', 'Osmanabadi Goat', 'Boer Goat'],
-  Sheep: ['Deccani Wool Sheep', 'Nellore Meat Sheep', 'Bellary Sheep', 'Mandya Sheep', 'Merino Sheep'],
-  Cow: ['Gir Cow (Desi)', 'Sahiwal Dairy Cow', 'Red Sindhi Cow', 'Tharparkar Cow', 'Kankrej Cow', 'Jersey Cross'],
-  Chicken: ['Aseel Desi Hen', 'Kadaknath Black Chicken', 'BV380 Egg Layer', 'Gramapriya Country Hen', 'Rainbow Rooster'],
-  Buffalo: ['Murrah Dairy Buffalo', 'Mehsana Buffalo', 'Jaffarabadi Buffalo', 'Surti Buffalo'],
+  Goat: ['Sirohi Brown Goat', 'Jamnapari Goat', 'Barbari White Goat', 'Black Bengal Goat', 'Osmanabadi Goat', 'Boer Meat Goat', 'Beetal Goat', 'Sojat Goat'],
+  Sheep: ['Deccani Wool Sheep', 'Nellore Meat Sheep', 'Bellary Sheep', 'Mandya Sheep', 'Merino Sheep', 'Nali Carpet Sheep', 'Marwari Sheep'],
 };
+
+function getSuggestedTagPrefix(sp: Species): string {
+  if (sp === 'Sheep') return 'SHEEP-';
+  return 'GOAT-';
+}
+
+function getSpeciesEmoji(sp: Species): string {
+  if (sp === 'Sheep') return '🐑';
+  return '🐐';
+}
 
 export const BulkAddAnimalModal: React.FC<BulkAddAnimalModalProps> = ({
   farm,
   currentUser,
   onClose,
   onBulkAdd,
+  initialSpecies,
 }) => {
-  const { t } = useLanguage();
+  const { lang, t } = useLanguage();
+  const isHi = lang === 'hi';
 
-  // Species available on this farm
-  const availableSpecies = farm.primarySpecies.length > 0 
-    ? farm.primarySpecies 
-    : ['Cow', 'Goat', 'Sheep', 'Chicken'];
+  const availableSpecies: Species[] = ['Goat', 'Sheep'];
 
-  const [species, setSpecies] = useState<Species>(availableSpecies.includes('Goat') ? 'Goat' : availableSpecies[0]);
+  const startingSpecies: Species = (initialSpecies && (initialSpecies === 'Goat' || initialSpecies === 'Sheep'))
+    ? initialSpecies
+    : 'Goat';
+
+  const [species, setSpecies] = useState<Species>(startingSpecies);
   const [quantity, setQuantity] = useState<number>(10);
   const [genderMode, setGenderMode] = useState<'all_female' | 'all_male' | 'split'>('all_female');
   const [femaleCount, setFemaleCount] = useState<number>(8);
   const [maleCount, setMaleCount] = useState<number>(2);
 
   // Details
-  const [breed, setBreed] = useState<string>('Sirohi Brown Goat');
-  const [tagPrefix, setTagPrefix] = useState<string>('GOAT-');
-  const [startTagNum, setStartTagNum] = useState<number>(101);
-  const [avgWeight, setAvgWeight] = useState<number>(32);
-  const [shedLocation, setShedLocation] = useState<string>('Goat Shed East');
+  const [breed, setBreed] = useState<string>(BREED_SUGGESTIONS[startingSpecies]?.[0] || 'Desi Local');
+  const [tagPrefix, setTagPrefix] = useState<string>(getSuggestedTagPrefix(startingSpecies));
+  const [startTagNum, setStartTagNum] = useState<number>(() => {
+    if (startingSpecies === 'Sheep') return 201;
+    if (startingSpecies === 'Chicken') return 501;
+    return 101;
+  });
+  const [avgWeight, setAvgWeight] = useState<number>(() => {
+    if (startingSpecies === 'Goat') return 32;
+    if (startingSpecies === 'Sheep') return 38;
+    if (startingSpecies === 'Cow') return 350;
+    if (startingSpecies === 'Buffalo') return 450;
+    if (startingSpecies === 'Chicken') return 2.2;
+    return 50;
+  });
+  const [shedLocation, setShedLocation] = useState<string>(() => {
+    if (startingSpecies === 'Goat') return 'Goat Shed East';
+    if (startingSpecies === 'Sheep') return 'Sheep Paddock Field';
+    if (startingSpecies === 'Cow') return 'Cow Shed No. 1';
+    if (startingSpecies === 'Buffalo') return 'Buffalo Shed';
+    if (startingSpecies === 'Chicken') return 'Poultry Coop';
+    return 'Main Yard';
+  });
   const [healthStatus, setHealthStatus] = useState<AnimalHealthStatus>('Healthy & Fit');
   const [milkStatus, setMilkStatus] = useState<AnimalMilkStatus>('Giving Milk');
 
-  // When species changes, update sensible defaults
+  // Species check: milk status ONLY for Cow or Buffalo
+  const isDairySpecies = species === 'Cow' || species === 'Buffalo';
+
   const handleSpeciesChange = (newSpecies: Species) => {
     setSpecies(newSpecies);
     const breeds = BREED_SUGGESTIONS[newSpecies] || ['Local Desi Breed'];
     setBreed(breeds[0]);
+    
+    // Automatically update tag prefix to match selected species
+    const newPrefix = getSuggestedTagPrefix(newSpecies);
+    setTagPrefix(newPrefix);
+
     if (newSpecies === 'Goat') {
-      setTagPrefix('GOAT-');
       setAvgWeight(32);
       setShedLocation('Goat Shed East');
-      setMilkStatus('Giving Milk');
+      setStartTagNum(101);
     } else if (newSpecies === 'Sheep') {
-      setTagPrefix('SHEEP-');
       setAvgWeight(38);
-      setShedLocation('Meadow Pasture Field');
-      setMilkStatus('Dry Period');
+      setShedLocation('Sheep Paddock Field');
+      setStartTagNum(201);
     } else if (newSpecies === 'Cow') {
-      setTagPrefix('COW-');
       setAvgWeight(350);
-      setShedLocation('Shed No. 1');
+      setShedLocation('Cow Shed No. 1');
       setMilkStatus('Giving Milk');
+      setStartTagNum(101);
+    } else if (newSpecies === 'Buffalo') {
+      setAvgWeight(450);
+      setShedLocation('Buffalo Shed');
+      setMilkStatus('Giving Milk');
+      setStartTagNum(101);
     } else if (newSpecies === 'Chicken') {
-      setTagPrefix('HEN-');
       setAvgWeight(2.2);
-      setShedLocation('Backyard Coop');
-      setMilkStatus('Laying Eggs');
+      setShedLocation('Poultry Coop');
+      setStartTagNum(501);
     } else {
-      setTagPrefix(`${newSpecies.toUpperCase().slice(0, 4)}-`);
-      setAvgWeight(400);
+      setAvgWeight(100);
       setShedLocation('Main Yard');
-      setMilkStatus('Giving Milk');
+      setStartTagNum(101);
     }
   };
 
@@ -129,29 +166,36 @@ export const BulkAddAnimalModal: React.FC<BulkAddAnimalModalProps> = ({
     const illustration = SPECIES_ILLUSTRATIONS[species] || COW_ILLUSTRATION;
 
     let targetMatureWeight = avgWeight * 1.25;
-    let prodLabel = 'Daily Milk';
-    let prodVal = '2.5 L/day';
+    let prodLabel = 'Growth & Health';
+    let prodVal = 'Healthy Meat & Breeding';
+
     if (species === 'Cow') {
-      targetMatureWeight = 420;
-      prodLabel = 'Daily Fresh Milk';
+      targetMatureWeight = 450;
+      prodLabel = 'Daily Milk';
       prodVal = '14 Litres / day';
+    } else if (species === 'Buffalo') {
+      targetMatureWeight = 550;
+      prodLabel = 'Daily Milk';
+      prodVal = '10 Litres / day';
     } else if (species === 'Goat') {
       targetMatureWeight = 55;
-      prodLabel = 'Daily Goat Milk';
-      prodVal = '2.0 Litres / day';
+      prodLabel = 'Growth & Breeding';
+      prodVal = 'Active Breeder';
     } else if (species === 'Sheep') {
-      targetMatureWeight = 48;
+      targetMatureWeight = 50;
       prodLabel = 'Yearly Wool';
       prodVal = '3.5 kg wool';
     } else if (species === 'Chicken') {
       targetMatureWeight = 2.5;
-      prodLabel = 'Eggs Per Week';
+      prodLabel = 'Weekly Eggs';
       prodVal = '6 eggs/week';
     }
 
+    const cleanPrefix = tagPrefix.trim().toUpperCase() || `${species.toUpperCase().slice(0, 4)}-`;
+
     for (let i = 0; i < finalQuantity; i++) {
       const tagNum = startTagNum + i;
-      const tagId = `${tagPrefix}${tagNum}`;
+      const tagId = `${cleanPrefix}${tagNum}`;
       
       // Determine gender
       let sex: 'Female' | 'Male' = 'Female';
@@ -166,15 +210,23 @@ export const BulkAddAnimalModal: React.FC<BulkAddAnimalModalProps> = ({
 
       // Status
       let animalStatus: Animal['status'] = 'Active';
-      let animalMilk: AnimalMilkStatus = milkStatus;
-      if (sex === 'Male') {
+      let animalMilk: AnimalMilkStatus | undefined = undefined;
+      let dailyLiters: number | undefined = undefined;
+
+      // Milk status is ONLY for Cow or Buffalo
+      if (isDairySpecies) {
+        if (sex === 'Male') {
+          animalStatus = 'Breeding Sire';
+          animalMilk = 'Not Milking (Male/Kid)';
+        } else {
+          animalStatus = milkStatus === 'Giving Milk' ? 'Lactating' : 'Active';
+          animalMilk = milkStatus;
+          dailyLiters = milkStatus === 'Giving Milk' ? (species === 'Cow' ? 12 : 9) : 0;
+        }
+      } else if (sex === 'Male') {
         animalStatus = 'Breeding Sire';
-        animalMilk = 'Not Milking (Male/Kid)';
       } else if (species === 'Chicken') {
         animalStatus = 'Laying';
-        animalMilk = 'Laying Eggs';
-      } else if (species === 'Cow' || species === 'Goat') {
-        animalStatus = animalMilk === 'Giving Milk' ? 'Lactating' : 'Active';
       }
 
       // Weight variation (+/- 5%)
@@ -188,30 +240,30 @@ export const BulkAddAnimalModal: React.FC<BulkAddAnimalModalProps> = ({
         species,
         breed,
         sex,
-        dateOfBirth: '2024-05-10', // Approx 2 years old
+        dateOfBirth: '2024-05-10',
         photoUrl: illustration,
         paddockLocation: shedLocation,
         status: animalStatus,
         healthStatus,
         milkStatus: animalMilk,
-        dailyMilkLitres: sex === 'Female' && (species === 'Cow' || species === 'Goat') ? (species === 'Cow' ? 14 : 2) : undefined,
+        dailyMilkLitres: dailyLiters,
         sireId: null,
         sireName: 'Foundation Sire',
-        sireTag: `${tagPrefix}SIRE`,
+        sireTag: `${cleanPrefix}SIRE`,
         sireBreed: breed,
         damId: null,
         damName: 'Foundation Dam',
-        damTag: `${tagPrefix}DAM`,
+        damTag: `${cleanPrefix}DAM`,
         damBreed: breed,
         inheritedTraits: [
           {
-            traitName: 'Hardy Local Immunity',
+            traitName: 'Hardy Pasture Immunity',
             inheritedFrom: 'Both',
             scoreOrGrade: 'Strong Grade A',
-            impactDescription: 'Naturally strong against climate changes and pasture ticks.',
+            impactDescription: 'Naturally resilient against weather changes and common farm diseases.',
           },
         ],
-        inbreedingCoefficientPct: 0.2,
+        inbreedingCoefficientPct: 0.1,
         birthWeightKg: Math.round(avgWeight * 0.1 * 10) / 10,
         currentWeightKg: curWeight,
         targetMatureWeightKg: Math.round(targetMatureWeight),
@@ -224,13 +276,12 @@ export const BulkAddAnimalModal: React.FC<BulkAddAnimalModalProps> = ({
             id: `gm-bulk-${Date.now()}-${i}`,
             date: today,
             weightKg: curWeight,
-            heightCm: species === 'Cow' ? 130 : species === 'Goat' ? 65 : 60,
+            heightCm: Math.round(curWeight * 1.5),
             bodyConditionScore: 3.5,
-            averageDailyGainG: 100,
-            dailyYieldValue: sex === 'Female' ? (species === 'Cow' ? 14 : 2) : 0,
-            dailyYieldUnit: species === 'Chicken' ? 'eggs/wk' : 'Litres/day',
+            averageDailyGainG: 200,
+            dailyYieldValue: dailyLiters || 0,
+            dailyYieldUnit: isDairySpecies ? 'Litres' : 'Units',
             recordedBy: currentUser.name,
-            notes: 'Bulk intake recorded into farm inventory.',
           },
         ],
       };
@@ -242,194 +293,187 @@ export const BulkAddAnimalModal: React.FC<BulkAddAnimalModalProps> = ({
     onClose();
   };
 
-  const currentTotal = genderMode === 'split' ? femaleCount + maleCount : quantity;
+  const finalQuantity = genderMode === 'split' ? femaleCount + maleCount : quantity;
+  const cleanPrefix = tagPrefix.trim().toUpperCase() || `${species.toUpperCase().slice(0, 4)}-`;
+  const endTagNum = startTagNum + finalQuantity - 1;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[92vh] overflow-y-auto shadow-2xl border border-stone-200 flex flex-col">
+      <div className="bg-white rounded-3xl max-w-xl w-full max-h-[92vh] overflow-y-auto shadow-2xl border border-stone-200 flex flex-col">
         
         {/* Header */}
-        <div className="p-5 sm:p-6 border-b border-stone-200 flex items-center justify-between bg-gradient-to-r from-emerald-800 to-teal-900 text-white rounded-t-3xl sticky top-0 z-10">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">📦</span>
-            <div>
-              <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
-                {t('bulkTitle', 'Add Animals in Bulk (झुंड जोड़ें)')}
-              </h2>
-              <p className="text-xs text-emerald-100 font-medium mt-0.5">
-                {t('bulkSubtitle', 'Add multiple goats, sheep, cows, or chickens in one click!')}
-              </p>
-            </div>
+        <div className="p-4 sm:p-5 border-b border-stone-200 flex items-center justify-between bg-gradient-to-r from-amber-600 via-amber-500 to-emerald-700 text-stone-950 rounded-t-3xl sticky top-0 z-10">
+          <div>
+            <h2 className="text-lg sm:text-xl font-black text-stone-950 flex items-center gap-2">
+              <span>📦</span>
+              <span>{isHi ? 'एक साथ कई पशु जोड़ें (Bulk Add)' : 'Add Animals in Bulk'}</span>
+            </h2>
+            <p className="text-xs text-stone-900 font-bold mt-0.5">
+              {isHi ? 'बकरी व भेड़ 1 क्लिक में जोड़ें (Phase 1)' : 'Quickly add goats or sheep in bulk (Phase 1 Tracker)'}
+            </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-full hover:bg-white/20 text-white transition-colors cursor-pointer"
+            className="p-2 rounded-full hover:bg-black/10 text-stone-950 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-5 space-y-4 text-stone-900">
           
-          {/* Step 1: Choose Animal Type */}
-          <div className="space-y-2">
-            <label className="text-xs font-black text-stone-800 uppercase tracking-wider flex items-center gap-1.5">
-              <span>1. {t('selectAnimalType', 'Which animals to add?')}</span>
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-              {[
-                { id: 'Goat', label: t('goats', 'Goats (बकरियां)'), icon: '🐐' },
-                { id: 'Sheep', label: t('sheep', 'Sheep (भेड़ें)'), icon: '🐑' },
-                { id: 'Cow', label: t('cows', 'Cows (गायें)'), icon: '🐄' },
-                { id: 'Chicken', label: t('chickens', 'Chickens (मुर्गियां)'), icon: '🐔' },
-              ].map(opt => {
-                const isSelected = species === opt.id;
+          {/* Step 1: Choose Species (Goat & Sheep Phase) */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-black text-stone-800 uppercase tracking-wider block">
+                1. Choose Animal Type
+              </label>
+              <span className="text-[10px] font-bold text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded-full">
+                Phase 1: Goat & Sheep
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {availableSpecies.map(sp => {
+                const isSelected = species === sp;
+                const emoji = getSpeciesEmoji(sp);
                 return (
                   <button
+                    key={sp}
                     type="button"
-                    key={opt.id}
-                    onClick={() => handleSpeciesChange(opt.id as Species)}
-                    className={`p-3 rounded-2xl border-2 text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
+                    onClick={() => handleSpeciesChange(sp)}
+                    className={`p-3.5 rounded-2xl border-2 text-left cursor-pointer transition-all flex flex-col items-center justify-center text-center ${
                       isSelected
-                        ? 'border-emerald-700 bg-emerald-50 text-emerald-950 font-black shadow-xs'
-                        : 'border-stone-200 bg-stone-50 hover:border-stone-300 text-stone-700 font-bold'
+                        ? 'border-emerald-700 bg-emerald-50 text-emerald-950 font-black shadow-xs scale-102'
+                        : 'border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-700 font-bold'
                     }`}
                   >
-                    <span className="text-3xl">{opt.icon}</span>
-                    <span className="text-xs leading-tight">{opt.label}</span>
+                    <span className="text-3xl mb-1">{emoji}</span>
+                    <span className="text-xs font-black">{sp}</span>
+                    <span className="text-[10px] text-stone-500 font-medium mt-0.5">
+                      {sp === 'Goat' ? 'Sirohi, Jamnapari, Boer' : 'Deccani, Nellore, Bellary'}
+                    </span>
                   </button>
                 );
               })}
             </div>
+            <p className="text-[11px] text-stone-500 pt-1 font-medium flex items-center justify-between">
+              <span>Looking for cattle or chickens?</span>
+              <span className="text-amber-800 font-bold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 text-[10px]">
+                Phase 2: Cattle & Poultry Coming Soon
+              </span>
+            </p>
           </div>
 
-          {/* Step 2: How Many Animals? (Quantity) */}
-          <div className="space-y-2.5">
-            <label className="text-xs font-black text-stone-800 uppercase tracking-wider flex items-center justify-between">
-              <span>2. {t('quantity', 'How many animals? (संख्या)')}</span>
-              <span className="text-sm font-black text-emerald-800 font-mono">
-                Total: {currentTotal} {species}s
+          {/* Step 2: Quantity Selection */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-black text-stone-800 uppercase tracking-wider">
+                2. How Many Animals?
+              </label>
+              <span className="text-xs font-mono font-black text-emerald-900 bg-emerald-100 px-2.5 py-0.5 rounded-full">
+                Total: {finalQuantity} {species}s
               </span>
-            </label>
+            </div>
 
-            {/* Quick Preset Buttons */}
-            <div className="flex flex-wrap items-center gap-2">
-              {[5, 10, 20, 25, 50].map(q => (
+            {/* Quick Presets */}
+            <div className="grid grid-cols-4 gap-2">
+              {[5, 10, 20, 50].map(q => (
                 <button
-                  type="button"
                   key={q}
+                  type="button"
                   onClick={() => handleQuantitySelect(q)}
-                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                  className={`py-2 rounded-xl border text-xs font-black cursor-pointer transition-all ${
                     quantity === q && genderMode !== 'split'
-                      ? 'bg-emerald-800 text-white shadow-xs'
-                      : 'bg-stone-100 hover:bg-stone-200 text-stone-800'
+                      ? 'border-amber-500 bg-amber-500 text-stone-950 shadow-xs'
+                      : 'border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100'
                   }`}
                 >
-                  +{q}
+                  +{q} {species}s
                 </button>
               ))}
-              <div className="flex items-center gap-1.5 ml-auto">
-                <span className="text-xs text-stone-500 font-bold">Or write exact number:</span>
-                <input
-                  type="number"
-                  min="1"
-                  max="500"
-                  value={quantity}
-                  onChange={(e) => handleQuantitySelect(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-20 px-2.5 py-1.5 rounded-xl border border-stone-300 font-mono font-black text-center text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                />
-              </div>
             </div>
           </div>
 
-          {/* Step 3: Gender (Boy or Girl?) */}
-          <div className="space-y-2.5 p-4 rounded-2xl bg-[#FFFDF7] border border-amber-200">
-            <label className="text-xs font-black text-stone-800 uppercase tracking-wider flex items-center gap-1.5">
-              <span>3. {t('genderBreakdown', 'Gender (लिंग - नर या मादा?)')}</span>
+          {/* Step 3: Gender Breakdown */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-black text-stone-800 uppercase tracking-wider block">
+              3. Gender Selection
             </label>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => handleGenderModeChange('all_female')}
-                className={`p-2.5 rounded-xl border text-xs font-bold text-center cursor-pointer transition-all ${
+                className={`p-2 rounded-xl border text-xs font-bold text-center cursor-pointer transition-all ${
                   genderMode === 'all_female'
                     ? 'border-emerald-700 bg-emerald-100 text-emerald-950 font-black'
                     : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
                 }`}
               >
-                🌸 {t('allFemale', 'All Females (सभी मादा)')}
+                ♀ All Females
               </button>
-
               <button
                 type="button"
                 onClick={() => handleGenderModeChange('all_male')}
-                className={`p-2.5 rounded-xl border text-xs font-bold text-center cursor-pointer transition-all ${
+                className={`p-2 rounded-xl border text-xs font-bold text-center cursor-pointer transition-all ${
                   genderMode === 'all_male'
                     ? 'border-emerald-700 bg-emerald-100 text-emerald-950 font-black'
                     : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
                 }`}
               >
-                🌿 {t('allMale', 'All Males (सभी नर)')}
+                ♂ All Males
               </button>
-
               <button
                 type="button"
                 onClick={() => handleGenderModeChange('split')}
-                className={`p-2.5 rounded-xl border text-xs font-bold text-center cursor-pointer transition-all ${
+                className={`p-2 rounded-xl border text-xs font-bold text-center cursor-pointer transition-all ${
                   genderMode === 'split'
                     ? 'border-emerald-700 bg-emerald-100 text-emerald-950 font-black'
                     : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
                 }`}
               >
-                ⚖️ {t('splitGender', 'Mixed (Females + Males)')}
+                ⚖️ Mixed
               </button>
             </div>
 
-            {/* If split, show fine-grained steppers */}
             {genderMode === 'split' && (
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <div className="p-3 bg-white rounded-xl border border-stone-200">
-                  <span className="text-[11px] font-bold text-stone-600 block">Females (मादा)</span>
-                  <div className="flex items-center gap-2 mt-1">
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <div className="p-2.5 bg-stone-50 rounded-xl border border-stone-200 flex items-center justify-between">
+                  <span className="text-xs font-bold text-stone-700">Females:</span>
+                  <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => handleSplitChange(Math.max(1, femaleCount - 1), maleCount)}
-                      className="w-8 h-8 rounded-lg bg-stone-100 hover:bg-stone-200 font-bold text-stone-800"
+                      className="w-7 h-7 rounded-lg bg-stone-200 hover:bg-stone-300 font-bold text-stone-800"
                     >
                       -
                     </button>
-                    <span className="flex-1 text-center font-mono font-black text-base text-stone-900">
-                      {femaleCount}
-                    </span>
+                    <span className="font-mono font-black text-sm w-6 text-center">{femaleCount}</span>
                     <button
                       type="button"
                       onClick={() => handleSplitChange(femaleCount + 1, maleCount)}
-                      className="w-8 h-8 rounded-lg bg-stone-100 hover:bg-stone-200 font-bold text-stone-800"
+                      className="w-7 h-7 rounded-lg bg-stone-200 hover:bg-stone-300 font-bold text-stone-800"
                     >
                       +
                     </button>
                   </div>
                 </div>
 
-                <div className="p-3 bg-white rounded-xl border border-stone-200">
-                  <span className="text-[11px] font-bold text-stone-600 block">Males (नर)</span>
-                  <div className="flex items-center gap-2 mt-1">
+                <div className="p-2.5 bg-stone-50 rounded-xl border border-stone-200 flex items-center justify-between">
+                  <span className="text-xs font-bold text-stone-700">Males:</span>
+                  <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => handleSplitChange(femaleCount, Math.max(0, maleCount - 1))}
-                      className="w-8 h-8 rounded-lg bg-stone-100 hover:bg-stone-200 font-bold text-stone-800"
+                      className="w-7 h-7 rounded-lg bg-stone-200 hover:bg-stone-300 font-bold text-stone-800"
                     >
                       -
                     </button>
-                    <span className="flex-1 text-center font-mono font-black text-base text-stone-900">
-                      {maleCount}
-                    </span>
+                    <span className="font-mono font-black text-sm w-6 text-center">{maleCount}</span>
                     <button
                       type="button"
                       onClick={() => handleSplitChange(femaleCount, maleCount + 1)}
-                      className="w-8 h-8 rounded-lg bg-stone-100 hover:bg-stone-200 font-bold text-stone-800"
+                      className="w-7 h-7 rounded-lg bg-stone-200 hover:bg-stone-300 font-bold text-stone-800"
                     >
                       +
                     </button>
@@ -439,151 +483,154 @@ export const BulkAddAnimalModal: React.FC<BulkAddAnimalModalProps> = ({
             )}
           </div>
 
-          {/* Step 4: Breed, Ear Tag & Location */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            
-            {/* Breed */}
+          {/* Step 4: Tag Configuration & Live Ear Tag Preview */}
+          <div className="p-3.5 rounded-2xl bg-amber-50/60 border-2 border-amber-300/80 space-y-2.5">
+            <div className="flex items-center gap-1.5 text-xs font-black text-amber-950 uppercase tracking-wider">
+              <Tag className="w-4 h-4 text-amber-700" />
+              <span>4. Ear Tag Configuration (Customizable)</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              {/* Tag Prefix Input */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-stone-700 block">
+                  Tag Prefix (e.g. {getSuggestedTagPrefix(species)})
+                </label>
+                <input
+                  type="text"
+                  value={tagPrefix}
+                  onChange={(e) => setTagPrefix(e.target.value.toUpperCase())}
+                  className="w-full px-3 py-2 rounded-xl border-2 border-amber-300 bg-white text-xs font-mono font-black text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700 uppercase"
+                  placeholder="e.g. GOAT-"
+                />
+              </div>
+
+              {/* Starting Number Input */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-stone-700 block">
+                  Starting Tag Number
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={startTagNum}
+                  onChange={(e) => setStartTagNum(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-full px-3 py-2 rounded-xl border-2 border-amber-300 bg-white text-xs font-mono font-black text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                />
+              </div>
+            </div>
+
+            {/* Live Tag Range Preview Box */}
+            <div className="p-2.5 rounded-xl bg-white border border-amber-200">
+              <div className="flex items-center justify-between text-xs font-bold text-stone-700 mb-1">
+                <span>🏷️ Live Ear Tags Generated:</span>
+                <span className="font-mono text-emerald-900 font-black">
+                  {cleanPrefix}{startTagNum} → {cleanPrefix}{endTagNum}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-950 font-mono text-[11px] font-bold">
+                  #{cleanPrefix}{startTagNum}
+                </span>
+                {finalQuantity > 2 && (
+                  <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-950 font-mono text-[11px] font-bold">
+                    #{cleanPrefix}{startTagNum + 1}
+                  </span>
+                )}
+                {finalQuantity > 3 && (
+                  <span className="text-stone-400 font-mono text-[11px] self-center">
+                    ... +{finalQuantity - 2} more ...
+                  </span>
+                )}
+                {finalQuantity > 1 && (
+                  <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-950 font-mono text-[11px] font-bold">
+                    #{cleanPrefix}{endTagNum}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Step 5: Breed & Shed Location */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div className="space-y-1">
-              <label className="text-xs font-bold text-stone-700">
-                {t('breed', 'Breed (नस्ल)')}
-              </label>
+              <label className="text-xs font-bold text-stone-700">Breed</label>
               <select
                 value={breed}
                 onChange={(e) => setBreed(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-700"
               >
-                {(BREED_SUGGESTIONS[species] || ['Desi Local']).map(b => (
+                {(BREED_SUGGESTIONS[species] || ['Desi Local Breed']).map(b => (
                   <option key={b} value={b}>{b}</option>
                 ))}
               </select>
             </div>
 
-            {/* Tag Prefix */}
             <div className="space-y-1">
-              <label className="text-xs font-bold text-stone-700">
-                {t('tagPrefix', 'Tag Code Prefix (e.g. GOAT-)')}
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={tagPrefix}
-                  onChange={(e) => setTagPrefix(e.target.value.toUpperCase())}
-                  className="w-28 px-3 py-2 rounded-xl border border-stone-300 text-xs font-mono font-bold text-stone-900 focus:ring-2 focus:ring-emerald-700"
-                />
-                <span className="text-xs text-stone-500 font-mono">Starts from #{startTagNum}</span>
-              </div>
-            </div>
-
-            {/* Average Weight */}
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-stone-700">
-                {t('startingWeight', 'Average Weight (kg)')}
-              </label>
-              <input
-                type="number"
-                step="0.1"
-                value={avgWeight}
-                onChange={(e) => setAvgWeight(parseFloat(e.target.value) || 1)}
-                className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-bold text-stone-900 focus:ring-2 focus:ring-emerald-700"
-              />
-            </div>
-
-            {/* Shed Location */}
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-stone-700">
-                {t('shedLocation', 'Shed or Pasture Field')}
-              </label>
+              <label className="text-xs font-bold text-stone-700">Shed or Pen Location</label>
               <input
                 type="text"
                 value={shedLocation}
                 onChange={(e) => setShedLocation(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-medium text-stone-900 focus:ring-2 focus:ring-emerald-700"
-                placeholder="e.g. Shed No. 2, Pasture Field"
+                placeholder="e.g. Goat Shed East, Pen 2"
               />
             </div>
           </div>
 
-          {/* Step 5: Initial Health & Milk Status */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-stone-50 border border-stone-200">
+          {/* Step 6: Health & Milk Status (Milk Status ONLY for Cow or Buffalo) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3 rounded-2xl bg-stone-50 border border-stone-200">
             <div className="space-y-1">
-              <label className="text-xs font-bold text-stone-700">
-                {t('healthStatus', 'Health Status')}
-              </label>
+              <label className="text-xs font-bold text-stone-700">Health Status</label>
               <select
                 value={healthStatus}
                 onChange={(e) => setHealthStatus(e.target.value as AnimalHealthStatus)}
                 className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-bold bg-white text-stone-900"
               >
-                <option value="Healthy & Fit">🟢 {t('healthy', 'Healthy & Fit (बिल्कुल तंदुरुस्त)')}</option>
-                <option value="Vaccine Due">💉 {t('vaccineDue', 'Vaccine Due Soon (टीका बाकी)')}</option>
-                <option value="Needs Medicine">💊 {t('needsCare', 'Needs Medicine (दवा की जरूरत)')}</option>
-                <option value="Pregnant Care">🤰 {t('pregnant', 'Pregnant Care (गाभिन)')}</option>
+                <option value="Healthy & Fit">🟢 Healthy & Fit</option>
+                <option value="Vaccine Due">💉 Vaccine Due Soon</option>
+                <option value="Needs Medicine">💊 Needs Medicine</option>
+                <option value="Pregnant Care">🤰 Pregnant Care</option>
               </select>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-stone-700">
-                {t('milkStatus', 'Milk / Production Status')}
-              </label>
-              <select
-                value={milkStatus}
-                onChange={(e) => setMilkStatus(e.target.value as AnimalMilkStatus)}
-                className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-bold bg-white text-stone-900"
-              >
-                {species === 'Chicken' ? (
-                  <>
-                    <option value="Laying Eggs">🥚 {t('laying', 'Laying Eggs (अंडे दे रही है)')}</option>
-                    <option value="Rest Period">🐣 {t('notLaying', 'Rest Period (आराम)')}</option>
-                  </>
-                ) : (
-                  <>
-                    <option value="Giving Milk">🥛 {t('milking', 'Giving Milk (दूध दे रही है)')}</option>
-                    <option value="Dry Period">🥥 {t('dry', 'Dry Period (सूखी अवधि)')}</option>
-                    <option value="Not Milking (Male/Kid)">🐂 {t('notLaying', 'Not Milking (Male/Young)')}</option>
-                  </>
-                )}
-              </select>
-            </div>
+            {/* Milk Status ONLY for Cow or Buffalo */}
+            {isDairySpecies ? (
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-stone-700">Milk Status (Cows/Buffaloes)</label>
+                <select
+                  value={milkStatus}
+                  onChange={(e) => setMilkStatus(e.target.value as AnimalMilkStatus)}
+                  className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-bold bg-white text-stone-900"
+                >
+                  <option value="Giving Milk">🥛 Giving Milk</option>
+                  <option value="Dry Period">🥥 Dry Period</option>
+                </select>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-stone-700">Average Weight (kg)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={avgWeight}
+                  onChange={(e) => setAvgWeight(parseFloat(e.target.value) || 1)}
+                  className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-bold bg-white text-stone-900"
+                />
+              </div>
+            )}
           </div>
 
-          {/* Live Preview Box */}
-          <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-2">
-            <span className="text-[11px] font-black text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
-              <span>Preview of Generated Animals:</span>
-            </span>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-              <div className="p-2.5 rounded-xl bg-white border border-emerald-200">
-                <span className="font-mono font-black text-emerald-950 block">{tagPrefix}{startTagNum}</span>
-                <span className="text-stone-600 text-[11px]">{breed} · {genderMode === 'all_male' ? 'Male' : 'Female'}</span>
-                <span className="text-stone-500 text-[10px] block mt-0.5">⚖️ {avgWeight} kg</span>
-              </div>
-              <div className="p-2.5 rounded-xl bg-white border border-emerald-200">
-                <span className="font-mono font-black text-emerald-950 block">{tagPrefix}{startTagNum + 1}</span>
-                <span className="text-stone-600 text-[11px]">{breed} · {genderMode === 'all_male' ? 'Male' : 'Female'}</span>
-                <span className="text-stone-500 text-[10px] block mt-0.5">⚖️ {avgWeight} kg</span>
-              </div>
-              <div className="p-2.5 rounded-xl bg-white border border-emerald-200 flex items-center justify-center text-stone-500 text-xs font-bold">
-                + and {currentTotal - 2 > 0 ? currentTotal - 2 : 0} more animals...
-              </div>
-            </div>
-          </div>
-
-          {/* Submit Buttons */}
-          <div className="pt-2 flex items-center justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-5 py-2.5 rounded-xl border border-stone-300 text-xs font-bold text-stone-700 hover:bg-stone-50 cursor-pointer"
-            >
-              {t('cancel', 'Cancel')}
-            </button>
+          {/* Submit Action */}
+          <div className="pt-2">
             <button
               type="submit"
-              className="px-6 py-3 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-black shadow-md transition-colors flex items-center gap-2 cursor-pointer"
+              className="w-full py-3.5 px-4 rounded-2xl bg-emerald-800 hover:bg-emerald-900 text-white font-black text-sm flex items-center justify-center gap-2 shadow-md cursor-pointer active:scale-98 transition-all"
             >
-              <Check className="w-4 h-4" />
-              <span>{t('bulkAddBtn', `Add All ${currentTotal} Animals to Farm`)}</span>
+              <Check className="w-5 h-5" />
+              <span>
+                Add {finalQuantity} {species}s with Tags #{cleanPrefix}{startTagNum} - #{cleanPrefix}{endTagNum}
+              </span>
             </button>
           </div>
         </form>

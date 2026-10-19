@@ -11,7 +11,8 @@ import {
   MilkYieldLog,
   FarmConfig,
   VaccineAlert,
-  isVaccineManager
+  isVaccineManager,
+  FinancialRecord,
 } from './types';
 import { db } from './services/db';
 import { LandingPage } from './components/LandingPage';
@@ -28,6 +29,8 @@ import { VaccinationScheduleView } from './components/VaccinationScheduleView';
 import { GrowthTrackerView } from './components/GrowthTrackerView';
 import { LineagePedigreeView } from './components/LineagePedigreeView';
 import { VaccineAlertNotificationModal } from './components/VaccineAlertNotificationModal';
+import { ReportsView } from './components/ReportsView';
+import { FinancialLedgerModal } from './components/FinancialLedgerModal';
 
 export function App() {
   // Database reactive states
@@ -37,16 +40,18 @@ export function App() {
   const [currentFarm, setCurrentFarm] = useState<Farm | null>(() => db.getCurrentFarm());
 
   // Active view tab
-  const [activeTab, setActiveTab] = useState<'inventory' | 'lineage' | 'vaccinations' | 'growth'>('inventory');
+  const [activeTab, setActiveTab] = useState<'inventory' | 'lineage' | 'vaccinations' | 'growth' | 'reports'>('inventory');
 
   // Modals
   const [showFarmSelectionModal, setShowFarmSelectionModal] = useState(false);
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [showAddAnimalModal, setShowAddAnimalModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkModalSpecies, setBulkModalSpecies] = useState<Species | undefined>(undefined);
   const [showSpeciesModal, setShowSpeciesModal] = useState(false);
   const [showMilkModal, setShowMilkModal] = useState(false);
   const [showVaccineAlertsModal, setShowVaccineAlertsModal] = useState(false);
+  const [showLedgerModal, setShowLedgerModal] = useState(false);
   const [milkTargetAnimal, setMilkTargetAnimal] = useState<Animal | null>(null);
   const [selectedAnimal, setSelectedAnimal] = useState<Animal | null>(null);
 
@@ -73,6 +78,7 @@ export function App() {
 
   // Check if current user is approved on active farm
   const isApprovedOnActiveFarm = currentFarm && currentUser && (
+    db.isSuperAdmin(currentUser) ||
     currentFarm.adminUserId === currentUser.id ||
     currentFarm.members.some(m => m.userId === currentUser.id && m.status === 'active')
   );
@@ -83,13 +89,19 @@ export function App() {
   // When user logs in
   const handleLogin = (user: User) => {
     db.setCurrentUser(user);
-    // Find farms this user is approved for
-    const allFarms = db.getFarms();
-    const approvedFarms = allFarms.filter(f => 
-      f.adminUserId === user.id ||
-      f.members.some(m => m.userId === user.id && m.status === 'active')
-    );
+    if (db.isSuperAdmin(user)) {
+      const allFarms = db.getAllTenantsForSuperAdmin();
+      if (allFarms.length > 0) {
+        db.setCurrentFarmId(allFarms[0].id);
+        setShowFarmSelectionModal(false);
+      } else {
+        setShowFarmSelectionModal(true);
+      }
+      return;
+    }
 
+    // Find farms this user is approved for
+    const approvedFarms = db.getUserFarms(user.id);
     if (approvedFarms.length >= 1) {
       db.setCurrentFarmId(approvedFarms[0].id);
       setShowFarmSelectionModal(false);
@@ -195,6 +207,14 @@ export function App() {
     }
   };
 
+  const handleBatchDeleteAnimals = (animalIds: string[]) => {
+    if (!currentFarm || animalIds.length === 0) return;
+    db.deleteAnimals(currentFarm.id, animalIds);
+    if (selectedAnimal && animalIds.includes(selectedAnimal.id)) {
+      setSelectedAnimal(null);
+    }
+  };
+
   const handleAddGrowthRecord = (animalId: string, record: Omit<GrowthMetric, 'id'>) => {
     if (!currentFarm) return;
     db.addGrowthMetric(currentFarm.id, animalId, record);
@@ -238,14 +258,64 @@ export function App() {
     }
   };
 
+  const handleBulkMarkVaccineComplete = (vacIds: string[]) => {
+    if (!currentFarm || !currentUser) return;
+    db.bulkMarkVaccinesComplete(currentFarm.id, vacIds, currentUser.name);
+  };
+
+  const handleBulkAddVaccine = (animalIds: string[], vacData: Omit<VaccinationRecord, 'id' | 'animalId'>) => {
+    if (!currentFarm || !currentUser) return;
+    try {
+      db.bulkAddVaccinations(currentFarm.id, animalIds, vacData, currentUser);
+    } catch (err: any) {
+      alert(err.message || 'Error adding bulk vaccinations.');
+    }
+  };
+
+  const handleBulkUpdateVaccine = (vacIds: string[], updates: Partial<VaccinationRecord>) => {
+    if (!currentFarm || !currentUser) return;
+    try {
+      db.bulkUpdateVaccinations(currentFarm.id, vacIds, updates, currentUser);
+    } catch (err: any) {
+      alert(err.message || 'Error updating vaccinations.');
+    }
+  };
+
+  const handleBulkDeleteVaccine = (vacIds: string[]) => {
+    if (!currentFarm || !currentUser) return;
+    try {
+      db.bulkDeleteVaccinations(currentFarm.id, vacIds, currentUser);
+    } catch (err: any) {
+      alert(err.message || 'Error deleting vaccinations.');
+    }
+  };
+
   const handleAddHealthRecord = (record: Omit<HealthRecord, 'id'>) => {
     if (!currentFarm) return;
     db.addHealthRecord(currentFarm.id, record);
   };
 
+  const handleAddTransaction = (record: Omit<FinancialRecord, 'id' | 'createdAt'>) => {
+    if (!currentFarm) return;
+    db.addFinancialRecord(currentFarm.id, record);
+  };
+
+  const handleDeleteTransaction = (recordId: string) => {
+    if (!currentFarm) return;
+    db.deleteFinancialRecord(currentFarm.id, recordId);
+  };
+
   const handleUpdateAnimalPhoto = (animalId: string, newPhoto: string) => {
     if (!currentFarm) return;
     db.updateAnimal(currentFarm.id, animalId, { photoUrl: newPhoto });
+  };
+
+  const handleUpdateAnimal = (animalId: string, updates: Partial<Animal>) => {
+    if (!currentFarm) return;
+    const updated = db.updateAnimal(currentFarm.id, animalId, updates);
+    if (selectedAnimal && selectedAnimal.id === animalId) {
+      setSelectedAnimal(updated);
+    }
   };
 
   const handleResetStarterData = () => {
@@ -291,7 +361,7 @@ export function App() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-50 text-stone-900 pb-16">
+    <div className="min-h-screen bg-stone-50 text-stone-900 pb-16 overflow-x-hidden w-full max-w-full">
       
       {/* Top Navbar with Vaccine Notification Bell & Admin Tool */}
       <Navbar
@@ -303,26 +373,37 @@ export function App() {
         onOpenTeamModal={() => setShowTeamModal(true)}
         onOpenSpeciesModal={() => setShowSpeciesModal(true)}
         onOpenVaccineAlertsModal={() => setShowVaccineAlertsModal(true)}
+        onOpenLedger={() => setShowLedgerModal(true)}
+        onOpenMilkModal={() => {
+          setMilkTargetAnimal(null);
+          setShowMilkModal(true);
+        }}
         vaccineAlertsCount={alerts.length}
         onLogout={handleLogout}
       />
 
-      {/* Main View Area */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Main View Area with Mobile Bottom Nav Clearance */}
+      <main className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 py-3 sm:py-6 pb-24 lg:pb-12">
         {activeTab === 'inventory' && (
           <LivestockList
             farm={currentFarm}
             currentUser={currentUser}
             onSelectAnimal={(animal) => setSelectedAnimal(animal)}
             onOpenAddModal={() => setShowAddAnimalModal(true)}
-            onOpenBulkModal={() => setShowBulkModal(true)}
+            onOpenBulkModal={(sp) => {
+              setBulkModalSpecies(sp);
+              setShowBulkModal(true);
+            }}
             onOpenSpeciesModal={() => setShowSpeciesModal(true)}
             onOpenMilkModal={(animal) => {
               setMilkTargetAnimal(animal || null);
               setShowMilkModal(true);
             }}
             onDeleteAnimal={handleDeleteAnimal}
+            onBatchDeleteAnimals={handleBatchDeleteAnimals}
             onOpenVaccineAlerts={() => setShowVaccineAlertsModal(true)}
+            onUpdateAnimal={handleUpdateAnimal}
+            onBulkAddVaccine={handleBulkAddVaccine}
           />
         )}
 
@@ -342,6 +423,10 @@ export function App() {
             onAddVaccine={handleAddVaccine}
             onUpdateVaccine={handleUpdateVaccine}
             onDeleteVaccine={handleDeleteVaccine}
+            onBulkMarkComplete={handleBulkMarkVaccineComplete}
+            onBulkAddVaccine={handleBulkAddVaccine}
+            onBulkUpdateVaccine={handleBulkUpdateVaccine}
+            onBulkDeleteVaccine={handleBulkDeleteVaccine}
           />
         )}
 
@@ -353,7 +438,27 @@ export function App() {
             onAddGrowthRecord={handleAddGrowthRecord}
           />
         )}
+
+        {activeTab === 'reports' && (
+          <ReportsView
+            farm={currentFarm}
+            currentUser={currentUser}
+            onOpenLedger={() => setShowLedgerModal(true)}
+            onSelectAnimal={(animal) => setSelectedAnimal(animal)}
+          />
+        )}
       </main>
+
+      {/* Financial Ledger Modal */}
+      {showLedgerModal && (
+        <FinancialLedgerModal
+          farm={currentFarm}
+          currentUser={currentUser}
+          onClose={() => setShowLedgerModal(false)}
+          onAddTransaction={handleAddTransaction}
+          onDeleteTransaction={handleDeleteTransaction}
+        />
+      )}
 
       {/* Vaccine Nearing Alert Notification Drawer / Modal */}
       {showVaccineAlertsModal && (
@@ -391,6 +496,7 @@ export function App() {
             setMilkTargetAnimal(animal);
             setShowMilkModal(true);
           }}
+          onUpdateAnimal={handleUpdateAnimal}
         />
       )}
 
@@ -423,7 +529,11 @@ export function App() {
         <BulkAddAnimalModal
           farm={currentFarm}
           currentUser={currentUser}
-          onClose={() => setShowBulkModal(false)}
+          initialSpecies={bulkModalSpecies}
+          onClose={() => {
+            setShowBulkModal(false);
+            setBulkModalSpecies(undefined);
+          }}
           onBulkAdd={handleBulkAddAnimals}
         />
       )}

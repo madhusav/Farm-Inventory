@@ -141,9 +141,9 @@ export const LineagePedigreeView: React.FC<LineagePedigreeViewProps> = ({
 
           {/* Box 2: Papa and Mummy */}
           <div className="space-y-3">
-            <div className="p-4 rounded-2xl bg-[#FFFDF7] border-2 border-amber-200 space-y-1">
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-[#FFFDF7] border-2 border-amber-200 space-y-1">
               <span className="text-[11px] font-black text-amber-900 uppercase tracking-wider block">
-                🐂 Papa (Father)
+                🐐/🐑 Papa (Stud Buck / Ram)
               </span>
               <div className="text-sm font-black text-stone-900">{currentAnimal.sireName} (Tag #{currentAnimal.sireTag})</div>
               <div className="text-xs text-stone-600">Breed: {currentAnimal.sireBreed}</div>
@@ -158,9 +158,9 @@ export const LineagePedigreeView: React.FC<LineagePedigreeViewProps> = ({
               )}
             </div>
 
-            <div className="p-4 rounded-2xl bg-[#FFFDF7] border-2 border-amber-200 space-y-1">
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-[#FFFDF7] border-2 border-amber-200 space-y-1">
               <span className="text-[11px] font-black text-amber-900 uppercase tracking-wider block">
-                🐄 Mummy (Mother)
+                🐐/🐑 Mummy (Doe / Ewe)
               </span>
               <div className="text-sm font-black text-stone-900">{currentAnimal.damName} (Tag #{currentAnimal.damTag})</div>
               <div className="text-xs text-stone-600">Breed: {currentAnimal.damBreed}</div>
@@ -182,7 +182,7 @@ export const LineagePedigreeView: React.FC<LineagePedigreeViewProps> = ({
               Good Qualities & Baby Animals ({offspringInHerd.length})
             </span>
             {currentAnimal.inheritedTraits.map((t, idx) => (
-              <div key={idx} className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs space-y-0.5">
+              <div key={idx} className="p-3 sm:p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs space-y-0.5">
                 <div className="font-extrabold text-emerald-950">{t.traitName}</div>
                 <div className="text-stone-600">{t.impactDescription}</div>
                 <div className="text-emerald-800 font-bold text-[11px]">Inherited from {t.inheritedFrom === 'Sire' ? 'Papa' : t.inheritedFrom === 'Dam' ? 'Mummy' : 'Both'}</div>
@@ -193,21 +193,21 @@ export const LineagePedigreeView: React.FC<LineagePedigreeViewProps> = ({
       </div>
 
       {/* Breeding Pair Match Safety Checker */}
-      <div className="bg-white rounded-3xl border border-stone-200 p-6 sm:p-8 space-y-5 shadow-xs">
+      <div className="bg-white rounded-3xl border border-stone-200 p-4 sm:p-6 space-y-4 shadow-xs">
         <div>
           <h2 className="text-base sm:text-lg font-extrabold text-stone-900 flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-emerald-700" />
             <span>Safe Family Match Checker (सुरक्षित नस्ल जांच)</span>
           </h2>
           <p className="text-xs text-stone-500 mt-0.5">
-            Check if a male (Papa) and female (Mummy) are safe to pair so baby calves and kids are born free from sickness.
+            Check if a male (Papa) and female (Mummy) are safe to pair so baby kids (मेमने) and lambs (भेड़ के बच्चे) are born healthy and vigorous.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 items-center">
           <div>
             <label className="block text-xs font-bold text-stone-700 mb-1">
-              Pick Papa (Male)
+              Pick Papa (Stud Buck / Ram)
             </label>
             <select
               value={selectedSireId}
@@ -224,7 +224,7 @@ export const LineagePedigreeView: React.FC<LineagePedigreeViewProps> = ({
 
           <div>
             <label className="block text-xs font-bold text-stone-700 mb-1">
-              Pick Mummy (Female)
+              Pick Mummy (Doe / Ewe)
             </label>
             <select
               value={selectedDamId}
@@ -239,17 +239,17 @@ export const LineagePedigreeView: React.FC<LineagePedigreeViewProps> = ({
             </select>
           </div>
 
-          <div className="p-4 rounded-2xl bg-[#FFFDF7] border-2 border-stone-200">
+          <div className="p-3.5 rounded-2xl bg-[#FFFDF7] border-2 border-stone-200">
             <span className="text-[11px] text-stone-500 uppercase tracking-wider font-bold block">
               Match Safety Result:
             </span>
-            <div className={`text-base font-extrabold mt-0.5 ${isHighRisk ? 'text-red-700' : 'text-emerald-800'}`}>
+            <div className={`text-sm sm:text-base font-extrabold mt-0.5 ${isHighRisk ? 'text-red-700' : 'text-emerald-800'}`}>
               {isHighRisk ? '⚠️ Warning: Too Closely Related' : '✓ Safe Match (Good Family Mix)'}
             </div>
             <p className="text-xs text-stone-600 mt-1">
               {isHighRisk 
                 ? 'They share the same parents. Pick another Papa or Mummy so babies are born strong!' 
-                : 'They come from different healthy lines. Their baby will be very active and give great milk!'}
+                : 'They come from different healthy lines. Their baby will be very active and fast growing!'}
             </p>
           </div>
         </div>

@@ -223,3 +223,23 @@ CREATE TABLE IF NOT EXISTS `health_records` (
   FOREIGN KEY (`farm_id`) REFERENCES `farms` (`id`) ON DELETE CASCADE,
   FOREIGN KEY (`animal_id`) REFERENCES `animals` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 12. FINANCIAL LEDGER RECORDS TABLE (EXPENSES & INCOME)
+-- Tracks feed, medicine, wages, milk sales, and net farm profit in INR (₹)
+CREATE TABLE IF NOT EXISTS `financial_records` (
+  `id` VARCHAR(64) NOT NULL,
+  `farm_id` VARCHAR(32) NOT NULL,
+  `date` DATE NOT NULL,
+  `type` ENUM('income', 'expense') NOT NULL,
+  `category` VARCHAR(80) NOT NULL COMMENT 'Feed & Fodder, Medicine, Milk Sales, Wages, etc.',
+  `amount` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  `title` VARCHAR(200) NOT NULL,
+  `notes` TEXT NULL,
+  `recorded_by` VARCHAR(150) NOT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `idx_fin_date` (`farm_id`, `date`),
+  INDEX `idx_fin_type` (`farm_id`, `type`),
+  FOREIGN KEY (`farm_id`) REFERENCES `farms` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+

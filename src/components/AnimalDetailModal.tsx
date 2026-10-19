@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Animal, Farm, User, GrowthMetric, VaccinationRecord, HealthRecord, isVaccineManager } from '../types';
+import { Animal, Species, Farm, User, GrowthMetric, VaccinationRecord, HealthRecord, AnimalHealthStatus, AnimalMilkStatus, isVaccineManager } from '../types';
 import { calculateAge } from './LivestockList';
 import { 
   X, 
@@ -14,7 +14,8 @@ import {
   Scale,
   Sparkles,
   ArrowUpRight,
-  Camera
+  Camera,
+  Edit2
 } from 'lucide-react';
 
 interface AnimalDetailModalProps {
@@ -30,6 +31,7 @@ interface AnimalDetailModalProps {
   onDeleteAnimal: (animalId: string) => void;
   onUpdateAnimalPhoto: (animalId: string, newPhoto: string) => void;
   onOpenMilkModal?: (animal: Animal) => void;
+  onUpdateAnimal?: (animalId: string, updates: Partial<Animal>) => void;
 }
 
 export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
@@ -45,12 +47,60 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
   onDeleteAnimal,
   onUpdateAnimalPhoto,
   onOpenMilkModal,
+  onUpdateAnimal,
 }) => {
   const isAdmin = farm.adminUserId === currentUser.id;
   const currentMember = farm.members.find(m => m.userId === currentUser.id);
   const canManageVaccine = isVaccineManager(currentMember?.role, isAdmin);
   const [activeTab, setActiveTab] = useState<'lineage' | 'growth' | 'health'>('lineage');
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // Edit Animal & Tag state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editTagId, setEditTagId] = useState(animal.tagId);
+  const [editName, setEditName] = useState(animal.name);
+  const [editSpecies, setEditSpecies] = useState<Species>(animal.species);
+  const [editBreed, setEditBreed] = useState(animal.breed);
+  const [editSex, setEditSex] = useState<'Female' | 'Male'>(animal.sex);
+  const [editLocation, setEditLocation] = useState(animal.paddockLocation);
+  const [editWeight, setEditWeight] = useState(String(animal.currentWeightKg));
+  const [editHealth, setEditHealth] = useState<AnimalHealthStatus>(animal.healthStatus || 'Healthy & Fit');
+  const [editMilk, setEditMilk] = useState<AnimalMilkStatus>(animal.milkStatus || 'Giving Milk');
+
+  const isEditDairy = editSpecies === 'Cow' || editSpecies === 'Buffalo';
+
+  const handleOpenEdit = () => {
+    setEditTagId(animal.tagId);
+    setEditName(animal.name);
+    setEditSpecies(animal.species);
+    setEditBreed(animal.breed);
+    setEditSex(animal.sex);
+    setEditLocation(animal.paddockLocation);
+    setEditWeight(String(animal.currentWeightKg));
+    setEditHealth(animal.healthStatus || 'Healthy & Fit');
+    setEditMilk(animal.milkStatus || 'Giving Milk');
+    setShowEditModal(true);
+  };
+
+  const handleSaveEditAnimal = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTagId.trim() || !onUpdateAnimal) return;
+
+    const w = parseFloat(editWeight) || animal.currentWeightKg;
+    onUpdateAnimal(animal.id, {
+      tagId: editTagId.trim().toUpperCase(),
+      name: editName.trim() || `${editBreed} #${editTagId.trim().toUpperCase()}`,
+      species: editSpecies,
+      breed: editBreed.trim(),
+      sex: editSex,
+      paddockLocation: editLocation.trim(),
+      currentWeightKg: w,
+      healthStatus: editHealth,
+      milkStatus: isEditDairy ? editMilk : undefined,
+      dailyMilkLitres: isEditDairy && editMilk === 'Giving Milk' ? (animal.dailyMilkLitres || (editSpecies === 'Cow' ? 12 : 9)) : undefined,
+    });
+    setShowEditModal(false);
+  };
 
   // Growth form
   const [showGrowthForm, setShowGrowthForm] = useState(false);
@@ -173,34 +223,45 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
       <div className="bg-white w-full max-w-4xl rounded-3xl border border-stone-200 shadow-2xl overflow-hidden flex flex-col my-auto max-h-[94vh]">
         
         {/* Header */}
-        <div className="px-6 py-4 border-b border-stone-200 flex items-center justify-between gap-4 bg-[#FFFDF9]">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
+        <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-stone-200 flex items-center justify-between gap-2.5 bg-[#FFFDF9]">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
               <span className="font-mono text-xs font-bold text-emerald-950 bg-emerald-100 px-2 py-0.5 rounded">
-                Tag: {animal.tagId}
+                #{animal.tagId}
               </span>
-              <span className="text-xs text-stone-600 font-bold">
+              <span className="text-[11px] sm:text-xs text-stone-600 font-bold truncate">
                 {animal.species} · {animal.breed} · {animal.sex}
               </span>
+              {onUpdateAnimal && (
+                <button
+                  type="button"
+                  onClick={handleOpenEdit}
+                  className="px-2 py-0.5 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-950 text-[11px] font-black border border-amber-300 flex items-center gap-1 cursor-pointer active:scale-95 transition-all ml-1 shadow-2xs"
+                  title="Update Ear Tag & Animal Info"
+                >
+                  <Edit2 className="w-3 h-3 text-amber-800" />
+                  <span>Update Tag</span>
+                </button>
+              )}
             </div>
-            <h2 className="text-xl sm:text-2xl font-black text-stone-900 truncate mt-0.5">
+            <h2 className="text-lg sm:text-2xl font-black text-stone-900 truncate mt-0.5">
               {animal.name}
             </h2>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {isAdmin ? (
               confirmDelete ? (
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1">
                   <button
                     onClick={() => onDeleteAnimal(animal.id)}
-                    className="px-3 py-1.5 rounded-xl bg-red-700 hover:bg-red-800 text-white text-xs font-bold cursor-pointer"
+                    className="px-2.5 py-1.5 rounded-xl bg-red-700 hover:bg-red-800 text-white text-xs font-bold cursor-pointer"
                   >
-                    Confirm Delete
+                    Delete
                   </button>
                   <button
                     onClick={() => setConfirmDelete(false)}
-                    className="px-3 py-1.5 rounded-xl bg-stone-200 text-stone-700 text-xs font-semibold cursor-pointer"
+                    className="px-2.5 py-1.5 rounded-xl bg-stone-200 text-stone-700 text-xs font-semibold cursor-pointer"
                   >
                     Cancel
                   </button>
@@ -209,24 +270,23 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
                 <button
                   onClick={() => setConfirmDelete(true)}
                   className="p-2 rounded-xl border border-stone-200 hover:border-red-300 hover:bg-red-50 text-stone-400 hover:text-red-700 transition-colors cursor-pointer"
-                  title="Delete Animal (Farm Boss Only)"
+                  title="Delete Animal"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
               )
             ) : (
               <div
-                className="px-2.5 py-1 rounded-xl bg-amber-50 text-amber-800 text-xs font-bold flex items-center gap-1 border border-amber-200"
-                title="Only Farm Boss can delete animals. Helpers can update milk and weight."
+                className="p-1.5 rounded-xl bg-amber-50 text-amber-800 text-xs font-bold flex items-center gap-1 border border-amber-200"
+                title="Only Farm Boss can delete animals."
               >
                 <Lock className="w-3.5 h-3.5" />
-                <span>Delete Locked</span>
               </div>
             )}
 
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-stone-200/80 hover:bg-stone-300 flex items-center justify-center text-stone-600 transition-colors cursor-pointer"
+              className="w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 flex items-center justify-center text-stone-600 transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -234,19 +294,19 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
         </div>
 
         {/* Scrollable Content */}
-        <div className="p-6 overflow-y-auto space-y-6">
+        <div className="p-3 sm:p-5 overflow-y-auto space-y-3 sm:space-y-5">
 
           {/* Top Identity Hero Card */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-5 items-stretch">
             
-            <div className="md:col-span-5 relative rounded-2xl overflow-hidden border border-stone-200 min-h-[220px] bg-stone-100">
+            <div className="md:col-span-5 relative rounded-2xl overflow-hidden border border-stone-200 h-40 sm:h-52 md:h-auto md:min-h-[200px] bg-stone-100">
               <img
                 src={animal.photoUrl}
                 alt={animal.name}
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"
               />
-              <label className="absolute bottom-3 right-3 px-3 py-1.5 rounded-xl bg-stone-900/85 hover:bg-stone-900 text-white text-xs font-bold flex items-center gap-1.5 backdrop-blur-xs cursor-pointer transition-colors">
+              <label className="absolute bottom-2.5 right-2.5 px-2.5 py-1.5 rounded-xl bg-stone-900/85 hover:bg-stone-900 text-white text-xs font-bold flex items-center gap-1.5 backdrop-blur-xs cursor-pointer transition-colors shadow-md">
                 <Camera className="w-3.5 h-3.5" />
                 <span>Change Photo</span>
                 <input
@@ -258,7 +318,7 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
               </label>
             </div>
 
-            <div className="md:col-span-7 flex flex-col justify-between bg-[#FFFDF7] rounded-2xl border border-amber-200/80 p-5 space-y-3">
+            <div className="md:col-span-7 flex flex-col justify-between bg-[#FFFDF7] rounded-2xl border border-amber-200/80 p-3.5 sm:p-4 space-y-2.5 sm:space-y-3">
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-100 pb-2.5">
                   <div>
@@ -280,7 +340,7 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
                 </div>
 
                 {/* Health & Milk Status Badges in Modal */}
-                <div className="grid grid-cols-2 gap-2.5 p-3 rounded-2xl bg-white border border-amber-200">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3 rounded-2xl bg-white border border-amber-200">
                   <div className="flex items-center gap-2">
                     <span className="text-xl">🩺</span>
                     <div>
@@ -288,24 +348,36 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
                       <span className="text-xs font-black text-stone-900">{animal.healthStatus || 'Healthy & Fit'}</span>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl">🥛</span>
+
+                  {/* Milk Status ONLY for Cow or Buffalo */}
+                  {(animal.species === 'Cow' || animal.species === 'Buffalo') ? (
+                    <div className="flex items-center justify-between gap-2 border-t sm:border-t-0 sm:border-l border-amber-100 pt-2 sm:pt-0 sm:pl-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">🥛</span>
+                        <div>
+                          <span className="text-[10px] font-black uppercase text-stone-400 block">Milk Production</span>
+                          <span className="text-xs font-black text-stone-900">{animal.milkStatus || 'Giving Milk'}</span>
+                        </div>
+                      </div>
+                      {onOpenMilkModal && animal.sex === 'Female' && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenMilkModal(animal)}
+                          className="px-2.5 py-1 rounded-xl bg-sky-700 hover:bg-sky-800 text-white text-[11px] font-black shadow-2xs transition-colors cursor-pointer shrink-0"
+                        >
+                          + Log Milk
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 border-t sm:border-t-0 sm:border-l border-amber-100 pt-2 sm:pt-0 sm:pl-3">
+                      <span className="text-xl">⚖️</span>
                       <div>
-                        <span className="text-[10px] font-black uppercase text-stone-400 block">Milk / Production</span>
-                        <span className="text-xs font-black text-stone-900">{animal.milkStatus || (animal.species === 'Chicken' ? 'Laying Eggs' : 'Giving Milk')}</span>
+                        <span className="text-[10px] font-black uppercase text-stone-400 block">Current Weight</span>
+                        <span className="text-xs font-black text-stone-900">{animal.currentWeightKg} kg</span>
                       </div>
                     </div>
-                    {onOpenMilkModal && (animal.species === 'Cow' || animal.species === 'Goat' || animal.species === 'Buffalo') && (
-                      <button
-                        type="button"
-                        onClick={() => onOpenMilkModal(animal)}
-                        className="px-2.5 py-1 rounded-xl bg-sky-700 hover:bg-sky-800 text-white text-[11px] font-black shadow-2xs transition-colors cursor-pointer shrink-0"
-                      >
-                        + Log Milk
-                      </button>
-                    )}
-                  </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
@@ -412,16 +484,16 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 
                 {/* Papa Card */}
-                <div className="p-4 rounded-2xl bg-stone-50 border-2 border-stone-200 space-y-2">
+                <div className="p-3.5 sm:p-4 rounded-2xl bg-stone-50 border-2 border-stone-200 space-y-1.5 sm:space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-black text-stone-700 uppercase">
-                      🐂 Papa (Father)
+                      🐐/🐑 Papa (Stud Buck / Ram)
                     </span>
                     <span className="font-mono text-xs font-bold text-stone-700 bg-white px-2 py-0.5 rounded border">
                       Tag #{animal.sireTag}
                     </span>
                   </div>
-                  <h4 className="text-base font-black text-stone-900">{animal.sireName}</h4>
+                  <h4 className="text-sm sm:text-base font-black text-stone-900">{animal.sireName}</h4>
                   <p className="text-xs text-stone-600">Breed: {animal.sireBreed}</p>
 
                   {sireInHerd ? (
@@ -435,22 +507,22 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
                     </button>
                   ) : (
                     <p className="text-[11px] text-stone-400 italic">
-                      Foundation Father from outside breed registry
+                      Foundation Sire from outside breed registry
                     </p>
                   )}
                 </div>
 
                 {/* Mummy Card */}
-                <div className="p-4 rounded-2xl bg-stone-50 border-2 border-stone-200 space-y-2">
+                <div className="p-3.5 sm:p-4 rounded-2xl bg-stone-50 border-2 border-stone-200 space-y-1.5 sm:space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-black text-stone-700 uppercase">
-                      🐄 Mummy (Mother)
+                      🐐/🐑 Mummy (Doe / Ewe)
                     </span>
                     <span className="font-mono text-xs font-bold text-stone-700 bg-white px-2 py-0.5 rounded border">
                       Tag #{animal.damTag}
                     </span>
                   </div>
-                  <h4 className="text-base font-black text-stone-900">{animal.damName}</h4>
+                  <h4 className="text-sm sm:text-base font-black text-stone-900">{animal.damName}</h4>
                   <p className="text-xs text-stone-600">Breed: {animal.damBreed}</p>
 
                   {damInHerd ? (
@@ -464,20 +536,20 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
                     </button>
                   ) : (
                     <p className="text-[11px] text-stone-400 italic">
-                      Foundation Mother from outside breed registry
+                      Foundation Dam from outside breed registry
                     </p>
                   )}
                 </div>
               </div>
 
               {/* Good Traits Inherited */}
-              <div className="space-y-3">
+              <div className="space-y-2.5 sm:space-y-3">
                 <h4 className="text-xs font-black uppercase text-stone-700">
                   Good Qualities from Papa & Mummy:
                 </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                   {animal.inheritedTraits.map((t, idx) => (
-                    <div key={idx} className="p-3.5 rounded-2xl bg-emerald-50/50 border border-emerald-200 space-y-1">
+                    <div key={idx} className="p-3 sm:p-3.5 rounded-2xl bg-emerald-50/50 border border-emerald-200 space-y-1">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-black text-emerald-950">{t.traitName}</span>
                         <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">
@@ -485,7 +557,7 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
                         </span>
                       </div>
                       <p className="text-xs text-stone-600">{t.impactDescription}</p>
-                      <span className="text-[10px] text-stone-500 font-bold block pt-1">
+                      <span className="text-[10px] text-stone-500 font-bold block pt-0.5">
                         Got from: {t.inheritedFrom === 'Sire' ? 'Papa' : t.inheritedFrom === 'Dam' ? 'Mummy' : 'Both Papa & Mummy'}
                       </span>
                     </div>
@@ -494,13 +566,13 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
               </div>
 
               {/* Baby Offspring in Herd */}
-              <div className="space-y-3 pt-2">
+              <div className="space-y-2.5 sm:space-y-3 pt-1">
                 <h4 className="text-xs font-black uppercase text-stone-700">
-                  Baby Animals of {animal.name} on this Farm ({offspringInHerd.length})
+                  Baby Kids & Lambs of {animal.name} on this Farm ({offspringInHerd.length})
                 </h4>
                 {offspringInHerd.length === 0 ? (
                   <p className="text-xs text-stone-500 italic">
-                    No baby animals registered for this animal yet. When you add a new calf, kid, lamb, or chick, pick {animal.name} as the Papa or Mummy!
+                    No baby kids or lambs registered for this animal yet. When you add a new kid or lamb, pick {animal.name} as the Papa or Mummy!
                   </p>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -886,6 +958,172 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
           )}
         </div>
       </div>
+
+      {/* Edit Animal & Tag Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-60 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-stone-200 flex flex-col">
+            <div className="p-4 border-b border-stone-200 flex items-center justify-between bg-amber-50 rounded-t-3xl sticky top-0 z-10">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🏷️</span>
+                <h3 className="font-black text-stone-900 text-base">Update Ear Tag & Animal Info</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowEditModal(false)}
+                className="p-1.5 rounded-full hover:bg-stone-200 text-stone-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditAnimal} className="p-4 space-y-3.5 text-stone-900">
+              {/* Ear Tag Number */}
+              <div className="space-y-1">
+                <label className="text-xs font-black text-stone-800 block">
+                  Ear Tag Number (Update freely)
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editTagId}
+                  onChange={(e) => setEditTagId(e.target.value.toUpperCase())}
+                  placeholder="e.g. GOAT-303, SHEEP-101, COW-55"
+                  className="w-full px-3 py-2.5 rounded-xl border-2 border-amber-300 bg-amber-50/40 text-sm font-mono font-black text-stone-900 uppercase focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                />
+                <p className="text-[11px] text-stone-500">
+                  Update if this animal has a custom ear tag or belongs to a different series.
+                </p>
+              </div>
+
+              {/* Animal Name */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-stone-700 block">Animal Name</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-bold text-stone-900"
+                />
+              </div>
+
+              {/* Species & Breed */}
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-stone-700 block">Animal Type</label>
+                  <select
+                    value={editSpecies}
+                    onChange={(e) => setEditSpecies(e.target.value as Species)}
+                    className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-bold bg-white text-stone-900"
+                  >
+                    <option value="Goat">🐐 Goat (बकरी)</option>
+                    <option value="Sheep">🐑 Sheep (भेड़)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-stone-700 block">Breed</label>
+                  <input
+                    type="text"
+                    value={editBreed}
+                    onChange={(e) => setEditBreed(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs text-stone-900"
+                  />
+                </div>
+              </div>
+
+              {/* Gender & Shed */}
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-stone-700 block">Gender</label>
+                  <select
+                    value={editSex}
+                    onChange={(e) => setEditSex(e.target.value as 'Female' | 'Male')}
+                    className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-bold bg-white text-stone-900"
+                  >
+                    <option value="Female">Female</option>
+                    <option value="Male">Male</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-stone-700 block">Shed / Location</label>
+                  <input
+                    type="text"
+                    value={editLocation}
+                    onChange={(e) => setEditLocation(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs text-stone-900"
+                  />
+                </div>
+              </div>
+
+              {/* Weight & Health */}
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-stone-700 block">Current Weight (kg)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={editWeight}
+                    onChange={(e) => setEditWeight(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-mono text-stone-900"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-stone-700 block">Health Status</label>
+                  <select
+                    value={editHealth}
+                    onChange={(e) => setEditHealth(e.target.value as AnimalHealthStatus)}
+                    className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-bold bg-white text-stone-900"
+                  >
+                    <option value="Healthy & Fit">🟢 Healthy & Fit</option>
+                    <option value="Vaccine Due">💉 Vaccine Due</option>
+                    <option value="Needs Medicine">💊 Needs Medicine</option>
+                    <option value="Pregnant Care">🤰 Pregnant Care</option>
+                    <option value="Under Observation">👀 Under Observation</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Milk Status: ONLY for Cow or Buffalo */}
+              {isEditDairy && (
+                <div className="p-3 rounded-2xl bg-sky-50/70 border border-sky-200 space-y-1">
+                  <label className="text-xs font-black text-sky-950 block">
+                    🥛 Milk Status (Cow & Buffalo only)
+                  </label>
+                  <select
+                    value={editMilk}
+                    onChange={(e) => setEditMilk(e.target.value as AnimalMilkStatus)}
+                    className="w-full px-3 py-2 rounded-xl border border-sky-300 text-xs font-bold bg-white text-stone-900"
+                  >
+                    <option value="Giving Milk">🥛 Giving Milk</option>
+                    <option value="Dry Period">🥥 Dry Period</option>
+                    <option value="Not Milking (Male/Kid)">🚫 Not Milking</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Buttons */}
+              <div className="flex justify-end gap-2 pt-2 border-t border-stone-200">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 rounded-xl border border-stone-300 text-xs font-bold text-stone-700 hover:bg-stone-100 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-black shadow-xs cursor-pointer active:scale-98"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -134,13 +134,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       <header className="border-b border-stone-200 bg-white sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <span className="text-3xl">🐄</span>
+            <span className="text-3xl">🐐</span>
             <div>
               <span className="text-xl font-extrabold tracking-tight text-emerald-900">
-                {t('appTitle', 'FarmTrack India')}
+                {t('appTitle', 'Sheep & Goat Tracker')}
               </span>
               <span className="text-[11px] block text-stone-500 font-semibold">
-                {t('appSubtitle', 'Easy Farm Animals Diary')}
+                {t('appSubtitle', 'Phase 1: Flock & Herd Manager')}
               </span>
             </div>
           </div>
@@ -208,29 +208,30 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           {/* Left Column: Friendly, Kid-Simple Features */}
           <div className="lg:col-span-7 space-y-5">
             
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-100 text-amber-900 text-xs font-bold border border-amber-300">
-              <Sparkles className="w-4 h-4 text-amber-700" />
-              <span>Made for Indian Dairy, Goat & Poultry Farms 🇮🇳</span>
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-100 text-emerald-950 text-xs font-bold border border-emerald-300">
+              <Sparkles className="w-4 h-4 text-emerald-700" />
+              <span>🐐 Phase 1: Sheep & Goat Specialists 🐑 · Other Livestock in Phase 2</span>
             </div>
 
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-stone-900 tracking-tight leading-tight">
-              A Happy Diary for All Your Farm Animals!
+              Flock Diary for Your Goats & Sheep!
             </h1>
 
             <p className="text-base sm:text-lg text-stone-600 leading-relaxed max-w-xl">
-              Keep a clean record of your <strong>Cows (गाय)</strong>, <strong>Goats (बकरी)</strong>, <strong>Sheep (भेड़)</strong>, and <strong>Chickens (मुर्गी)</strong>. 
-              Write daily milk, animal weight, doctor vaccines, and see who their Papa and Mummy are!
+              Specialized for <strong>Goats (बकरी)</strong> and <strong>Sheep (भेड़)</strong> flock owners, breeders, and herders. 
+              Track ear tags, kid & lamb birth weights, Sire & Dam pedigree, and critical vaccines (PPR, Enterotoxemia, Pox). 
+              <em>Cattle, buffalo, and poultry will be added in coming phases.</em>
             </p>
 
-            {/* 4 Big Simple Feature Cards that a 6 year old can read */}
+            {/* 4 Specialized Flock Feature Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
               
               <div className="p-4 rounded-2xl bg-white border border-stone-200 shadow-xs flex items-start gap-3">
                 <span className="text-2xl mt-0.5">🌳</span>
                 <div>
-                  <h3 className="font-bold text-stone-900 text-sm">Family Tree (Papa & Mummy)</h3>
+                  <h3 className="font-bold text-stone-900 text-sm">Flock Family Lineage</h3>
                   <p className="text-xs text-stone-500 mt-0.5">
-                    Know who the mother (Mummy) and father (Papa) of each baby animal is.
+                    Track Sire (Stud Buck / Ram) & Dam (Doe / Ewe) to prevent inbreeding and build stronger bloodlines.
                   </p>
                 </div>
               </div>
@@ -238,29 +239,29 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <div className="p-4 rounded-2xl bg-white border border-stone-200 shadow-xs flex items-start gap-3">
                 <span className="text-2xl mt-0.5">💉</span>
                 <div>
-                  <h3 className="font-bold text-stone-900 text-sm">Doctor Vaccine Shots</h3>
+                  <h3 className="font-bold text-stone-900 text-sm">PPR, ET & Pox Vaccines</h3>
                   <p className="text-xs text-stone-500 mt-0.5">
-                    Never forget mouth & foot fever (FMD) or goat vaccines so animals stay healthy.
+                    Ovine & caprine protocols with 1-click batch shots, deworming drenches, and nearing due alerts.
                   </p>
                 </div>
               </div>
 
               <div className="p-4 rounded-2xl bg-white border border-stone-200 shadow-xs flex items-start gap-3">
-                <span className="text-2xl mt-0.5">🥛</span>
+                <span className="text-2xl mt-0.5">⚖️</span>
                 <div>
-                  <h3 className="font-bold text-stone-900 text-sm">Daily Milk & Weight</h3>
+                  <h3 className="font-bold text-stone-900 text-sm">Kid / Lamb Growth & Wool</h3>
                   <p className="text-xs text-stone-500 mt-0.5">
-                    Type today's milk in Litres, egg count, or body weight in Kilograms (kg).
+                    Record birth weights, daily grams gain (ADG), shearing fleece yield, and doe milking.
                   </p>
                 </div>
               </div>
 
               <div className="p-4 rounded-2xl bg-white border border-stone-200 shadow-xs flex items-start gap-3">
-                <span className="text-2xl mt-0.5">👑</span>
+                <span className="text-2xl mt-0.5">🏷️</span>
                 <div>
-                  <h3 className="font-bold text-stone-900 text-sm">Farm Boss & Helpers</h3>
+                  <h3 className="font-bold text-stone-900 text-sm">Ear Tagging & Fast Bulk Add</h3>
                   <p className="text-xs text-stone-500 mt-0.5">
-                    Farm Boss can approve helpers. Helpers can write and update details, but cannot delete anything!
+                    Manage GOAT- and SHEEP- tag series, update ear tags quickly, and bulk-import new flocks in seconds.
                   </p>
                 </div>
               </div>
@@ -275,23 +276,30 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 <button
                   type="button"
                   onClick={() => handleQuickDemoLogin(DEFAULT_USERS[0])}
-                  className="px-3 py-2 rounded-xl bg-white border-2 border-emerald-600 hover:bg-emerald-50 text-xs font-bold text-emerald-950 flex items-center gap-1.5 shadow-xs cursor-pointer"
+                  className="px-3 py-2 rounded-xl bg-purple-50 border-2 border-purple-500 hover:bg-purple-100 text-xs font-bold text-purple-950 flex items-center gap-1.5 shadow-xs cursor-pointer"
                 >
-                  <span>👑 Ramesh Patel (Farm Boss / Admin)</span>
+                  <span>👑 Super Admin (All Tenants)</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleQuickDemoLogin(DEFAULT_USERS[1])}
-                  className="px-3 py-2 rounded-xl bg-white border border-stone-300 hover:border-emerald-600 hover:bg-emerald-50 text-xs font-bold text-stone-800 flex items-center gap-1.5 shadow-xs cursor-pointer"
+                  className="px-3 py-2 rounded-xl bg-white border-2 border-emerald-600 hover:bg-emerald-50 text-xs font-bold text-emerald-950 flex items-center gap-1.5 shadow-xs cursor-pointer"
                 >
-                  <span>🚜 Suresh Kumar (Farm Helper - Cannot Delete)</span>
+                  <span>👑 Ramesh Patel (Farm Boss)</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleQuickDemoLogin(DEFAULT_USERS[3])}
+                  onClick={() => handleQuickDemoLogin(DEFAULT_USERS[2])}
                   className="px-3 py-2 rounded-xl bg-white border border-stone-300 hover:border-emerald-600 hover:bg-emerald-50 text-xs font-bold text-stone-800 flex items-center gap-1.5 shadow-xs cursor-pointer"
                 >
-                  <span>🆕 Priya Verma (New User - See Farm Screen)</span>
+                  <span>🚜 Suresh Kumar (Farm Helper)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickDemoLogin(DEFAULT_USERS[4] || DEFAULT_USERS[3])}
+                  className="px-3 py-2 rounded-xl bg-white border border-stone-300 hover:border-emerald-600 hover:bg-emerald-50 text-xs font-bold text-stone-800 flex items-center gap-1.5 shadow-xs cursor-pointer"
+                >
+                  <span>🆕 Priya Verma (New User)</span>
                 </button>
               </div>
             </div>
@@ -316,7 +324,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                       : 'text-stone-600 hover:text-stone-900'
                   }`}
                 >
-                  Sign In (लॉग इन)
+                  {lang === 'hi' ? 'लॉग इन' : 'Sign In'}
                 </button>
                 <button
                   type="button"

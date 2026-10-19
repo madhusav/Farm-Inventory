@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Farm, User, Species } from '../types';
+import { db } from '../services/db';
 import { 
   Building2, 
   Search, 
@@ -9,7 +10,8 @@ import {
   MapPin, 
   Sparkles,
   Lock,
-  Plus
+  Plus,
+  ShieldAlert
 } from 'lucide-react';
 
 interface FarmSelectionModalProps {
@@ -29,6 +31,7 @@ export const FarmSelectionModal: React.FC<FarmSelectionModalProps> = ({
   onRequestJoinFarm,
   onLogout,
 }) => {
+  const isSuperAdmin = db.isSuperAdmin(currentUser);
   const [activeTab, setActiveTab] = useState<'existing' | 'create'>('existing');
 
   // Search existing farm
@@ -40,18 +43,21 @@ export const FarmSelectionModal: React.FC<FarmSelectionModalProps> = ({
   // Create new farm
   const [newFarmName, setNewFarmName] = useState('');
   const [newFarmId, setNewFarmId] = useState(() => `FARM-${Math.floor(1000 + Math.random() * 9000)}`);
-  const [newLocation, setNewLocation] = useState('Anand, Gujarat');
-  const [newAcreage, setNewAcreage] = useState('15');
-  const [newSpecies, setNewSpecies] = useState<Species[]>(['Cow', 'Goat', 'Sheep', 'Chicken']);
+  const [newLocation, setNewLocation] = useState('Pune, Maharashtra');
+  const [newAcreage, setNewAcreage] = useState('20');
+  const [newSpecies, setNewSpecies] = useState<Species[]>(['Goat', 'Sheep']);
   const [createError, setCreateError] = useState('');
 
-  // Farms where current user is already an active member or admin
-  const myFarms = farms.filter(f => 
-    f.members.some(m => m.userId === currentUser.id && m.status === 'active') ||
-    f.adminUserId === currentUser.id
-  );
+  // Farms where current user is already an active member or admin (or all if Super Admin)
+  const allSystemFarms = isSuperAdmin ? db.getAllTenantsForSuperAdmin() : farms;
+  const myFarms = isSuperAdmin 
+    ? allSystemFarms 
+    : farms.filter(f => 
+        f.members.some(m => m.userId === currentUser.id && m.status === 'active') ||
+        f.adminUserId === currentUser.id
+      );
 
-  const searchResults = farms.filter(f => {
+  const searchResults = allSystemFarms.filter(f => {
     const q = farmSearchQuery.trim().toLowerCase();
     if (!q) return true;
     return f.id.toLowerCase().includes(q) || f.name.toLowerCase().includes(q);
@@ -127,35 +133,54 @@ export const FarmSelectionModal: React.FC<FarmSelectionModalProps> = ({
     <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
       <div className="bg-white w-full max-w-3xl rounded-3xl border border-stone-200 shadow-2xl overflow-hidden flex flex-col my-auto max-h-[92vh]">
         
-        {/* Header */}
-        <div className="px-6 sm:px-8 py-5 border-b border-stone-200 bg-[#FFFDF9] flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">🚜</span>
-            <div>
-              <h2 className="text-lg font-extrabold text-stone-900">Choose or Make Your Farm</h2>
-              <p className="text-xs text-stone-500 font-medium">
-                Hello <strong>{currentUser.name}</strong> ({currentUser.identifier})!
+        {/* Header - Mobile friendly */}
+        <div className="px-4 sm:px-8 py-4 sm:py-5 border-b border-stone-200 bg-[#FFFDF9] flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <span className="text-2xl sm:text-3xl shrink-0">🚜</span>
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-lg font-black text-stone-900 truncate">
+                {isSuperAdmin ? 'Super Admin: All Tenants' : 'Choose or Make Your Farm'}
+              </h2>
+              <p className="text-xs text-stone-500 font-medium truncate">
+                {currentUser.name} ({currentUser.identifier})
               </p>
             </div>
           </div>
 
           <button
             onClick={onLogout}
-            className="text-xs font-bold text-stone-500 hover:text-stone-800 px-3 py-1.5 rounded-xl border border-stone-200 hover:bg-stone-100 cursor-pointer"
+            className="text-xs font-bold text-stone-600 hover:text-stone-900 px-3 py-1.5 rounded-xl border border-stone-200 hover:bg-stone-100 cursor-pointer shrink-0"
           >
             Sign Out
           </button>
         </div>
 
         {/* Content Body */}
-        <div className="p-6 sm:p-8 overflow-y-auto space-y-6">
+        <div className="p-4 sm:p-8 overflow-y-auto space-y-5">
+          {/* Super Admin Notice */}
+          {isSuperAdmin && (
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-500/10 border-2 border-amber-500/40 text-xs text-amber-950 flex items-start gap-2.5">
+              <ShieldAlert className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-black block">👑 Super Admin Access Active</span>
+                <span className="text-stone-600">
+                  You have full cross-tenant visibility. You can manage, open, or audit all {allSystemFarms.length} tenant farm organizations across the platform.
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* If user is already part of any farm, show them here */}
           {myFarms.length > 0 && (
             <div className="space-y-3">
-              <span className="text-xs font-extrabold uppercase tracking-wider text-stone-500">
-                Your Farms ({myFarms.length})
-              </span>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-stone-500">
+                  {isSuperAdmin ? `All Platform Tenants (${myFarms.length})` : `Your Authorized Farms (${myFarms.length})`}
+                </span>
+                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
+                  Tenant Isolation Verified
+                </span>
+              </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {myFarms.map(f => {
@@ -428,19 +453,26 @@ export const FarmSelectionModal: React.FC<FarmSelectionModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                    Which animals live on this farm?
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {(['Cow', 'Goat', 'Sheep', 'Chicken', 'Buffalo'] as Species[]).map(s => {
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold text-stone-700">
+                      Which animals live on this farm? (Phase 1)
+                    </label>
+                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                      Phase 1: Sheep & Goat
+                    </span>
+                  </div>
+
+                  {/* Phase 1 Animals */}
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {(['Goat', 'Sheep'] as Species[]).map(s => {
                       const isSelected = newSpecies.includes(s);
-                      const icon = s === 'Cow' ? '🐄 Cow (गाय)' : s === 'Goat' ? '🐐 Goat (बकरी)' : s === 'Sheep' ? '🐑 Sheep (भेड़)' : s === 'Chicken' ? '🐔 Chicken (मुर्गी)' : '🐃 Buffalo (भैंस)';
+                      const icon = s === 'Goat' ? '🐐 Goat (बकरी)' : '🐑 Sheep (भेड़)';
                       return (
                         <button
                           key={s}
                           type="button"
                           onClick={() => toggleSpecies(s)}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                          className={`px-3 py-2 rounded-xl text-xs font-black border transition-all cursor-pointer ${
                             isSelected
                               ? 'bg-emerald-800 text-white border-emerald-800 shadow-xs'
                               : 'bg-stone-100 text-stone-700 border-stone-300 hover:bg-stone-200'
@@ -450,6 +482,12 @@ export const FarmSelectionModal: React.FC<FarmSelectionModalProps> = ({
                         </button>
                       );
                     })}
+                  </div>
+
+                  {/* Future Phases Notice */}
+                  <div className="p-2.5 rounded-xl bg-stone-100 border border-stone-200 text-[11px] text-stone-600 flex items-center justify-between">
+                    <span>🐄 Cattle, 🐃 Buffalo & 🐔 Poultry: <strong>Coming in Phase 2</strong></span>
+                    <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">Future Phase</span>
                   </div>
                 </div>
 

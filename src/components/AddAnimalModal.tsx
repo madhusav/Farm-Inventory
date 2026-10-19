@@ -15,11 +15,12 @@ interface AddAnimalModalProps {
   onAddAnimal: (newAnimal: Animal) => void;
 }
 
-const SPECIES_ILLUSTRATIONS: Record<Species, string> = {
+const SPECIES_ILLUSTRATIONS: Record<string, string> = {
   Cow: COW_ILLUSTRATION,
   Goat: GOAT_ILLUSTRATION,
   Sheep: SHEEP_ILLUSTRATION,
   Chicken: CHICKEN_ILLUSTRATION,
+  Buffalo: COW_ILLUSTRATION,
 };
 
 export const AddAnimalModal: React.FC<AddAnimalModalProps> = ({
@@ -28,69 +29,59 @@ export const AddAnimalModal: React.FC<AddAnimalModalProps> = ({
   onClose,
   onAddAnimal,
 }) => {
-  const [species, setSpecies] = useState<Species>('Cow');
-  const [tagId, setTagId] = useState(() => `COW-${Math.floor(100 + Math.random() * 900)}`);
+  const [species, setSpecies] = useState<Species>('Goat');
+  const [tagId, setTagId] = useState(() => `GOAT-${Math.floor(100 + Math.random() * 900)}`);
   const [name, setName] = useState('');
-  const [breed, setBreed] = useState('Gir Cow (Desi)');
+  const [breed, setBreed] = useState('Sirohi Brown Goat');
   const [sex, setSex] = useState<'Female' | 'Male'>('Female');
   const [dateOfBirth, setDateOfBirth] = useState('2025-06-15');
-  const [paddockLocation, setPaddockLocation] = useState('Shed No. 1');
+  const [paddockLocation, setPaddockLocation] = useState('Goat Shed East');
   const [status, setStatus] = useState<Animal['status']>('Active');
   const [customPhotoUrl, setCustomPhotoUrl] = useState<string>('');
 
   // Parent Sire & Dam
   const [selectedSireId, setSelectedSireId] = useState<string>('custom');
-  const [customSireName, setCustomSireName] = useState('Nandi Bull');
-  const [customSireTag, setCustomSireTag] = useState('BULL-202');
+  const [customSireName, setCustomSireName] = useState('Raja Buck');
+  const [customSireTag, setCustomSireTag] = useState('BUCK-102');
   
   const [selectedDamId, setSelectedDamId] = useState<string>('custom');
-  const [customDamName, setCustomDamName] = useState('Gauri Cow');
-  const [customDamTag, setCustomDamTag] = useState('COW-101');
+  const [customDamName, setCustomDamName] = useState('Munni Doe');
+  const [customDamTag, setCustomDamTag] = useState('GOAT-101');
 
-  const [birthWeightKg, setBirthWeightKg] = useState('28');
-  const [currentWeightKg, setCurrentWeightKg] = useState('180');
-  const [targetMatureWeightKg, setTargetMatureWeightKg] = useState('420');
-  const [productivityValue, setProductivityValue] = useState('16 Litres / day');
-  const [traitName, setTraitName] = useState('Sweet rich A2 milk');
+  const [birthWeightKg, setBirthWeightKg] = useState('3.2');
+  const [currentWeightKg, setCurrentWeightKg] = useState('32');
+  const [targetMatureWeightKg, setTargetMatureWeightKg] = useState('55');
+  const [productivityValue, setProductivityValue] = useState('Twin Kids Breeder');
+  const [traitName, setTraitName] = useState('Twins giving ability & fast growth');
 
   const handleSpeciesSelect = (sp: Species) => {
     setSpecies(sp);
-    if (sp === 'Cow') {
-      setTagId(`COW-${Math.floor(100 + Math.random() * 900)}`);
-      setBreed('Gir Cow (Desi)');
-      setBirthWeightKg('28');
-      setCurrentWeightKg('180');
-      setTargetMatureWeightKg('420');
-      setProductivityValue('16 Litres / day');
-      setPaddockLocation('Shed No. 1');
-      setTraitName('Sweet rich A2 milk');
-    } else if (sp === 'Goat') {
-      setTagId(`GOAT-${Math.floor(300 + Math.random() * 300)}`);
-      setBreed('Sirohi Brown Goat');
-      setBirthWeightKg('3.5');
-      setCurrentWeightKg('35');
-      setTargetMatureWeightKg('55');
-      setProductivityValue('2.5 Litres / day');
-      setPaddockLocation('Goat Shed East');
-      setTraitName('Twins giving ability');
-    } else if (sp === 'Sheep') {
-      setTagId(`SHEEP-${Math.floor(400 + Math.random() * 300)}`);
+    if (sp === 'Sheep') {
+      setTagId(`SHEEP-${Math.floor(200 + Math.random() * 800)}`);
       setBreed('Deccani Sheep');
       setBirthWeightKg('3.5');
       setCurrentWeightKg('38');
-      setTargetMatureWeightKg('48');
-      setProductivityValue('3.5 kg Wool / year');
-      setPaddockLocation('Pasture Field');
-      setTraitName('Thick warm wool');
+      setTargetMatureWeightKg('50');
+      setProductivityValue('3.8 kg Wool / year');
+      setPaddockLocation('Sheep Pasture Field');
+      setTraitName('Thick clean wool & meat build');
+      setCustomSireName('Sultan Ram');
+      setCustomSireTag('RAM-202');
+      setCustomDamName('Rani Ewe');
+      setCustomDamTag('SHEEP-201');
     } else {
-      setTagId(`HEN-${Math.floor(500 + Math.random() * 200)}`);
-      setBreed('Aseel Desi Hen');
-      setBirthWeightKg('0.04');
-      setCurrentWeightKg('2.2');
-      setTargetMatureWeightKg('2.5');
-      setProductivityValue('6 Eggs / week');
-      setPaddockLocation('Backyard Coop');
-      setTraitName('Healthy brown eggs');
+      setTagId(`GOAT-${Math.floor(100 + Math.random() * 900)}`);
+      setBreed('Sirohi Brown Goat');
+      setBirthWeightKg('3.2');
+      setCurrentWeightKg('32');
+      setTargetMatureWeightKg('55');
+      setProductivityValue('Twin Kids Breeder');
+      setPaddockLocation('Goat Shed East');
+      setTraitName('Twins giving ability & fast growth');
+      setCustomSireName('Raja Buck');
+      setCustomSireTag('BUCK-102');
+      setCustomDamName('Munni Doe');
+      setCustomDamTag('GOAT-101');
     }
   };
 
@@ -115,16 +106,17 @@ export const AddAnimalModal: React.FC<AddAnimalModalProps> = ({
     const bw = parseFloat(birthWeightKg) || 5;
     const cw = parseFloat(currentWeightKg) || 50;
     const tw = parseFloat(targetMatureWeightKg) || 100;
+    const isDairy = species === 'Cow' || species === 'Buffalo';
 
     const newAnimal: Animal = {
       id: `anim-${Date.now()}`,
       tagId: tagId.trim().toUpperCase(),
-      name: name.trim() || `${breed} #${tagId}`,
+      name: name.trim() || `${breed} #${tagId.trim().toUpperCase()}`,
       species,
       breed: breed.trim(),
       sex,
       dateOfBirth,
-      photoUrl: customPhotoUrl || SPECIES_ILLUSTRATIONS[species],
+      photoUrl: customPhotoUrl || SPECIES_ILLUSTRATIONS[species] || COW_ILLUSTRATION,
       paddockLocation: paddockLocation.trim(),
       status,
       sireId: sireObj ? sireObj.id : null,
@@ -147,17 +139,21 @@ export const AddAnimalModal: React.FC<AddAnimalModalProps> = ({
       birthWeightKg: bw,
       currentWeightKg: cw,
       targetMatureWeightKg: tw,
-      productivityLabel: species === 'Cow' 
+      productivityLabel: species === 'Cow' || species === 'Buffalo'
         ? 'Daily Milk' 
         : species === 'Goat' 
-        ? 'Goat Milk & Kids' 
+        ? 'Kids & Breeding' 
         : species === 'Sheep' 
         ? 'Yearly Wool' 
         : 'Eggs Each Week',
       currentProductivityValue: productivityValue,
       healthStatus: 'Healthy & Fit',
-      milkStatus: sex === 'Male' ? 'Not Milking (Male/Kid)' : (species === 'Chicken' ? 'Laying Eggs' : 'Giving Milk'),
-      dailyMilkLitres: sex === 'Female' && (species === 'Cow' || species === 'Goat') ? (parseFloat(productivityValue) || 12) : undefined,
+      milkStatus: isDairy 
+        ? (sex === 'Male' ? 'Not Milking (Male/Kid)' : 'Giving Milk')
+        : undefined,
+      dailyMilkLitres: isDairy && sex === 'Female' 
+        ? (parseFloat(productivityValue) || (species === 'Cow' ? 12 : 9))
+        : undefined,
       createdAt: new Date().toISOString().split('T')[0],
       createdBy: currentUser.name,
       growthHistory: [
@@ -201,10 +197,10 @@ export const AddAnimalModal: React.FC<AddAnimalModalProps> = ({
         <div className="px-6 py-4 border-b border-stone-200 bg-[#FFFDF9] flex items-center justify-between">
           <div>
             <h2 className="text-lg font-black text-stone-900">
-              Add New Animal (नया पशु जोड़ें)
+              Add New Animal (Goat or Sheep)
             </h2>
             <p className="text-xs text-stone-500 font-medium">
-              Save a new cow, goat, sheep, or chicken to {farm.name}
+              Save a new goat or sheep to {farm.name} (Phase 1 Tracker)
             </p>
           </div>
           <button
@@ -218,29 +214,35 @@ export const AddAnimalModal: React.FC<AddAnimalModalProps> = ({
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-4">
           
-          {/* Step 1: Species */}
+          {/* Step 1: Species (Phase 1: Goat & Sheep) */}
           <div>
-            <label className="block text-xs font-bold text-stone-700 mb-1.5">
-              1. Which Animal is this? (पशु चुनें)
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-bold text-stone-700">
+                1. Which Animal is this? (Phase 1)
+              </label>
+              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                Goat & Sheep Phase
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               {[
-                { id: 'Cow', label: '🐄 Cow (गाय)' },
-                { id: 'Goat', label: '🐐 Goat (बकरी)' },
-                { id: 'Sheep', label: '🐑 Sheep (भेड़)' },
-                { id: 'Chicken', label: '🐔 Chicken (मुर्गी)' },
+                { id: 'Goat', label: '🐐 Goat (बकरी)', desc: 'Meat & Kidding (Sirohi, Jamnapari, Boer)' },
+                { id: 'Sheep', label: '🐑 Sheep (भेड़)', desc: 'Wool & Meat (Deccani, Nellore, Bellary)' },
               ].map(item => (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => handleSpeciesSelect(item.id as Species)}
-                  className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                  className={`p-3 rounded-2xl text-left border-2 transition-all cursor-pointer flex flex-col justify-between ${
                     species === item.id
-                      ? 'bg-emerald-800 text-white border-emerald-800 shadow-xs'
-                      : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
+                      ? 'bg-emerald-800 text-white border-emerald-800 shadow-md'
+                      : 'bg-stone-50 text-stone-800 border-stone-200 hover:bg-stone-100'
                   }`}
                 >
-                  {item.label}
+                  <span className="text-sm font-black">{item.label}</span>
+                  <span className={`text-[11px] mt-1 ${species === item.id ? 'text-emerald-100' : 'text-stone-500'}`}>
+                    {item.desc}
+                  </span>
                 </button>
               ))}
             </div>
@@ -250,19 +252,20 @@ export const AddAnimalModal: React.FC<AddAnimalModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-bold text-stone-700 mb-1">
-                Ear Tag Number (कान का नंबर)
+                Ear Tag Number (Editable)
               </label>
               <input
                 type="text"
                 required
                 value={tagId}
                 onChange={(e) => setTagId(e.target.value)}
+                placeholder="e.g. GOAT-101, SHEEP-201"
                 className="w-full px-3 py-2 rounded-xl border border-stone-300 font-mono text-xs uppercase font-bold"
               />
             </div>
             <div>
               <label className="block text-xs font-bold text-stone-700 mb-1">
-                Animal's Name (नाम)
+                Animal's Name
               </label>
               <input
                 type="text"
@@ -275,7 +278,7 @@ export const AddAnimalModal: React.FC<AddAnimalModalProps> = ({
             </div>
             <div>
               <label className="block text-xs font-bold text-stone-700 mb-1">
-                Birthday (जन्म तिथि)
+                Birthday
               </label>
               <input
                 type="date"
@@ -290,7 +293,7 @@ export const AddAnimalModal: React.FC<AddAnimalModalProps> = ({
           {/* Breed, Boy/Girl, Shed */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-bold text-stone-700 mb-1">Breed (नस्ल)</label>
+              <label className="block text-xs font-bold text-stone-700 mb-1">Breed</label>
               <input
                 type="text"
                 required
@@ -300,14 +303,20 @@ export const AddAnimalModal: React.FC<AddAnimalModalProps> = ({
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-stone-700 mb-1">Female or Male?</label>
+              <label className="block text-xs font-bold text-stone-700 mb-1">
+                {species === 'Goat' ? 'Sex (Doe or Buck?)' : 'Sex (Ewe or Ram?)'}
+              </label>
               <select
                 value={sex}
                 onChange={(e) => setSex(e.target.value as 'Female' | 'Male')}
-                className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-bold"
+                className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-bold bg-white"
               >
-                <option value="Female">Female / Girl (मादा)</option>
-                <option value="Male">Male / Boy (नर)</option>
+                <option value="Female">
+                  {species === 'Goat' ? '♀ Female (Doe / बकरी)' : '♀ Female (Ewe / भेड़)'}
+                </option>
+                <option value="Male">
+                  {species === 'Goat' ? '♂ Male (Buck / बकरा)' : '♂ Male (Ram / मेढ़ा)'}
+                </option>
               </select>
             </div>
             <div>
@@ -328,10 +337,10 @@ export const AddAnimalModal: React.FC<AddAnimalModalProps> = ({
             </h4>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Papa */}
+              {/* Sire (Father) */}
               <div>
                 <label className="block text-xs font-bold text-stone-700 mb-1">
-                  Papa (Father)
+                  Sire / Father ({species === 'Goat' ? 'Stud Buck / बकरा' : 'Stud Ram / मेढ़ा'})
                 </label>
                 <select
                   value={selectedSireId}
@@ -365,10 +374,10 @@ export const AddAnimalModal: React.FC<AddAnimalModalProps> = ({
                 )}
               </div>
 
-              {/* Mummy */}
+              {/* Dam (Mother) */}
               <div>
                 <label className="block text-xs font-bold text-stone-700 mb-1">
-                  Mummy (Mother)
+                  Dam / Mother ({species === 'Goat' ? 'Breeder Doe / बकरी' : 'Breeder Ewe / भेड़'})
                 </label>
                 <select
                   value={selectedDamId}

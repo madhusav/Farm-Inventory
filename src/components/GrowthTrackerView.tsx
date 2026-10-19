@@ -18,13 +18,12 @@ export const GrowthTrackerView: React.FC<GrowthTrackerViewProps> = ({
   const [selectedAnimalId, setSelectedAnimalId] = useState<string>(
     farm.animals[0]?.id || ''
   );
-  const [quickWeight, setQuickWeight] = useState<string>('390');
+  const targetAnimal = farm.animals.find(a => a.id === selectedAnimalId) || farm.animals[0];
+  const [quickWeight, setQuickWeight] = useState<string>(() => targetAnimal ? String(targetAnimal.currentWeightKg) : '35');
   const [quickBcs, setQuickBcs] = useState<string>('3.7');
-  const [quickYield, setQuickYield] = useState<string>('18');
+  const [quickYield, setQuickYield] = useState<string>(() => targetAnimal?.species === 'Sheep' ? '3.8' : '2.0');
   const [quickNotes, setQuickNotes] = useState<string>('');
   const [toastMessage, setToastMessage] = useState<string>('');
-
-  const targetAnimal = farm.animals.find(a => a.id === selectedAnimalId) || farm.animals[0];
 
   const handleQuickSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -176,18 +175,68 @@ export const GrowthTrackerView: React.FC<GrowthTrackerViewProps> = ({
           </form>
         </div>
 
-        {/* Right: Table */}
+        {/* Right: Table on Tablet/Desktop, Mobile Cards on Phone (Zero Horizontal Scrolling) */}
         <div className="lg:col-span-7 bg-white rounded-3xl border border-stone-200 overflow-hidden shadow-xs">
-          <div className="px-6 py-4 border-b border-stone-200 flex items-center justify-between bg-stone-50/60">
-            <h2 className="text-base font-extrabold text-stone-900">
-              All Animals Weight & Milk Summary
+          <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-stone-200 flex items-center justify-between bg-stone-50/60">
+            <h2 className="text-sm sm:text-base font-extrabold text-stone-900">
+              Flock Weight & Yield Summary
             </h2>
             <span className="text-xs text-stone-500 font-bold">
               {farm.animals.length} Animals on Farm
             </span>
           </div>
 
-          <div className="overflow-x-auto">
+          {/* Mobile Card View (Phone screens: zero horizontal scroll) */}
+          <div className="sm:hidden divide-y divide-stone-100">
+            {farm.animals.map(animal => {
+              const pct = Math.min(100, Math.round((animal.currentWeightKg / animal.targetMatureWeightKg) * 100));
+              return (
+                <div
+                  key={animal.id}
+                  onClick={() => onSelectAnimal(animal)}
+                  className="p-3.5 hover:bg-stone-50 active:bg-stone-100 transition-colors cursor-pointer flex items-center justify-between gap-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono text-xs font-black text-emerald-950 bg-emerald-100 px-1.5 py-0.5 rounded">
+                        #{animal.tagId}
+                      </span>
+                      <h4 className="text-xs font-black text-stone-900 truncate">
+                        {animal.name}
+                      </h4>
+                      <span className="text-xs">
+                        {animal.species === 'Goat' ? '🐐' : '🐑'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-1.5 text-xs">
+                      <span className="font-mono font-black text-stone-900">
+                        {animal.currentWeightKg} kg
+                      </span>
+                      <span className="text-[10px] text-stone-400">
+                        (was {animal.birthWeightKg} kg)
+                      </span>
+                      <span className="font-mono text-[10px] font-black text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded-full">
+                        {pct}% grown
+                      </span>
+                    </div>
+
+                    <div className="text-[11px] text-stone-500 font-medium truncate mt-0.5">
+                      {animal.productivityLabel}: <strong>{animal.currentProductivityValue}</strong>
+                    </div>
+                  </div>
+
+                  <span className="text-xs text-emerald-800 font-black flex items-center gap-0.5 shrink-0 bg-emerald-50 px-2 py-1.5 rounded-xl border border-emerald-200">
+                    <span>Diary</span>
+                    <ArrowUpRight className="w-3.5 h-3.5" />
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Table View for sm+ screens */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-stone-50 border-b border-stone-200 text-stone-600 font-bold text-[11px]">
@@ -195,7 +244,7 @@ export const GrowthTrackerView: React.FC<GrowthTrackerViewProps> = ({
                   <th className="py-3 px-4">Baby Weight</th>
                   <th className="py-3 px-4">Weight Today</th>
                   <th className="py-3 px-4">Grown %</th>
-                  <th className="py-3 px-4">Daily Milk</th>
+                  <th className="py-3 px-4">Yield / Productivity</th>
                   <th className="py-3 px-4">Diary</th>
                 </tr>
               </thead>

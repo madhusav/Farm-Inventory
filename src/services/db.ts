@@ -10,6 +10,7 @@ import {
   MilkYieldLog, 
   FarmConfig, 
   VaccineAlert,
+  FinancialRecord,
   isVaccineManager
 } from '../types';
 import { DEFAULT_USERS, INITIAL_FARMS } from '../data/initialData';
@@ -34,6 +35,105 @@ export const DEFAULT_FARM_CONFIG: FarmConfig = {
   ]
 };
 
+export const DEFAULT_FINANCIAL_RECORDS: FinancialRecord[] = [
+  {
+    id: 'fin-1',
+    farmId: 'FARM-7821',
+    date: '2026-10-12',
+    type: 'income',
+    category: 'Livestock Sale',
+    amount: 32000,
+    title: 'Sale of 4 Jamnapari Weaned Kids',
+    notes: 'Sold to neighboring breeding farm @ ₹8,000 each',
+    recordedBy: 'Ramesh Patel',
+    createdAt: '2026-10-12T08:30:00Z',
+  },
+  {
+    id: 'fin-2',
+    farmId: 'FARM-7821',
+    date: '2026-10-11',
+    type: 'expense',
+    category: 'Feed & Fodder',
+    amount: 6500,
+    title: 'Groundnut Dry Hay & Subabul Leaves Fodder',
+    notes: '2 cart loads for goat and sheep flock feeding',
+    recordedBy: 'Ramesh Patel',
+    createdAt: '2026-10-11T10:15:00Z',
+  },
+  {
+    id: 'fin-3',
+    farmId: 'FARM-7821',
+    date: '2026-10-10',
+    type: 'income',
+    category: 'Wool & Hair',
+    amount: 18500,
+    title: 'Autumn Shearing Deccani Raw Wool Fleece Sale',
+    notes: '125 kg raw wool sold to local blanket weaver cooperative',
+    recordedBy: 'Ramesh Patel',
+    createdAt: '2026-10-10T09:00:00Z',
+  },
+  {
+    id: 'fin-4',
+    farmId: 'FARM-7821',
+    date: '2026-10-09',
+    type: 'expense',
+    category: 'Vaccination',
+    amount: 1800,
+    title: 'PPR Goat Plague & Enterotoxemia (ET) Vaccines',
+    notes: 'Annual flock preventative immunization',
+    recordedBy: 'Dr. Priya Sharma',
+    createdAt: '2026-10-09T14:30:00Z',
+  },
+  {
+    id: 'fin-5',
+    farmId: 'FARM-7821',
+    date: '2026-10-08',
+    type: 'income',
+    category: 'Manure & Fertilizer',
+    amount: 6200,
+    title: 'Organic Goat Pellet Manure & Sheep Dung',
+    notes: '30 bags sold to pomegranate and guava orchard farmers',
+    recordedBy: 'Suresh Kumar',
+    createdAt: '2026-10-08T11:00:00Z',
+  },
+  {
+    id: 'fin-6',
+    farmId: 'FARM-7821',
+    date: '2026-10-06',
+    type: 'expense',
+    category: 'Medicine & Doctor',
+    amount: 950,
+    title: 'Albendazole Dewormer Suspension & Liver Tonic',
+    notes: 'Pre-winter preventative deworming drench for goats and sheep',
+    recordedBy: 'Dr. Priya Sharma',
+    createdAt: '2026-10-06T16:00:00Z',
+  },
+  {
+    id: 'fin-7',
+    farmId: 'FARM-7821',
+    date: '2026-10-04',
+    type: 'expense',
+    category: 'Worker Wages',
+    amount: 5000,
+    title: 'Herdsman Flock Grazing Monthly Allowance',
+    notes: 'Payment for daily pasture grazing and pen cleaning',
+    recordedBy: 'Ramesh Patel',
+    createdAt: '2026-10-04T18:00:00Z',
+  },
+  {
+    id: 'fin-8',
+    farmId: 'FARM-7821',
+    date: '2026-09-28',
+    type: 'income',
+    category: 'Livestock Sale',
+    amount: 24000,
+    title: 'Sale of 2 Breeding Nellore Rams',
+    notes: 'Sold to local pastoralists for flock genetic improvement',
+    recordedBy: 'Ramesh Patel',
+    createdAt: '2026-09-28T10:00:00Z',
+  },
+];
+
 class FarmDatabase {
   private users: User[] = [];
   private farms: Farm[] = [];
@@ -57,14 +157,39 @@ class FarmDatabase {
 
       const savedFarms = localStorage.getItem(STORAGE_FARMS_KEY);
       if (savedFarms) {
-        this.farms = JSON.parse(savedFarms);
+        const parsed: Farm[] = JSON.parse(savedFarms);
+        this.farms = parsed.map(f => ({
+          ...f,
+          financialRecords: f.financialRecords && f.financialRecords.length > 0 ? f.financialRecords : [...DEFAULT_FINANCIAL_RECORDS],
+        }));
       } else {
         // Initial setup
         this.farms = INITIAL_FARMS.map(f => ({
           ...f,
-          config: { ...DEFAULT_FARM_CONFIG }
+          config: { ...DEFAULT_FARM_CONFIG },
+          financialRecords: [...DEFAULT_FINANCIAL_RECORDS],
         }));
       }
+
+      // Ensure Phase 1: Goat and Sheep only
+      this.farms.forEach(f => {
+        f.primarySpecies = ['Goat', 'Sheep'];
+        if (Array.isArray(f.animals)) {
+          const phase1Animals = f.animals.filter(a => a.species === 'Goat' || a.species === 'Sheep');
+          if (phase1Animals.length > 0) {
+            f.animals = phase1Animals;
+          } else {
+            f.animals = [...INITIAL_FARMS[0].animals];
+            f.vaccinations = [...INITIAL_FARMS[0].vaccinations];
+            f.healthRecords = [...INITIAL_FARMS[0].healthRecords];
+          }
+
+          f.animals.forEach(a => {
+            a.milkStatus = undefined;
+            a.dailyMilkLitres = undefined;
+          });
+        }
+      });
 
       const savedCurrUser = localStorage.getItem(STORAGE_CURRENT_USER_KEY);
       if (savedCurrUser) {
@@ -115,6 +240,48 @@ class FarmDatabase {
 
   // ==================== AUTH & USERS ====================
 
+  public isSuperAdmin(user?: User | null): boolean {
+    const target = user !== undefined ? user : this.currentUser;
+    if (!target) return false;
+    const cleanId = (target.identifier || '').replace(/\D/g, '');
+    const cleanPhone = (target.phone || '').replace(/\D/g, '');
+    return (
+      !!target.isSuperAdmin ||
+      cleanId === '9999999999' ||
+      cleanId.endsWith('9999999999') ||
+      cleanPhone === '9999999999' ||
+      cleanPhone.endsWith('9999999999') ||
+      target.identifier.toLowerCase() === 'admin@farmtrack.io' ||
+      target.id === 'user-superadmin-1'
+    );
+  }
+
+  public canUserAccessFarm(farmId: string, userId?: string): boolean {
+    const user = userId ? (this.users.find(u => u.id === userId) || this.currentUser) : this.currentUser;
+    if (!user) return false;
+    if (this.isSuperAdmin(user)) return true;
+    const farm = this.farms.find(f => f.id === farmId);
+    if (!farm) return false;
+    return farm.adminUserId === user.id || farm.members.some(m => m.userId === user.id && m.status === 'active');
+  }
+
+  public getUserFarms(userId?: string): Farm[] {
+    const user = userId ? (this.users.find(u => u.id === userId) || this.currentUser) : this.currentUser;
+    if (!user) return [];
+    if (this.isSuperAdmin(user)) return [...this.farms];
+    return this.farms.filter(f =>
+      f.adminUserId === user.id ||
+      f.members.some(m => m.userId === user.id && m.status === 'active')
+    );
+  }
+
+  public getAllTenantsForSuperAdmin(): Farm[] {
+    if (!this.isSuperAdmin()) {
+      throw new Error('Unauthorized: Super Admin permissions required.');
+    }
+    return [...this.farms];
+  }
+
   public getCurrentUser(): User | null {
     return this.currentUser;
   }
@@ -154,7 +321,30 @@ class FarmDatabase {
 
   public loginUser(identifier: string): User | null {
     const clean = identifier.trim().toLowerCase();
-    const user = this.users.find(u => u.identifier.toLowerCase() === clean);
+    const cleanDigits = clean.replace(/\D/g, '');
+
+    let user = this.users.find(u => {
+      const uDigits = u.identifier.replace(/\D/g, '');
+      return (
+        u.identifier.toLowerCase() === clean ||
+        (cleanDigits.length >= 10 && (uDigits === cleanDigits || uDigits.endsWith(cleanDigits)))
+      );
+    });
+
+    if (!user && (cleanDigits === '9999999999' || cleanDigits.endsWith('9999999999'))) {
+      user = {
+        id: 'user-superadmin-1',
+        name: 'Super Admin',
+        identifier: '9999999999',
+        authType: 'phone',
+        phone: '9999999999',
+        email: 'admin@farmtrack.io',
+        isSuperAdmin: true,
+        createdAt: '2026-01-01',
+      };
+      this.users.unshift(user);
+    }
+
     if (user) {
       this.currentUser = user;
       this.saveToStorage();
@@ -169,18 +359,25 @@ class FarmDatabase {
     this.saveToStorage();
   }
 
-  // ==================== FARMS ====================
+  // ==================== FARMS (TENANTS) ====================
 
   public getFarms(): Farm[] {
-    return [...this.farms];
+    return this.getUserFarms();
   }
 
   public getCurrentFarm(): Farm | null {
     if (!this.currentFarmId) return null;
-    return this.farms.find(f => f.id === this.currentFarmId) || null;
+    const farm = this.farms.find(f => f.id === this.currentFarmId) || null;
+    if (farm && !this.canUserAccessFarm(farm.id)) {
+      return null;
+    }
+    return farm;
   }
 
   public setCurrentFarmId(farmId: string | null) {
+    if (farmId && !this.canUserAccessFarm(farmId)) {
+      throw new Error('Tenant Access Denied: You do not have permission to view or manage this farm.');
+    }
     this.currentFarmId = farmId;
     this.saveToStorage();
   }
@@ -203,7 +400,7 @@ class FarmDatabase {
       location: farmData.location.trim(),
       totalAcreage: farmData.totalAcreage || 5.0,
       establishedYear: farmData.establishedYear || new Date().getFullYear(),
-      primarySpecies: farmData.primarySpecies.length > 0 ? farmData.primarySpecies : ['Cow', 'Goat', 'Sheep', 'Chicken'],
+      primarySpecies: farmData.primarySpecies && farmData.primarySpecies.length > 0 ? farmData.primarySpecies : ['Goat', 'Sheep'],
       members: [
         {
           userId: this.currentUser.id,
@@ -230,6 +427,9 @@ class FarmDatabase {
   }
 
   public updateFarm(farmId: string, updates: Partial<Farm>): Farm {
+    if (!this.canUserAccessFarm(farmId)) {
+      throw new Error('Tenant Access Denied: Unauthorized farm update.');
+    }
     const index = this.farms.findIndex(f => f.id === farmId);
     if (index === -1) throw new Error('Farm not found');
 
@@ -240,6 +440,9 @@ class FarmDatabase {
   }
 
   public updateFarmConfig(farmId: string, configUpdates: Partial<FarmConfig>): FarmConfig {
+    if (!this.canUserAccessFarm(farmId)) {
+      throw new Error('Tenant Access Denied: Unauthorized config update.');
+    }
     const farm = this.farms.find(f => f.id === farmId);
     if (!farm) throw new Error('Farm not found');
 
@@ -256,13 +459,15 @@ class FarmDatabase {
   public deleteFarm(farmId: string): boolean {
     if (!this.currentUser) return false;
     const farm = this.farms.find(f => f.id === farmId);
-    if (!farm || farm.adminUserId !== this.currentUser.id) {
-      throw new Error('Only the Farm Boss (Admin) can delete this farm');
+    if (!farm) return false;
+    if (!this.isSuperAdmin() && farm.adminUserId !== this.currentUser.id) {
+      throw new Error('Only the Farm Boss (Admin) or Super Admin can delete this farm');
     }
 
     this.farms = this.farms.filter(f => f.id !== farmId);
     if (this.currentFarmId === farmId) {
-      this.currentFarmId = this.farms[0]?.id || null;
+      const remaining = this.getUserFarms();
+      this.currentFarmId = remaining[0]?.id || null;
     }
     this.saveToStorage();
     return true;
@@ -395,6 +600,7 @@ class FarmDatabase {
   // ==================== ANIMALS CRUD ====================
 
   public addAnimal(farmId: string, animal: Animal): Animal {
+    if (!this.canUserAccessFarm(farmId)) throw new Error('Tenant Access Denied: Unauthorized operation.');
     const farm = this.farms.find(f => f.id === farmId);
     if (!farm) throw new Error('Farm not found');
 
@@ -453,21 +659,39 @@ class FarmDatabase {
     const index = farm.animals.findIndex(a => a.id === animalId);
     if (index === -1) throw new Error('Animal not found');
 
-    const updated = { ...farm.animals[index], ...updates };
+    const prev = farm.animals[index];
+    const targetSpecies = updates.species || prev.species;
+    const isDairy = targetSpecies === 'Cow' || targetSpecies === 'Buffalo';
+
+    const cleanUpdates = { ...updates };
+    if (cleanUpdates.tagId) {
+      cleanUpdates.tagId = cleanUpdates.tagId.trim().toUpperCase();
+    }
+    if (!isDairy) {
+      cleanUpdates.milkStatus = undefined;
+      cleanUpdates.dailyMilkLitres = undefined;
+    }
+
+    const updated = { ...prev, ...cleanUpdates };
     farm.animals[index] = updated;
     this.saveToStorage();
     return updated;
   }
 
   public deleteAnimal(farmId: string, animalId: string): boolean {
-    const farm = this.farms.find(f => f.id === farmId);
-    if (!farm) return false;
+    return this.deleteAnimals(farmId, [animalId]);
+  }
 
-    farm.animals = farm.animals.filter(a => a.id !== animalId);
-    farm.vaccinations = farm.vaccinations.filter(v => v.animalId !== animalId);
-    farm.healthRecords = farm.healthRecords.filter(h => h.animalId !== animalId);
+  public deleteAnimals(farmId: string, animalIds: string[]): boolean {
+    const farm = this.farms.find(f => f.id === farmId);
+    if (!farm || animalIds.length === 0) return false;
+
+    const idsSet = new Set(animalIds);
+    farm.animals = farm.animals.filter(a => !idsSet.has(a.id));
+    farm.vaccinations = farm.vaccinations.filter(v => !idsSet.has(v.animalId));
+    farm.healthRecords = farm.healthRecords.filter(h => !idsSet.has(h.animalId));
     if (farm.milkLogs) {
-      farm.milkLogs = farm.milkLogs.filter(m => m.animalId !== animalId);
+      farm.milkLogs = farm.milkLogs.filter(m => !idsSet.has(m.animalId));
     }
     this.saveToStorage();
     return true;
@@ -562,6 +786,84 @@ class FarmDatabase {
 
     this.saveToStorage();
     return vac;
+  }
+
+  public bulkMarkVaccinesComplete(farmId: string, vacIds: string[], administeredBy: string): number {
+    const farm = this.farms.find(f => f.id === farmId);
+    if (!farm) throw new Error('Farm not found');
+    const today = new Date().toISOString().split('T')[0];
+    let count = 0;
+
+    farm.vaccinations.forEach(vac => {
+      if (vacIds.includes(vac.id)) {
+        vac.status = 'Completed';
+        vac.administeredDate = today;
+        vac.administeredBy = administeredBy;
+        count++;
+      }
+    });
+
+    this.saveToStorage();
+    return count;
+  }
+
+  public bulkAddVaccinations(
+    farmId: string, 
+    animalIds: string[], 
+    vacData: Omit<VaccinationRecord, 'id' | 'animalId'>, 
+    user: User | null
+  ): VaccinationRecord[] {
+    this.assertCanManageVaccines(farmId, user);
+    const farm = this.farms.find(f => f.id === farmId);
+    if (!farm) throw new Error('Farm not found');
+
+    const created: VaccinationRecord[] = [];
+    animalIds.forEach((animId, idx) => {
+      const record: VaccinationRecord = {
+        ...vacData,
+        id: `vac-bulk-${Date.now()}-${idx}`,
+        animalId: animId,
+      };
+      farm.vaccinations.unshift(record);
+      created.push(record);
+    });
+
+    this.saveToStorage();
+    return created;
+  }
+
+  public bulkUpdateVaccinations(
+    farmId: string, 
+    vacIds: string[], 
+    updates: Partial<VaccinationRecord>, 
+    user: User | null
+  ): number {
+    this.assertCanManageVaccines(farmId, user);
+    const farm = this.farms.find(f => f.id === farmId);
+    if (!farm) throw new Error('Farm not found');
+
+    let count = 0;
+    farm.vaccinations.forEach(vac => {
+      if (vacIds.includes(vac.id)) {
+        Object.assign(vac, updates);
+        count++;
+      }
+    });
+
+    this.saveToStorage();
+    return count;
+  }
+
+  public bulkDeleteVaccinations(farmId: string, vacIds: string[], user: User | null): number {
+    this.assertCanManageVaccines(farmId, user);
+    const farm = this.farms.find(f => f.id === farmId);
+    if (!farm) return 0;
+
+    const initialLen = farm.vaccinations.length;
+    farm.vaccinations = farm.vaccinations.filter(v => !vacIds.includes(v.id));
+    const deletedCount = initialLen - farm.vaccinations.length;
+    this.saveToStorage();
+    return deletedCount;
   }
 
   // ==================== VACCINE NOTIFICATION ALERTS ====================
@@ -711,6 +1013,44 @@ class FarmDatabase {
     return newRecord;
   }
 
+  // ==================== FINANCIAL LEDGER CRUD ====================
+
+  public getFinancialRecords(farmId: string): FinancialRecord[] {
+    if (!this.canUserAccessFarm(farmId)) return [];
+    const farm = this.farms.find(f => f.id === farmId);
+    if (!farm) return [];
+    return farm.financialRecords || [];
+  }
+
+  public addFinancialRecord(
+    farmId: string, 
+    recordData: Omit<FinancialRecord, 'id' | 'createdAt'>
+  ): FinancialRecord {
+    if (!this.canUserAccessFarm(farmId)) throw new Error('Tenant Access Denied: Unauthorized operation.');
+    const farm = this.farms.find(f => f.id === farmId);
+    if (!farm) throw new Error('Farm not found');
+
+    const newRecord: FinancialRecord = {
+      ...recordData,
+      id: `fin-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    };
+
+    farm.financialRecords = [newRecord, ...(farm.financialRecords || [])];
+    this.saveToStorage();
+    return newRecord;
+  }
+
+  public deleteFinancialRecord(farmId: string, recordId: string): boolean {
+    if (!this.canUserAccessFarm(farmId)) throw new Error('Tenant Access Denied: Unauthorized operation.');
+    const farm = this.farms.find(f => f.id === farmId);
+    if (!farm || !farm.financialRecords) return false;
+
+    farm.financialRecords = farm.financialRecords.filter(r => r.id !== recordId);
+    this.saveToStorage();
+    return true;
+  }
+
   // ==================== MYSQL DATABASE EXPORT ====================
 
   /**
@@ -798,6 +1138,18 @@ class FarmDatabase {
             `(${this.sqlStr(ml.id)}, ${this.sqlStr(f.id)}, ${this.sqlStr(ml.animalId)}, ${this.sqlStr(ml.cowTag)}, ` +
             `${this.sqlStr(ml.cowName)}, ${this.sqlStr(ml.date)}, ${this.sqlStr(ml.session)}, ${ml.liters}, ` +
             `${ml.fatPercentage || 'NULL'}, ${this.sqlStr(ml.recordedBy)});`
+          );
+        }
+      }
+
+      // Financial Ledger Records
+      if (f.financialRecords) {
+        lines.push('-- Table: financial_records');
+        for (const fr of f.financialRecords) {
+          lines.push(
+            `INSERT INTO \`financial_records\` (\`id\`, \`farm_id\`, \`date\`, \`type\`, \`category\`, \`amount\`, \`title\`, \`notes\`, \`recorded_by\`) VALUES ` +
+            `(${this.sqlStr(fr.id)}, ${this.sqlStr(f.id)}, ${this.sqlStr(fr.date)}, ${this.sqlStr(fr.type)}, ${this.sqlStr(fr.category)}, ` +
+            `${fr.amount}, ${this.sqlStr(fr.title)}, ${this.sqlStr(fr.notes || '')}, ${this.sqlStr(fr.recordedBy)});`
           );
         }
       }
