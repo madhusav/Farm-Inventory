@@ -247,7 +247,7 @@ export const VaccinationScheduleView: React.FC<VaccinationScheduleViewProps> = (
         </div>
 
         {/* Buttons: + Single Shot AND + Bulk Vaccinate Herd */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
           {canManageVaccine ? (
             <>
               {/* 1. Bulk Vaccinate Herd */}
@@ -257,9 +257,9 @@ export const VaccinationScheduleView: React.FC<VaccinationScheduleViewProps> = (
                   setBulkSelectedAnimalIds(farm.animals.map(a => a.id));
                   setShowBulkVaccinateModal(true);
                 }}
-                className="w-full xs:w-auto px-3.5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-stone-950 text-xs font-black flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-98 transition-all"
+                className="flex-1 sm:flex-none min-h-[44px] px-3.5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-stone-950 text-xs font-black flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-98 transition-all"
               >
-                <span>💉 Bulk Vaccinate Herd</span>
+                <span>💉 Bulk Vaccinate</span>
               </button>
 
               {/* 2. Single Vaccine Shot */}
@@ -269,7 +269,7 @@ export const VaccinationScheduleView: React.FC<VaccinationScheduleViewProps> = (
                   setTargetAnimalId(farm.animals[0]?.id || '');
                   setShowAddModal(true);
                 }}
-                className="w-full xs:w-auto px-3.5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-98 transition-all"
+                className="flex-1 sm:flex-none min-h-[44px] px-3.5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-98 transition-all"
               >
                 <Plus className="w-4 h-4 shrink-0" />
                 <span>+ Single Shot</span>
@@ -306,7 +306,7 @@ export const VaccinationScheduleView: React.FC<VaccinationScheduleViewProps> = (
 
           <button
             onClick={() => setStatusFilter('Due Soon')}
-            className="self-end sm:self-auto px-3 py-1.5 rounded-xl bg-amber-800 text-white text-xs font-bold cursor-pointer shrink-0"
+            className="self-end sm:self-auto min-h-[36px] px-3.5 py-1.5 rounded-xl bg-amber-800 text-white text-xs font-bold cursor-pointer shrink-0"
           >
             Filter Due
           </button>
@@ -315,7 +315,7 @@ export const VaccinationScheduleView: React.FC<VaccinationScheduleViewProps> = (
 
       {/* Filter Tabs & Search */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 -mx-1 px-1 sm:mx-0 sm:px-0 sm:flex-wrap">
           {[
             { id: 'All', label: 'All Shots' },
             { id: 'Due Soon', label: '⏰ Due Soon' },
@@ -330,7 +330,7 @@ export const VaccinationScheduleView: React.FC<VaccinationScheduleViewProps> = (
               <button
                 key={st.id}
                 onClick={() => setStatusFilter(st.id as 'All' | 'Due Soon' | 'Overdue' | 'Completed')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                   isSelected
                     ? 'bg-emerald-800 text-white shadow-xs'
                     : 'bg-white border border-stone-200 text-stone-700 hover:bg-stone-50'
@@ -349,7 +349,7 @@ export const VaccinationScheduleView: React.FC<VaccinationScheduleViewProps> = (
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search vaccine, tag, or animal..."
-            className="w-full pl-9 pr-3 py-2 rounded-xl border border-stone-300 bg-white text-xs text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700 font-medium"
+            className="w-full min-h-[44px] pl-9 pr-3 py-2 rounded-xl border border-stone-300 bg-white text-sm sm:text-xs text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700 font-medium"
           />
         </div>
       </div>
@@ -505,12 +505,12 @@ export const VaccinationScheduleView: React.FC<VaccinationScheduleViewProps> = (
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-1.5 self-end sm:self-auto shrink-0">
+                <div className="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-1.5 pt-2 sm:pt-0 border-t sm:border-t-0 border-stone-100 shrink-0">
                   {!isDone && (
                     <button
                       type="button"
                       onClick={() => onMarkVaccineComplete(vac.id)}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
+                      className="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95"
                     >
                       <Check className="w-3.5 h-3.5" />
                       <span>Mark Done</span>
@@ -518,11 +518,11 @@ export const VaccinationScheduleView: React.FC<VaccinationScheduleViewProps> = (
                   )}
 
                   {canManageVaccine && (
-                    <>
+                    <div className="flex items-center gap-1.5 ml-auto sm:ml-0">
                       <button
                         type="button"
                         onClick={() => handleStartEdit(vac)}
-                        className="p-1.5 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-100 cursor-pointer"
+                        className="min-h-[38px] min-w-[38px] flex items-center justify-center rounded-xl border border-stone-200 text-stone-600 hover:bg-stone-100 cursor-pointer active:scale-95"
                         title="Edit Shot"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
@@ -536,13 +536,13 @@ export const VaccinationScheduleView: React.FC<VaccinationScheduleViewProps> = (
                               onDeleteVaccine(vac.id);
                             }
                           }}
-                          className="p-1.5 rounded-lg border border-stone-200 text-stone-400 hover:text-red-700 hover:bg-red-50 cursor-pointer"
+                          className="min-h-[38px] min-w-[38px] flex items-center justify-center rounded-xl border border-stone-200 text-stone-400 hover:text-red-700 hover:bg-red-50 cursor-pointer active:scale-95"
                           title="Delete Shot"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
-                    </>
+                    </div>
                   )}
                 </div>
               </div>

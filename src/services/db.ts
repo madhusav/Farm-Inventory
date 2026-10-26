@@ -19,8 +19,10 @@ const STORAGE_USERS_KEY = 'farmtrack_mysql_users_v3';
 const STORAGE_FARMS_KEY = 'farmtrack_mysql_farms_v3';
 const STORAGE_CURRENT_USER_KEY = 'farmtrack_mysql_curr_user_v3';
 const STORAGE_CURRENT_FARM_KEY = 'farmtrack_mysql_curr_farm_v3';
+const STORAGE_APP_NAME_KEY = 'farmtrack_app_name_config';
 
 export const DEFAULT_FARM_CONFIG: FarmConfig = {
+  appName: 'Testing',
   vaccineAlertDaysThreshold: 7,
   targetDailyMilkLiters: 45.0,
   defaultMilkUnit: 'Litres',
@@ -189,6 +191,12 @@ class FarmDatabase {
             a.dailyMilkLitres = undefined;
           });
         }
+        // Ensure config has appName configured (default 'Testing')
+        f.config = {
+          ...DEFAULT_FARM_CONFIG,
+          ...(f.config || {}),
+          appName: f.config?.appName || localStorage.getItem(STORAGE_APP_NAME_KEY) || 'Testing'
+        };
       });
 
       const savedCurrUser = localStorage.getItem(STORAGE_CURRENT_USER_KEY);
@@ -383,21 +391,30 @@ class FarmDatabase {
   }
 
   public createFarm(farmData: {
+    id?: string;
     name: string;
     location: string;
     totalAcreage: number;
-    establishedYear: number;
-    primarySpecies: Species[];
+    establishedYear?: number;
+    primarySpecies?: Species[];
+    withStarterFlock?: boolean;
   }): Farm {
     if (!this.currentUser) throw new Error('Must be logged in to create a farm');
 
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const cleanId = (farmData.id && farmData.id.trim())
+      ? farmData.id.trim().toUpperCase()
+      : `FARM-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    const starterAnimals = farmData.withStarterFlock ? [...INITIAL_FARMS[0].animals] : [];
+    const starterVaccines = farmData.withStarterFlock ? [...INITIAL_FARMS[0].vaccinations] : [];
+    const starterHealth = farmData.withStarterFlock ? [...INITIAL_FARMS[0].healthRecords] : [];
+
     const newFarm: Farm = {
-      id: `FARM-${randomSuffix}`,
+      id: cleanId,
       name: farmData.name.trim(),
       adminUserId: this.currentUser.id,
       adminName: this.currentUser.name,
-      location: farmData.location.trim(),
+      location: farmData.location.trim() || 'India',
       totalAcreage: farmData.totalAcreage || 5.0,
       establishedYear: farmData.establishedYear || new Date().getFullYear(),
       primarySpecies: farmData.primarySpecies && farmData.primarySpecies.length > 0 ? farmData.primarySpecies : ['Goat', 'Sheep'],
@@ -412,10 +429,10 @@ class FarmDatabase {
         }
       ],
       joinRequests: [],
-      animals: [],
-      vaccinations: [],
-      healthRecords: [],
-      milkLogs: [],
+      animals: starterAnimals,
+      vaccinations: starterVaccines,
+      healthRecords: starterHealth,
+      financialRecords: [...DEFAULT_FINANCIAL_RECORDS],
       config: { ...DEFAULT_FARM_CONFIG },
       createdAt: new Date().toISOString()
     };
@@ -454,6 +471,27 @@ class FarmDatabase {
     farm.config = updatedConfig;
     this.saveToStorage();
     return updatedConfig;
+  }
+
+  public getAppName(farmId?: string): string {
+    const targetFarm = farmId ? this.farms.find(f => f.id === farmId) : this.getCurrentFarm();
+    return targetFarm?.config?.appName || localStorage.getItem(STORAGE_APP_NAME_KEY) || 'Testing';
+  }
+
+  public setAppName(appName: string, farmId?: string): void {
+    const clean = appName.trim() || 'Testing';
+    localStorage.setItem(STORAGE_APP_NAME_KEY, clean);
+    const targetId = farmId || this.currentFarmId;
+    if (targetId) {
+      const farm = this.farms.find(f => f.id === targetId);
+      if (farm) {
+        farm.config = {
+          ...(farm.config || DEFAULT_FARM_CONFIG),
+          appName: clean,
+        };
+      }
+    }
+    this.saveToStorage();
   }
 
   public deleteFarm(farmId: string): boolean {

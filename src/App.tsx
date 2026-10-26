@@ -8,7 +8,6 @@ import {
   VaccinationRecord, 
   HealthRecord, 
   UserRole, 
-  MilkYieldLog,
   FarmConfig,
   VaccineAlert,
   isVaccineManager,
@@ -24,13 +23,13 @@ import { AnimalDetailModal } from './components/AnimalDetailModal';
 import { AddAnimalModal } from './components/AddAnimalModal';
 import { BulkAddAnimalModal } from './components/BulkAddAnimalModal';
 import { ManageAvailableSpeciesModal } from './components/ManageAvailableSpeciesModal';
-import { RecordMilkModal } from './components/RecordMilkModal';
 import { VaccinationScheduleView } from './components/VaccinationScheduleView';
 import { GrowthTrackerView } from './components/GrowthTrackerView';
 import { LineagePedigreeView } from './components/LineagePedigreeView';
 import { VaccineAlertNotificationModal } from './components/VaccineAlertNotificationModal';
 import { ReportsView } from './components/ReportsView';
 import { FinancialLedgerModal } from './components/FinancialLedgerModal';
+import { OfflineIndicator } from './components/OfflineIndicator';
 
 export function App() {
   // Database reactive states
@@ -49,11 +48,18 @@ export function App() {
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkModalSpecies, setBulkModalSpecies] = useState<Species | undefined>(undefined);
   const [showSpeciesModal, setShowSpeciesModal] = useState(false);
-  const [showMilkModal, setShowMilkModal] = useState(false);
   const [showVaccineAlertsModal, setShowVaccineAlertsModal] = useState(false);
   const [showLedgerModal, setShowLedgerModal] = useState(false);
-  const [milkTargetAnimal, setMilkTargetAnimal] = useState<Animal | null>(null);
   const [selectedAnimal, setSelectedAnimal] = useState<Animal | null>(null);
+  const [adminModalTab, setAdminModalTab] = useState<'team' | 'vaccines' | 'farm' | 'database'>('team');
+
+  // Configured Application Name (Default: Testing)
+  const appName = currentFarm?.config?.appName || db.getAppName() || 'Testing';
+
+  // Synchronize document title with configured application name
+  useEffect(() => {
+    document.title = `${appName} — Phase 1 Flock Diary`;
+  }, [appName]);
 
   // Subscribe to database updates
   useEffect(() => {
@@ -133,11 +139,13 @@ export function App() {
 
   const handleCreateFarm = (newFarm: Farm) => {
     db.createFarm({
+      id: newFarm.id,
       name: newFarm.name,
       location: newFarm.location,
       totalAcreage: newFarm.totalAcreage,
       establishedYear: newFarm.establishedYear,
       primarySpecies: newFarm.primarySpecies,
+      withStarterFlock: (newFarm.animals && newFarm.animals.length > 0),
     });
     setShowFarmSelectionModal(false);
   };
@@ -218,12 +226,6 @@ export function App() {
   const handleAddGrowthRecord = (animalId: string, record: Omit<GrowthMetric, 'id'>) => {
     if (!currentFarm) return;
     db.addGrowthMetric(currentFarm.id, animalId, record);
-  };
-
-  const handleSaveMilkLog = (logData: Omit<MilkYieldLog, 'id' | 'createdAt'>) => {
-    if (!currentFarm) return;
-    db.addMilkLog(currentFarm.id, logData);
-    setShowMilkModal(false);
   };
 
   const handleMarkVaccineComplete = (vacId: string) => {
@@ -336,11 +338,15 @@ export function App() {
   // If user is not authenticated, show LandingPage
   if (!currentUser) {
     return (
-      <LandingPage
-        users={users}
-        onLogin={handleLogin}
-        onRegister={handleRegister}
-      />
+      <>
+        <LandingPage
+          users={users}
+          appName={appName}
+          onLogin={handleLogin}
+          onRegister={handleRegister}
+        />
+        <OfflineIndicator />
+      </>
     );
   }
 
@@ -356,6 +362,7 @@ export function App() {
           onRequestJoinFarm={handleRequestJoinFarm}
           onLogout={handleLogout}
         />
+        <OfflineIndicator />
       </div>
     );
   }
@@ -367,23 +374,27 @@ export function App() {
       <Navbar
         currentFarm={currentFarm}
         currentUser={currentUser}
+        appName={appName}
         activeTab={activeTab}
         onTabChange={setActiveTab}
         onOpenFarmSelection={() => setShowFarmSelectionModal(true)}
-        onOpenTeamModal={() => setShowTeamModal(true)}
+        onOpenTeamModal={() => {
+          setAdminModalTab('team');
+          setShowTeamModal(true);
+        }}
+        onOpenAdminLocation={() => {
+          setAdminModalTab('farm');
+          setShowTeamModal(true);
+        }}
         onOpenSpeciesModal={() => setShowSpeciesModal(true)}
         onOpenVaccineAlertsModal={() => setShowVaccineAlertsModal(true)}
         onOpenLedger={() => setShowLedgerModal(true)}
-        onOpenMilkModal={() => {
-          setMilkTargetAnimal(null);
-          setShowMilkModal(true);
-        }}
         vaccineAlertsCount={alerts.length}
         onLogout={handleLogout}
       />
 
       {/* Main View Area with Mobile Bottom Nav Clearance */}
-      <main className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 py-3 sm:py-6 pb-24 lg:pb-12">
+      <main className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 py-3 sm:py-6 pb-32 lg:pb-12">
         {activeTab === 'inventory' && (
           <LivestockList
             farm={currentFarm}
@@ -395,10 +406,6 @@ export function App() {
               setShowBulkModal(true);
             }}
             onOpenSpeciesModal={() => setShowSpeciesModal(true)}
-            onOpenMilkModal={(animal) => {
-              setMilkTargetAnimal(animal || null);
-              setShowMilkModal(true);
-            }}
             onDeleteAnimal={handleDeleteAnimal}
             onBatchDeleteAnimals={handleBatchDeleteAnimals}
             onOpenVaccineAlerts={() => setShowVaccineAlertsModal(true)}
@@ -492,25 +499,7 @@ export function App() {
           onAddHealthRecord={handleAddHealthRecord}
           onDeleteAnimal={handleDeleteAnimal}
           onUpdateAnimalPhoto={handleUpdateAnimalPhoto}
-          onOpenMilkModal={(animal) => {
-            setMilkTargetAnimal(animal);
-            setShowMilkModal(true);
-          }}
           onUpdateAnimal={handleUpdateAnimal}
-        />
-      )}
-
-      {/* Record Daily Milk Yield Modal */}
-      {showMilkModal && (
-        <RecordMilkModal
-          farm={currentFarm}
-          currentUser={currentUser}
-          preSelectedAnimal={milkTargetAnimal}
-          onClose={() => {
-            setShowMilkModal(false);
-            setMilkTargetAnimal(null);
-          }}
-          onSaveMilkLog={handleSaveMilkLog}
         />
       )}
 
@@ -553,6 +542,7 @@ export function App() {
         <FarmAdminUsersModal
           farm={currentFarm}
           currentUser={currentUser}
+          initialTab={adminModalTab}
           onClose={() => setShowTeamModal(false)}
           onApproveRequest={handleApproveRequest}
           onRejectRequest={handleRejectRequest}
@@ -565,6 +555,9 @@ export function App() {
           onClearFarmData={handleClearFarmData}
         />
       )}
+
+      {/* Global Offline Mode Notification for Rural Farms */}
+      <OfflineIndicator />
     </div>
   );
 }

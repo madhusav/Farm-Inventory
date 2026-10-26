@@ -1,637 +1,729 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { User } from '../types';
 import { DEFAULT_USERS } from '../data/initialData';
 import { useLanguage } from '../i18n/LanguageContext';
 import { SUPPORTED_LANGUAGES } from '../i18n/translations';
 import { 
-  ShieldCheck, 
-  ArrowRight, 
   Smartphone, 
-  Mail, 
-  Lock, 
   User as UserIcon, 
+  ChevronDown, 
+  Check, 
+  ArrowRight,
   Sparkles,
-  Copy,
-  Check,
-  Heart,
-  Baby,
-  Smile,
-  ChevronDown
+  Lock,
+  RotateCcw,
+  ShieldCheck,
+  BellRing
 } from 'lucide-react';
+import { db } from '../services/db';
 
 interface LandingPageProps {
   users: User[];
+  appName?: string;
   onLogin: (user: User) => void;
   onRegister: (newUser: User) => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({
   users,
+  appName,
   onLogin,
   onRegister,
 }) => {
-  const { lang, setLang, t } = useLanguage();
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const { lang, setLang } = useLanguage();
+  const isHi = lang === 'hi';
+  const displayAppName = appName || db.getAppName() || 'Testing';
+
+  const [mode, setMode] = useState<'login' | 'register' | 'verify_otp'>('login');
   const [showLangMenu, setShowLangMenu] = useState(false);
-  
-  // Login fields
-  const [loginIdentifier, setLoginIdentifier] = useState('+91 98765 43210');
+
+  // Sign In fields
+  const [loginPhone, setLoginPhone] = useState('9876543210');
   const [loginPin, setLoginPin] = useState('1234');
+  const [loginMethod, setLoginMethod] = useState<'pin' | 'otp'>('otp');
   const [loginError, setLoginError] = useState('');
 
   // Register fields
   const [regName, setRegName] = useState('');
-  const [regAuthType, setRegAuthType] = useState<'phone' | 'email'>('phone');
-  const [regPhone, setRegPhone] = useState('+91 ');
-  const [regEmail, setRegEmail] = useState('');
-  
-  // OTP state
-  const [isOtpSent, setIsOtpSent] = useState(false);
+  const [regCountryCode, setRegCountryCode] = useState('+91');
+  const [regPhone, setRegPhone] = useState('');
+  const [regError, setRegError] = useState('');
+
+  // OTP Verification state
+  const [otpPurpose, setOtpPurpose] = useState<'register' | 'login'>('register');
+  const [targetPhoneFormatted, setTargetPhoneFormatted] = useState('');
+  const [targetName, setTargetName] = useState('');
   const [generatedOtp, setGeneratedOtp] = useState('');
-  const [enteredOtp, setEnteredOtp] = useState('');
+  const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
   const [otpError, setOtpError] = useState('');
-  const [copiedOtp, setCopiedOtp] = useState(false);
+  const [otpSuccessMessage, setOtpSuccessMessage] = useState('');
+  const [resendTimer, setResendTimer] = useState<number>(30);
+  const [showSimulatedSms, setShowSimulatedSms] = useState(false);
 
-  const handleSendOtp = (e: React.FormEvent) => {
-    e.preventDefault();
-    setOtpError('');
+  const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-    const targetIdentifier = regAuthType === 'phone' ? regPhone.trim() : regEmail.trim();
-    if (!regName.trim()) {
-      setOtpError('Please type your name');
-      return;
+  // Countdown timer for OTP resend
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    if (mode === 'verify_otp' && resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer(prev => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
     }
-    if (!targetIdentifier || targetIdentifier === '+91') {
-      setOtpError(`Please enter your ${regAuthType === 'phone' ? 'mobile number' : 'email'}`);
-      return;
-    }
+    return () => clearInterval(interval);
+  }, [mode, resendTimer]);
 
-    // Generate easy 6-digit OTP
-    const randomCode = Math.floor(100000 + Math.random() * 900000).toString();
+  // Clean numeric phone extractor
+  const extractCleanDigits = (input: string) => input.replace(/\D/g, '');
+
+  // Generate and send simulated OTP
+  const triggerSendOtp = (phone: string, name: string, purpose: 'register' | 'login') => {
+    const randomCode = String(Math.floor(100000 + Math.random() * 900000));
     setGeneratedOtp(randomCode);
-    setIsOtpSent(true);
-    setEnteredOtp('');
+    setTargetPhoneFormatted(phone);
+    setTargetName(name);
+    setOtpPurpose(purpose);
+    setOtpDigits(['', '', '', '', '', '']);
+    setOtpError('');
+    setOtpSuccessMessage('');
+    setResendTimer(30);
+    setShowSimulatedSms(true);
+    setMode('verify_otp');
+
+    // Focus first input box shortly after render
+    setTimeout(() => {
+      otpInputRefs.current[0]?.focus();
+    }, 150);
   };
 
-  const handleVerifyOtpAndRegister = (e: React.FormEvent) => {
+  // 1. Submit Registration -> triggers OTP
+  const handleRegisterGetOtp = (e: React.FormEvent) => {
     e.preventDefault();
-    if (enteredOtp.trim() !== generatedOtp.trim()) {
-      setOtpError('Wrong secret code! Please type the 6 numbers shown in the green box above.');
+    setRegError('');
+
+    const cleanName = regName.trim();
+    if (cleanName.length < 2) {
+      setRegError(isHi ? 'कृपया अपना पूरा नाम दर्ज करें' : 'Please enter your full name (at least 2 letters)');
       return;
     }
 
-    const targetIdentifier = regAuthType === 'phone' ? regPhone.trim() : regEmail.trim();
-    const newUser: User = {
-      id: `user-${Date.now()}`,
-      name: regName.trim(),
-      identifier: targetIdentifier,
-      authType: regAuthType,
-      phone: regAuthType === 'phone' ? targetIdentifier : undefined,
-      email: regAuthType === 'email' ? targetIdentifier : undefined,
-      createdAt: new Date().toISOString().split('T')[0],
-    };
+    const cleanDigits = extractCleanDigits(regPhone);
+    if (cleanDigits.length < 10) {
+      setRegError(isHi ? 'कृपया वैध 10 अंकों का मोबाइल नंबर दर्ज करें' : 'Please enter a valid 10-digit mobile phone number');
+      return;
+    }
 
-    onRegister(newUser);
+    const fullPhoneNumber = `${regCountryCode} ${cleanDigits.slice(-10)}`;
+
+    // Check if phone already registered
+    const existing = users.find(u => {
+      const uDigits = extractCleanDigits(u.phone || u.identifier || '');
+      return uDigits.endsWith(cleanDigits.slice(-10));
+    });
+
+    if (existing) {
+      setRegError(
+        isHi 
+          ? `यह मोबाइल नंबर पहले से पंजीकृत है (${existing.name})। कृपया "साइन इन" टैब चुनें।`
+          : `This mobile number is already registered for ${existing.name}. Please select "Sign In".`
+      );
+      return;
+    }
+
+    triggerSendOtp(fullPhoneNumber, cleanName, 'register');
   };
 
+  // 2. Submit Login (either OTP or PIN)
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
 
-    const cleanInput = loginIdentifier.trim().toLowerCase();
-    if (!cleanInput) {
-      setLoginError('Please enter your mobile phone number or email');
+    const cleanDigits = extractCleanDigits(loginPhone);
+    if (cleanDigits.length < 10 && !loginPhone.includes('@')) {
+      setLoginError(isHi ? 'कृपया 10 अंकों का मोबाइल नंबर दर्ज करें' : 'Please enter a valid 10-digit mobile number');
       return;
     }
 
-    const matched = users.find(u => 
-      u.identifier.toLowerCase() === cleanInput || 
-      (u.phone && u.phone.replace(/\D/g, '') === cleanInput.replace(/\D/g, '')) ||
-      (u.email && u.email.toLowerCase() === cleanInput)
-    );
+    const matched = users.find(u => {
+      const uClean = extractCleanDigits(u.phone || u.identifier || '');
+      return (
+        (cleanDigits.length >= 10 && (uClean === cleanDigits || uClean.endsWith(cleanDigits.slice(-10)))) ||
+        u.identifier.toLowerCase() === loginPhone.trim().toLowerCase()
+      );
+    });
 
-    if (matched) {
-      onLogin(matched);
+    if (!matched) {
+      setLoginError(
+        isHi 
+          ? `मोबाइल नंबर "${loginPhone}" पंजीकृत नहीं है। कृपया "रजिस्टर" टैब से नया खाता बनाएं।`
+          : `Mobile number "${loginPhone}" not found. Tap "Register" to create an account.`
+      );
+      return;
+    }
+
+    if (loginMethod === 'otp') {
+      triggerSendOtp(matched.phone || matched.identifier, matched.name, 'login');
     } else {
-      setLoginError(`We could not find "${loginIdentifier}". Tap "Create New Account" below to register!`);
+      // Direct PIN login
+      onLogin(matched);
     }
   };
 
-  const handleQuickDemoLogin = (demoUser: User) => {
-    onLogin(demoUser);
+  // 3. Handle OTP digit input
+  const handleOtpChange = (index: number, value: string) => {
+    const digit = value.replace(/\D/g, '').slice(-1);
+    const updated = [...otpDigits];
+    updated[index] = digit;
+    setOtpDigits(updated);
+    setOtpError('');
+
+    // Advance to next box if digit entered
+    if (digit && index < 5) {
+      otpInputRefs.current[index + 1]?.focus();
+    }
   };
 
-  const copyOtpToClipboard = () => {
-    navigator.clipboard.writeText(generatedOtp);
-    setCopiedOtp(true);
-    setTimeout(() => setCopiedOtp(false), 2000);
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
+      otpInputRefs.current[index - 1]?.focus();
+    }
   };
+
+  const handleOtpPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    if (pastedData) {
+      const newDigits = [...otpDigits];
+      for (let i = 0; i < 6; i++) {
+        newDigits[i] = pastedData[i] || '';
+      }
+      setOtpDigits(newDigits);
+      const nextFocus = Math.min(pastedData.length, 5);
+      otpInputRefs.current[nextFocus]?.focus();
+    }
+  };
+
+  const handleAutoFillOtp = () => {
+    if (!generatedOtp) return;
+    const chars = generatedOtp.split('');
+    setOtpDigits(chars);
+    setOtpError('');
+    otpInputRefs.current[5]?.focus();
+  };
+
+  // 4. Verify OTP and complete registration/login
+  const handleVerifyOtpSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setOtpError('');
+
+    const enteredOtp = otpDigits.join('');
+    if (enteredOtp.length < 6) {
+      setOtpError(isHi ? 'कृपया पूरा 6 अंकों का ओटीपी दर्ज करें' : 'Please enter all 6 digits of the OTP code');
+      return;
+    }
+
+    if (enteredOtp !== generatedOtp) {
+      setOtpError(isHi ? 'गलत ओटीपी! कृपया सही कोड दर्ज करें या नया ओटीपी मंगाएं।' : 'Invalid OTP code! Please enter the code shown in the SMS or request a new one.');
+      return;
+    }
+
+    // Success!
+    setOtpSuccessMessage(isHi ? '✓ मोबाइल नंबर सफलतापूर्वक सत्यापित हुआ!' : '✓ Mobile number verified successfully!');
+
+    setTimeout(() => {
+      setShowSimulatedSms(false);
+      if (otpPurpose === 'register') {
+        const newUser: User = {
+          id: `usr-${Date.now()}`,
+          name: targetName.trim(),
+          identifier: targetPhoneFormatted.trim(),
+          authType: 'phone',
+          phone: targetPhoneFormatted.trim(),
+          createdAt: new Date().toISOString().split('T')[0],
+        };
+        onRegister(newUser);
+      } else {
+        const matched = users.find(u => {
+          const uClean = extractCleanDigits(u.phone || u.identifier || '');
+          const targetClean = extractCleanDigits(targetPhoneFormatted);
+          return uClean.endsWith(targetClean.slice(-10));
+        });
+        if (matched) {
+          onLogin(matched);
+        }
+      }
+    }, 600);
+  };
+
+  // 5. Resend OTP
+  const handleResendOtp = () => {
+    if (resendTimer > 0) return;
+    const newCode = String(Math.floor(100000 + Math.random() * 900000));
+    setGeneratedOtp(newCode);
+    setResendTimer(30);
+    setOtpDigits(['', '', '', '', '', '']);
+    setOtpError('');
+    setShowSimulatedSms(true);
+    setTimeout(() => {
+      otpInputRefs.current[0]?.focus();
+    }, 100);
+  };
+
+  const currentLangObj = SUPPORTED_LANGUAGES.find(l => l.code === lang) || SUPPORTED_LANGUAGES[0];
 
   return (
-    <div className="min-h-screen bg-[#FFFDF9] flex flex-col justify-between text-stone-900">
+    <div className="min-h-screen bg-stone-100 flex flex-col justify-between text-stone-900 px-3 py-4 sm:p-6 relative">
       
-      {/* Top Header */}
-      <header className="border-b border-stone-200 bg-white sticky top-0 z-30">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <span className="text-3xl">🐐</span>
-            <div>
-              <span className="text-xl font-extrabold tracking-tight text-emerald-900">
-                {t('appTitle', 'Sheep & Goat Tracker')}
-              </span>
-              <span className="text-[11px] block text-stone-500 font-semibold">
-                {t('appSubtitle', 'Phase 1: Flock & Herd Manager')}
-              </span>
+      {/* SIMULATED SMS NOTIFICATION TOAST */}
+      {showSimulatedSms && generatedOtp && (
+        <div className="fixed top-3 left-3 right-3 sm:left-1/2 sm:-translate-x-1/2 sm:max-w-md z-50 animate-in slide-in-from-top duration-300">
+          <div className="bg-stone-900/95 backdrop-blur-md text-white p-3.5 rounded-2xl shadow-2xl border-2 border-emerald-500 flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-700 text-white flex items-center justify-center shrink-0">
+              <BellRing className="w-5 h-5 text-emerald-200 animate-pulse" />
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-[11px] font-black uppercase tracking-wider text-emerald-400">
+                  {isHi ? '📲 मैसेज (SMS) प्राप्त हुआ' : '📲 SMS Notification Received'}
+                </span>
+                <span className="text-[10px] text-stone-400">Just now</span>
+              </div>
+              <p className="text-xs text-stone-200 font-medium mt-0.5 leading-snug">
+                {isHi ? 'आपका फार्मट्रैक सत्यापन कोड है:' : 'Your Flock Diary verification OTP is:'}{' '}
+                <strong className="font-mono text-white text-sm bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-600 font-black">
+                  {generatedOtp}
+                </strong>
+              </p>
+              
+              <div className="mt-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleAutoFillOtp}
+                  className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black cursor-pointer shadow-xs active:scale-95 transition-all flex items-center gap-1"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  <span>{isHi ? '⚡ 1-टैप ऑटो भरें' : '⚡ 1-Tap Auto-fill OTP'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowSimulatedSms(false)}
+                  className="text-[10px] text-stone-400 hover:text-stone-200 cursor-pointer"
+                >
+                  Dismiss
+                </button>
+              </div>
             </div>
           </div>
+        </div>
+      )}
 
-          <div className="flex items-center gap-2">
-            {/* Language Dropdown */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowLangMenu(!showLangMenu)}
-                className="px-2.5 py-1.5 rounded-xl border border-stone-300 bg-stone-50 hover:bg-stone-100 text-xs font-bold flex items-center gap-1.5 cursor-pointer text-stone-800"
-              >
-                <span>{SUPPORTED_LANGUAGES.find(l => l.code === lang)?.flag}</span>
-                <span>{SUPPORTED_LANGUAGES.find(l => l.code === lang)?.nativeName}</span>
-                <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
-              </button>
+      {/* Top Bar with Language Selector */}
+      <div className="max-w-md w-full mx-auto flex items-center justify-between pb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-2xl">🐐</span>
+          <span className="text-base font-black tracking-tight text-emerald-950 font-mono">
+            {displayAppName}
+          </span>
+        </div>
 
-              {showLangMenu && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowLangMenu(false)} />
-                  <div className="absolute right-0 mt-1.5 w-44 bg-white rounded-2xl shadow-xl border border-stone-200 py-1.5 z-50">
-                    {SUPPORTED_LANGUAGES.map(item => (
-                      <button
-                        type="button"
-                        key={item.code}
-                        onClick={() => {
-                          setLang(item.code);
-                          setShowLangMenu(false);
-                        }}
-                        className={`w-full px-3 py-1.5 text-left text-xs flex items-center justify-between cursor-pointer ${
-                          lang === item.code ? 'bg-emerald-50 text-emerald-900 font-black' : 'text-stone-700 hover:bg-stone-50 font-medium'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span>{item.flag}</span>
-                          <span>{item.nativeName}</span>
-                        </div>
-                        {lang === item.code && <Check className="w-3.5 h-3.5 text-emerald-700" />}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
+        {/* Language Dropdown */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setShowLangMenu(!showLangMenu)}
+            className="px-2.5 py-1.5 rounded-xl border border-stone-300 bg-white hover:bg-stone-50 text-xs font-bold flex items-center gap-1.5 cursor-pointer text-stone-800 shadow-2xs"
+          >
+            <span>{currentLangObj.flag}</span>
+            <span>{currentLangObj.nativeName}</span>
+            <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
+          </button>
 
+          {showLangMenu && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowLangMenu(false)} />
+              <div className="absolute right-0 mt-1.5 w-44 bg-white rounded-2xl shadow-xl border border-stone-200 py-1.5 z-50">
+                {SUPPORTED_LANGUAGES.map(item => (
+                  <button
+                    type="button"
+                    key={item.code}
+                    onClick={() => {
+                      setLang(item.code);
+                      setShowLangMenu(false);
+                    }}
+                    className={`w-full px-3 py-2 text-left text-xs flex items-center justify-between cursor-pointer ${
+                      lang === item.code ? 'bg-emerald-50 text-emerald-900 font-black' : 'text-stone-700 hover:bg-stone-50 font-medium'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>{item.flag}</span>
+                      <span>{item.nativeName}</span>
+                    </div>
+                    {lang === item.code && <Check className="w-3.5 h-3.5 text-emerald-700" />}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Centered Auth Card */}
+      <div className="max-w-md w-full mx-auto bg-white rounded-3xl border border-stone-200/90 shadow-xl overflow-hidden p-5 sm:p-7 space-y-4 my-auto">
+        
+        {/* Brand Lockup */}
+        <div className="text-center space-y-1 pb-1 border-b border-stone-100">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-800 text-white text-2xl shadow-sm mb-1">
+            🐐
+          </div>
+          <h1 className="text-xl sm:text-2xl font-black text-stone-900 tracking-tight">
+            {displayAppName}
+          </h1>
+          <p className="text-xs text-stone-500 font-bold">
+            {isHi ? 'बकरी व भेड़ रेवड़ डायरी (Sheep & Goat Diary)' : 'Sheep & Goat Flock Diary (Phase 1)'}
+          </p>
+        </div>
+
+        {/* Tab Switcher (Visible in login and register, hidden during OTP verify) */}
+        {mode !== 'verify_otp' && (
+          <div className="grid grid-cols-2 p-1 bg-stone-100 rounded-2xl gap-1">
             <button
+              type="button"
               onClick={() => {
-                setMode(mode === 'login' ? 'register' : 'login');
-                setIsOtpSent(false);
+                setMode('login');
                 setLoginError('');
-                setOtpError('');
+                setRegError('');
               }}
-              className="text-xs sm:text-sm font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-3.5 py-1.5 rounded-xl border border-emerald-300 transition-colors cursor-pointer"
+              className={`py-2 text-xs font-black rounded-xl transition-all cursor-pointer ${
+                mode === 'login'
+                  ? 'bg-white text-stone-900 shadow-xs'
+                  : 'text-stone-600 hover:text-stone-900'
+              }`}
             >
-              {mode === 'login' ? 'New Farmer? Register' : 'Already Registered? Sign In'}
+              {isHi ? 'साइन इन (लॉगिन)' : 'Sign In'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode('register');
+                setLoginError('');
+                setRegError('');
+              }}
+              className={`py-2 text-xs font-black rounded-xl transition-all cursor-pointer ${
+                mode === 'register'
+                  ? 'bg-white text-stone-900 shadow-xs'
+                  : 'text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              {isHi ? 'नया रजिस्ट्रेशन (ओटीपी)' : 'Register with OTP'}
             </button>
           </div>
-        </div>
-      </header>
+        )}
 
-      {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10 flex-1 flex flex-col justify-center">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          
-          {/* Left Column: Friendly, Kid-Simple Features */}
-          <div className="lg:col-span-7 space-y-5">
-            
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-100 text-emerald-950 text-xs font-bold border border-emerald-300">
-              <Sparkles className="w-4 h-4 text-emerald-700" />
-              <span>🐐 Phase 1: Sheep & Goat Specialists 🐑 · Other Livestock in Phase 2</span>
-            </div>
-
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-stone-900 tracking-tight leading-tight">
-              Flock Diary for Your Goats & Sheep!
-            </h1>
-
-            <p className="text-base sm:text-lg text-stone-600 leading-relaxed max-w-xl">
-              Specialized for <strong>Goats (बकरी)</strong> and <strong>Sheep (भेड़)</strong> flock owners, breeders, and herders. 
-              Track ear tags, kid & lamb birth weights, Sire & Dam pedigree, and critical vaccines (PPR, Enterotoxemia, Pox). 
-              <em>Cattle, buffalo, and poultry will be added in coming phases.</em>
-            </p>
-
-            {/* 4 Specialized Flock Feature Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
-              
-              <div className="p-4 rounded-2xl bg-white border border-stone-200 shadow-xs flex items-start gap-3">
-                <span className="text-2xl mt-0.5">🌳</span>
-                <div>
-                  <h3 className="font-bold text-stone-900 text-sm">Flock Family Lineage</h3>
-                  <p className="text-xs text-stone-500 mt-0.5">
-                    Track Sire (Stud Buck / Ram) & Dam (Doe / Ewe) to prevent inbreeding and build stronger bloodlines.
-                  </p>
-                </div>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-white border border-stone-200 shadow-xs flex items-start gap-3">
-                <span className="text-2xl mt-0.5">💉</span>
-                <div>
-                  <h3 className="font-bold text-stone-900 text-sm">PPR, ET & Pox Vaccines</h3>
-                  <p className="text-xs text-stone-500 mt-0.5">
-                    Ovine & caprine protocols with 1-click batch shots, deworming drenches, and nearing due alerts.
-                  </p>
-                </div>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-white border border-stone-200 shadow-xs flex items-start gap-3">
-                <span className="text-2xl mt-0.5">⚖️</span>
-                <div>
-                  <h3 className="font-bold text-stone-900 text-sm">Kid / Lamb Growth & Wool</h3>
-                  <p className="text-xs text-stone-500 mt-0.5">
-                    Record birth weights, daily grams gain (ADG), shearing fleece yield, and doe milking.
-                  </p>
-                </div>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-white border border-stone-200 shadow-xs flex items-start gap-3">
-                <span className="text-2xl mt-0.5">🏷️</span>
-                <div>
-                  <h3 className="font-bold text-stone-900 text-sm">Ear Tagging & Fast Bulk Add</h3>
-                  <p className="text-xs text-stone-500 mt-0.5">
-                    Manage GOAT- and SHEEP- tag series, update ear tags quickly, and bulk-import new flocks in seconds.
-                  </p>
-                </div>
+        {/* ==================== 1. REGISTER FORM ==================== */}
+        {mode === 'register' && (
+          <form onSubmit={handleRegisterGetOtp} className="space-y-3.5">
+            <div>
+              <label className="block text-xs font-black text-stone-700 mb-1">
+                {isHi ? 'आपका पूरा नाम' : 'Your Full Name'}
+              </label>
+              <div className="relative">
+                <UserIcon className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  required
+                  value={regName}
+                  onChange={(e) => setRegName(e.target.value)}
+                  placeholder="e.g. Ramesh Patil"
+                  className="w-full min-h-[44px] pl-9 pr-3 py-2 rounded-xl border border-stone-300 text-sm font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                />
               </div>
             </div>
 
-            {/* 1-Tap Demo Logins for Instant Testing */}
-            <div className="pt-2">
-              <span className="text-xs font-bold text-stone-500 uppercase tracking-wider block mb-2">
-                Tap to Try with Demo Accounts:
-              </span>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemoLogin(DEFAULT_USERS[0])}
-                  className="px-3 py-2 rounded-xl bg-purple-50 border-2 border-purple-500 hover:bg-purple-100 text-xs font-bold text-purple-950 flex items-center gap-1.5 shadow-xs cursor-pointer"
-                >
-                  <span>👑 Super Admin (All Tenants)</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemoLogin(DEFAULT_USERS[1])}
-                  className="px-3 py-2 rounded-xl bg-white border-2 border-emerald-600 hover:bg-emerald-50 text-xs font-bold text-emerald-950 flex items-center gap-1.5 shadow-xs cursor-pointer"
-                >
-                  <span>👑 Ramesh Patel (Farm Boss)</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemoLogin(DEFAULT_USERS[2])}
-                  className="px-3 py-2 rounded-xl bg-white border border-stone-300 hover:border-emerald-600 hover:bg-emerald-50 text-xs font-bold text-stone-800 flex items-center gap-1.5 shadow-xs cursor-pointer"
-                >
-                  <span>🚜 Suresh Kumar (Farm Helper)</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemoLogin(DEFAULT_USERS[4] || DEFAULT_USERS[3])}
-                  className="px-3 py-2 rounded-xl bg-white border border-stone-300 hover:border-emerald-600 hover:bg-emerald-50 text-xs font-bold text-stone-800 flex items-center gap-1.5 shadow-xs cursor-pointer"
-                >
-                  <span>🆕 Priya Verma (New User)</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: Simple Sign In or Register Box */}
-          <div className="lg:col-span-5">
-            <div className="bg-white rounded-3xl border-2 border-stone-200 shadow-xl p-6 sm:p-8">
-              
-              {/* Simple Toggle Tabs */}
-              <div className="flex items-center p-1 bg-stone-100 rounded-2xl mb-5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('login');
-                    setIsOtpSent(false);
-                    setLoginError('');
-                  }}
-                  className={`flex-1 py-2.5 text-xs sm:text-sm font-extrabold rounded-xl transition-all cursor-pointer ${
-                    mode === 'login'
-                      ? 'bg-emerald-800 text-white shadow-xs'
-                      : 'text-stone-600 hover:text-stone-900'
-                  }`}
-                >
-                  {lang === 'hi' ? 'लॉग इन' : 'Sign In'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('register');
-                    setIsOtpSent(false);
-                    setOtpError('');
-                  }}
-                  className={`flex-1 py-2.5 text-xs sm:text-sm font-extrabold rounded-xl transition-all cursor-pointer ${
-                    mode === 'register'
-                      ? 'bg-emerald-800 text-white shadow-xs'
-                      : 'text-stone-600 hover:text-stone-900'
-                  }`}
-                >
-                  Register with OTP
-                </button>
-              </div>
-
-              {/* MODE 1: SIMPLE SIGN IN */}
-              {mode === 'login' && (
-                <form onSubmit={handleLoginSubmit} className="space-y-4">
-                  <div>
-                    <h2 className="text-xl font-extrabold text-stone-900">Sign In to Your Farm</h2>
-                    <p className="text-xs text-stone-500 mt-1">
-                      Type your mobile phone number to open your farm animals diary.
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-stone-700 mb-1">
-                      Your Mobile Number (or Email)
-                    </label>
-                    <div className="relative">
-                      <Smartphone className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        required
-                        value={loginIdentifier}
-                        onChange={(e) => setLoginIdentifier(e.target.value)}
-                        placeholder="e.g. +91 98765 43210"
-                        className="w-full pl-10 pr-3.5 py-3 rounded-xl border border-stone-300 text-sm font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="block text-xs font-bold text-stone-700">
-                        Farm PIN or Password
-                      </label>
-                      <span className="text-[11px] text-stone-400 font-mono">Demo: 1234</span>
-                    </div>
-                    <div className="relative">
-                      <Lock className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="password"
-                        value={loginPin}
-                        onChange={(e) => setLoginPin(e.target.value)}
-                        placeholder="Type password"
-                        className="w-full pl-10 pr-3.5 py-3 rounded-xl border border-stone-300 text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                      />
-                    </div>
-                  </div>
-
-                  {loginError && (
-                    <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-800 font-medium">
-                      {loginError}
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
-                    className="w-full py-3.5 px-4 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold text-sm shadow-sm transition-colors flex items-center justify-center gap-2 cursor-pointer"
+            <div>
+              <label className="block text-xs font-black text-stone-700 mb-1">
+                {isHi ? 'मोबाइल नंबर (ओटीपी सत्यापन के लिए)' : 'Mobile Phone Number (for OTP)'}
+              </label>
+              <div className="flex gap-2">
+                <div className="w-20 shrink-0">
+                  <select
+                    value={regCountryCode}
+                    onChange={(e) => setRegCountryCode(e.target.value)}
+                    className="w-full min-h-[44px] px-2 py-2 rounded-xl border border-stone-300 bg-stone-50 text-xs font-black text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-700 cursor-pointer"
                   >
-                    <span>Open Farm Animals Diary</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-
-                  <div className="pt-1 text-center">
-                    <p className="text-xs text-stone-500">
-                      New to this farm app?{' '}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setMode('register');
-                          setLoginError('');
-                        }}
-                        className="text-emerald-800 font-extrabold hover:underline cursor-pointer"
-                      >
-                        Tap here to Register with OTP
-                      </button>
-                    </p>
-                  </div>
-                </form>
-              )}
-
-              {/* MODE 2: NEW REGISTRATION WITH SIMPLE OTP */}
-              {mode === 'register' && (
-                <div className="space-y-4">
-                  <div>
-                    <h2 className="text-xl font-extrabold text-stone-900">New Farmer Registration</h2>
-                    <p className="text-xs text-stone-500 mt-1">
-                      Enter your mobile number to get a secret 6-digit code (OTP).
-                    </p>
-                  </div>
-
-                  {!isOtpSent ? (
-                    <form onSubmit={handleSendOtp} className="space-y-4">
-                      {/* Name */}
-                      <div>
-                        <label className="block text-xs font-bold text-stone-700 mb-1">
-                          Your Full Name (किसान का नाम)
-                        </label>
-                        <div className="relative">
-                          <UserIcon className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                          <input
-                            type="text"
-                            required
-                            value={regName}
-                            onChange={(e) => setRegName(e.target.value)}
-                            placeholder="e.g. Anita Sharma"
-                            className="w-full pl-10 pr-3.5 py-3 rounded-xl border border-stone-300 text-sm font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Phone vs Email Toggle */}
-                      <div>
-                        <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                          How should we send your OTP code?
-                        </label>
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setRegAuthType('phone')}
-                            className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                              regAuthType === 'phone'
-                                ? 'border-emerald-700 bg-emerald-50 text-emerald-900'
-                                : 'border-stone-200 bg-stone-50 text-stone-600'
-                            }`}
-                          >
-                            <Smartphone className="w-4 h-4" />
-                            <span>Mobile Phone (+91)</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setRegAuthType('email')}
-                            className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                              regAuthType === 'email'
-                                ? 'border-emerald-700 bg-emerald-50 text-emerald-900'
-                                : 'border-stone-200 bg-stone-50 text-stone-600'
-                            }`}
-                          >
-                            <Mail className="w-4 h-4" />
-                            <span>Email Address</span>
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Number / Email input */}
-                      {regAuthType === 'phone' ? (
-                        <div>
-                          <label className="block text-xs font-bold text-stone-700 mb-1">
-                            Mobile Phone Number (मोबाइल नंबर)
-                          </label>
-                          <div className="relative">
-                            <Smartphone className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                            <input
-                              type="tel"
-                              required
-                              value={regPhone}
-                              onChange={(e) => setRegPhone(e.target.value)}
-                              placeholder="+91 98765 01234"
-                              className="w-full pl-10 pr-3.5 py-3 rounded-xl border border-stone-300 text-sm font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                            />
-                          </div>
-                        </div>
-                      ) : (
-                        <div>
-                          <label className="block text-xs font-bold text-stone-700 mb-1">
-                            Email Address (ईमेल)
-                          </label>
-                          <div className="relative">
-                            <Mail className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                            <input
-                              type="email"
-                              required
-                              value={regEmail}
-                              onChange={(e) => setRegEmail(e.target.value)}
-                              placeholder="anita@gmail.com"
-                              className="w-full pl-10 pr-3.5 py-3 rounded-xl border border-stone-300 text-sm font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                            />
-                          </div>
-                        </div>
-                      )}
-
-                      {otpError && (
-                        <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-800 font-medium">
-                          {otpError}
-                        </div>
-                      )}
-
-                      <button
-                        type="submit"
-                        className="w-full py-3.5 px-4 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold text-sm shadow-sm transition-colors flex items-center justify-center gap-2 cursor-pointer"
-                      >
-                        <span>Send 6-Digit Secret Code (OTP)</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </button>
-                    </form>
-                  ) : (
-                    /* Step 2: Very Simple OTP Input with Clear Simulator */
-                    <form onSubmit={handleVerifyOtpAndRegister} className="space-y-4">
-                      
-                      {/* Big Friendly Green Box showing the OTP */}
-                      <div className="p-4 rounded-2xl bg-emerald-50 border-2 border-emerald-300 text-emerald-950 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-extrabold uppercase text-emerald-800 flex items-center gap-1">
-                            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                            Secret Code Message (SMS)
-                          </span>
-                          <span className="text-[11px] text-emerald-700 font-bold">Just Now</span>
-                        </div>
-
-                        <p className="text-xs text-emerald-900">
-                          Your secret code sent to <strong>{regAuthType === 'phone' ? regPhone : regEmail}</strong> is:
-                        </p>
-
-                        <div className="flex items-center justify-between bg-white px-3.5 py-2.5 rounded-xl border border-emerald-300 shadow-xs">
-                          <span className="font-mono text-2xl font-extrabold tracking-widest text-emerald-900">
-                            {generatedOtp}
-                          </span>
-                          
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={copyOtpToClipboard}
-                              className="px-2.5 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 text-xs font-bold flex items-center gap-1 cursor-pointer"
-                            >
-                              {copiedOtp ? <Check className="w-3.5 h-3.5 text-emerald-700" /> : <Copy className="w-3.5 h-3.5" />}
-                              <span>{copiedOtp ? 'Copied' : 'Copy'}</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => setEnteredOtp(generatedOtp)}
-                              className="px-2.5 py-1 rounded-lg bg-emerald-800 text-white text-xs font-bold cursor-pointer hover:bg-emerald-900"
-                            >
-                              Auto-Fill Code
-                            </button>
-                          </div>
-                        </div>
-
-                        <p className="text-[11px] text-emerald-700">
-                          Tap <strong>"Auto-Fill Code"</strong> or type the 6 numbers below!
-                        </p>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-stone-700 mb-1">
-                          Type the 6 Numbers Here
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          maxLength={6}
-                          value={enteredOtp}
-                          onChange={(e) => setEnteredOtp(e.target.value.replace(/\D/g, ''))}
-                          placeholder="6-digit code"
-                          className="w-full text-center tracking-widest font-mono text-2xl font-black py-2.5 rounded-xl border border-stone-300 text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                        />
-                      </div>
-
-                      {otpError && (
-                        <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-800 font-medium">
-                          {otpError}
-                        </div>
-                      )}
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setIsOtpSent(false)}
-                          className="flex-1 py-2.5 px-3 rounded-xl border border-stone-300 text-xs font-bold text-stone-700 hover:bg-stone-50 cursor-pointer"
-                        >
-                          Change Number
-                        </button>
-                        <button
-                          type="submit"
-                          className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-extrabold shadow-sm cursor-pointer"
-                        >
-                          Check Code & Finish
-                        </button>
-                      </div>
-                    </form>
-                  )}
+                    <option value="+91">🇮🇳 +91</option>
+                    <option value="+1">🇺🇸 +1</option>
+                    <option value="+44">🇬🇧 +44</option>
+                    <option value="+971">🇦🇪 +971</option>
+                  </select>
                 </div>
+                <div className="relative flex-1">
+                  <Smartphone className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="tel"
+                    required
+                    maxLength={10}
+                    value={regPhone}
+                    onChange={(e) => setRegPhone(e.target.value.replace(/\D/g, ''))}
+                    placeholder="98765 43210"
+                    className="w-full min-h-[44px] pl-9 pr-3 py-2 rounded-xl border border-stone-300 font-mono text-base sm:text-sm font-black text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                  />
+                </div>
+              </div>
+              <span className="text-[11px] text-stone-400 font-medium block mt-1">
+                {isHi ? 'पंजीकरण के लिए इस नंबर पर 6 अंकों का ओटीपी भेजा जाएगा।' : 'We will send a 6-digit OTP code to verify this mobile number.'}
+              </span>
+            </div>
+
+            {regError && (
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-800">
+                {regError}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="w-full min-h-[44px] py-3 px-4 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-98"
+            >
+              <span>{isHi ? 'ओटीपी प्राप्त करें 📲' : 'Get Verification OTP 📲'}</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </form>
+        )}
+
+        {/* ==================== 2. VERIFY OTP SCREEN ==================== */}
+        {mode === 'verify_otp' && (
+          <form onSubmit={handleVerifyOtpSubmit} className="space-y-4">
+            <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-950 flex items-start gap-2.5">
+              <ShieldCheck className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <span className="font-black block text-emerald-900">
+                  {isHi ? 'मोबाइल नंबर सत्यापन' : 'Verify Your Mobile Number'}
+                </span>
+                <span className="text-emerald-800 font-medium">
+                  {isHi ? 'ओटीपी भेजा गया:' : '6-digit OTP sent to:'}{' '}
+                  <strong className="font-mono font-bold text-emerald-950">{targetPhoneFormatted}</strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setMode(otpPurpose)}
+                  className="text-[11px] text-emerald-900 underline block font-bold mt-1 cursor-pointer"
+                >
+                  {isHi ? 'नंबर बदलें / सुधारें' : 'Change or edit number'}
+                </button>
+              </div>
+            </div>
+
+            {/* 6 Digit Input Boxes */}
+            <div>
+              <label className="block text-xs font-black text-stone-700 mb-2 text-center">
+                {isHi ? '6 अंकों का ओटीपी कोड दर्ज करें' : 'Enter 6-Digit OTP Code'}
+              </label>
+
+              <div 
+                className="grid grid-cols-6 gap-1.5 sm:gap-2 justify-center"
+                onPaste={handleOtpPaste}
+              >
+                {otpDigits.map((digit, idx) => (
+                  <input
+                    key={idx}
+                    ref={(el) => {
+                      otpInputRefs.current[idx] = el;
+                    }}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleOtpChange(idx, e.target.value)}
+                    onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                    className="w-full h-12 text-center text-xl font-mono font-black rounded-xl border-2 border-stone-300 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/30 bg-stone-50 focus:bg-white text-stone-900 focus:outline-none transition-all"
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Auto-fill helper pill */}
+            {generatedOtp && (
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={handleAutoFillOtp}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-100 hover:bg-emerald-200 text-emerald-900 text-xs font-black border border-emerald-300 cursor-pointer active:scale-95 transition-all"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>{isHi ? `ओटीपी स्वतः भरें: ${generatedOtp}` : `Auto-fill OTP: ${generatedOtp}`}</span>
+                </button>
+              </div>
+            )}
+
+            {otpError && (
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-800 text-center">
+                {otpError}
+              </div>
+            )}
+
+            {otpSuccessMessage && (
+              <div className="p-3 rounded-xl bg-emerald-50 border-2 border-emerald-300 text-xs font-black text-emerald-900 text-center flex items-center justify-center gap-2">
+                <Check className="w-4 h-4 text-emerald-700" />
+                <span>{otpSuccessMessage}</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="w-full min-h-[44px] py-3 px-4 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-98"
+            >
+              <span>
+                {otpPurpose === 'register' 
+                  ? (isHi ? 'सत्यापित करें व फार्म बनाएं 🚀' : 'Verify & Set Up Farm 🚀')
+                  : (isHi ? 'सत्यापित करें व साइन इन करें' : 'Verify & Sign In')}
+              </span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+
+            {/* Resend Timer or Button */}
+            <div className="text-center pt-1">
+              {resendTimer > 0 ? (
+                <span className="text-xs text-stone-500 font-medium">
+                  {isHi ? `नया ओटीपी भेजें (${resendTimer} सेकंड में)` : `Resend OTP code in ${resendTimer}s`}
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleResendOtp}
+                  className="text-xs font-bold text-emerald-800 hover:text-emerald-950 underline flex items-center gap-1 mx-auto cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>{isHi ? 'ओटीपी नहीं मिला? दोबारा भेजें' : "Didn't receive code? Resend OTP"}</span>
+                </button>
               )}
             </div>
-          </div>
-        </div>
-      </main>
+          </form>
+        )}
 
-      {/* Footer */}
-      <footer className="border-t border-stone-200 bg-white py-5 text-center text-xs text-stone-500 font-medium">
-        FarmTrack India · Made with love for Indian Farmers & Gaushalas · Cows, Goats, Sheep & Poultry
-      </footer>
+        {/* ==================== 3. SIGN IN FORM ==================== */}
+        {mode === 'login' && (
+          <form onSubmit={handleLoginSubmit} className="space-y-3.5">
+            <div>
+              <label className="block text-xs font-black text-stone-700 mb-1">
+                {isHi ? 'पंजीकृत मोबाइल नंबर' : 'Registered Mobile Number'}
+              </label>
+              <div className="relative">
+                <Smartphone className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  required
+                  value={loginPhone}
+                  onChange={(e) => setLoginPhone(e.target.value)}
+                  placeholder="9876543210 or email"
+                  className="w-full min-h-[44px] pl-9 pr-3 py-2 rounded-xl border border-stone-300 font-mono text-sm font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                />
+              </div>
+            </div>
+
+            {/* Method toggle: OTP vs PIN */}
+            <div className="flex items-center justify-between text-xs font-bold pt-0.5">
+              <span className="text-stone-500">
+                {isHi ? 'साइन इन विधि:' : 'Login Method:'}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setLoginMethod('otp')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                    loginMethod === 'otp'
+                      ? 'bg-emerald-800 text-white shadow-2xs'
+                      : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                  }`}
+                >
+                  📲 Mobile OTP
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLoginMethod('pin')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                    loginMethod === 'pin'
+                      ? 'bg-emerald-800 text-white shadow-2xs'
+                      : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                  }`}
+                >
+                  🔒 PIN (1234)
+                </button>
+              </div>
+            </div>
+
+            {loginMethod === 'pin' && (
+              <div>
+                <label className="block text-xs font-black text-stone-700 mb-1">
+                  Security PIN
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="password"
+                    required
+                    value={loginPin}
+                    onChange={(e) => setLoginPin(e.target.value)}
+                    placeholder="PIN (1234)"
+                    className="w-full min-h-[44px] pl-9 pr-3 py-2 rounded-xl border border-stone-300 font-mono text-sm font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                  />
+                </div>
+              </div>
+            )}
+
+            {loginError && (
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-800">
+                {loginError}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="w-full min-h-[44px] py-3 px-4 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-98"
+            >
+              <span>
+                {loginMethod === 'otp'
+                  ? (isHi ? 'लॉगिन ओटीपी प्राप्त करें 📲' : 'Send Login OTP 📲')
+                  : (isHi ? 'साइन इन करें' : 'Sign In to Flock')}
+              </span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+
+            {/* Quick 1-Tap Demo Logins */}
+            <div className="pt-2 border-t border-stone-100">
+              <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider block mb-2 text-center">
+                {isHi ? 'त्वरित डेमो खाते (1-टैप):' : 'Demo Accounts (1-Tap):'}
+              </span>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => onLogin(DEFAULT_USERS[1])}
+                  className="px-2.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-950 text-xs font-bold text-left cursor-pointer transition-all truncate"
+                >
+                  <span className="block truncate">👑 Ramesh Patel</span>
+                  <span className="text-[10px] text-emerald-800 block">Farm Boss (+91 98765 43210)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onLogin(DEFAULT_USERS[2])}
+                  className="px-2.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 border border-stone-200 text-stone-800 text-xs font-bold text-left cursor-pointer transition-all truncate"
+                >
+                  <span className="block truncate">🚜 Suresh Kumar</span>
+                  <span className="text-[10px] text-stone-500 block">Herdsman Helper</span>
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
+
+      </div>
+
+      {/* Quiet Footer */}
+      <div className="text-center text-xs text-stone-400 font-medium pt-3">
+        {displayAppName} · Sheep & Goat Flock Management
+      </div>
+
     </div>
   );
 };

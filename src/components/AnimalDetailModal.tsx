@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Animal, Species, Farm, User, GrowthMetric, VaccinationRecord, HealthRecord, AnimalHealthStatus, AnimalMilkStatus, isVaccineManager } from '../types';
+import { Animal, Species, Farm, User, GrowthMetric, VaccinationRecord, HealthRecord, AnimalHealthStatus, isVaccineManager } from '../types';
 import { calculateAge } from './LivestockList';
 import { 
   X, 
@@ -30,7 +30,6 @@ interface AnimalDetailModalProps {
   onAddHealthRecord: (record: Omit<HealthRecord, 'id'>) => void;
   onDeleteAnimal: (animalId: string) => void;
   onUpdateAnimalPhoto: (animalId: string, newPhoto: string) => void;
-  onOpenMilkModal?: (animal: Animal) => void;
   onUpdateAnimal?: (animalId: string, updates: Partial<Animal>) => void;
 }
 
@@ -46,7 +45,6 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
   onAddHealthRecord,
   onDeleteAnimal,
   onUpdateAnimalPhoto,
-  onOpenMilkModal,
   onUpdateAnimal,
 }) => {
   const isAdmin = farm.adminUserId === currentUser.id;
@@ -65,9 +63,6 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
   const [editLocation, setEditLocation] = useState(animal.paddockLocation);
   const [editWeight, setEditWeight] = useState(String(animal.currentWeightKg));
   const [editHealth, setEditHealth] = useState<AnimalHealthStatus>(animal.healthStatus || 'Healthy & Fit');
-  const [editMilk, setEditMilk] = useState<AnimalMilkStatus>(animal.milkStatus || 'Giving Milk');
-
-  const isEditDairy = editSpecies === 'Cow' || editSpecies === 'Buffalo';
 
   const handleOpenEdit = () => {
     setEditTagId(animal.tagId);
@@ -78,7 +73,6 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
     setEditLocation(animal.paddockLocation);
     setEditWeight(String(animal.currentWeightKg));
     setEditHealth(animal.healthStatus || 'Healthy & Fit');
-    setEditMilk(animal.milkStatus || 'Giving Milk');
     setShowEditModal(true);
   };
 
@@ -96,8 +90,6 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
       paddockLocation: editLocation.trim(),
       currentWeightKg: w,
       healthStatus: editHealth,
-      milkStatus: isEditDairy ? editMilk : undefined,
-      dailyMilkLitres: isEditDairy && editMilk === 'Giving Milk' ? (animal.dailyMilkLitres || (editSpecies === 'Cow' ? 12 : 9)) : undefined,
     });
     setShowEditModal(false);
   };
@@ -155,8 +147,7 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
     const bcs = parseFloat(newBcs) || 3.5;
     const yv = parseFloat(newYield) || 0;
 
-    const lastEntry = animal.growthHistory[animal.growthHistory.length - 1];
-    const unit = lastEntry?.dailyYieldUnit || (animal.species === 'Cow' || animal.species === 'Goat' ? 'Litres/day' : animal.species === 'Chicken' ? 'eggs/wk' : 'kg wool');
+    const unit = 'kg body wt';
 
     onAddGrowthRecord(animal.id, {
       date: new Date().toISOString().split('T')[0],
@@ -164,7 +155,7 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
       heightCm: h,
       bodyConditionScore: bcs,
       averageDailyGainG: Math.max(10, Math.round(((w - animal.currentWeightKg) * 1000) / 14)),
-      dailyYieldValue: yv,
+      dailyYieldValue: 0,
       dailyYieldUnit: unit,
       recordedBy: currentUser.name,
       recordedById: currentUser.id,
@@ -339,7 +330,7 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
                   </div>
                 </div>
 
-                {/* Health & Milk Status Badges in Modal */}
+                {/* Health & Weight Status Badges */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3 rounded-2xl bg-white border border-amber-200">
                   <div className="flex items-center gap-2">
                     <span className="text-xl">🩺</span>
@@ -349,35 +340,13 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Milk Status ONLY for Cow or Buffalo */}
-                  {(animal.species === 'Cow' || animal.species === 'Buffalo') ? (
-                    <div className="flex items-center justify-between gap-2 border-t sm:border-t-0 sm:border-l border-amber-100 pt-2 sm:pt-0 sm:pl-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl">🥛</span>
-                        <div>
-                          <span className="text-[10px] font-black uppercase text-stone-400 block">Milk Production</span>
-                          <span className="text-xs font-black text-stone-900">{animal.milkStatus || 'Giving Milk'}</span>
-                        </div>
-                      </div>
-                      {onOpenMilkModal && animal.sex === 'Female' && (
-                        <button
-                          type="button"
-                          onClick={() => onOpenMilkModal(animal)}
-                          className="px-2.5 py-1 rounded-xl bg-sky-700 hover:bg-sky-800 text-white text-[11px] font-black shadow-2xs transition-colors cursor-pointer shrink-0"
-                        >
-                          + Log Milk
-                        </button>
-                      )}
+                  <div className="flex items-center gap-2 border-t sm:border-t-0 sm:border-l border-amber-100 pt-2 sm:pt-0 sm:pl-3">
+                    <span className="text-xl">⚖️</span>
+                    <div>
+                      <span className="text-[10px] font-black uppercase text-stone-400 block">Current Weight & Target</span>
+                      <span className="text-xs font-black text-stone-900">{animal.currentWeightKg} kg (Mature: {animal.targetMatureWeightKg} kg)</span>
                     </div>
-                  ) : (
-                    <div className="flex items-center gap-2 border-t sm:border-t-0 sm:border-l border-amber-100 pt-2 sm:pt-0 sm:pl-3">
-                      <span className="text-xl">⚖️</span>
-                      <div>
-                        <span className="text-[10px] font-black uppercase text-stone-400 block">Current Weight</span>
-                        <span className="text-xs font-black text-stone-900">{animal.currentWeightKg} kg</span>
-                      </div>
-                    </div>
-                  )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
@@ -432,40 +401,43 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
             </div>
           </div>
 
-          {/* Simple Navigation Tabs */}
-          <div className="flex items-center gap-1.5 p-1 bg-stone-100 rounded-2xl">
+          {/* Responsive Navigation Tabs */}
+          <div className="flex items-center gap-1 p-1 bg-stone-100 rounded-2xl overflow-x-auto no-scrollbar">
             <button
               onClick={() => setActiveTab('lineage')}
-              className={`flex-1 py-2 text-xs font-black rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              className={`flex-1 min-h-[38px] py-1.5 px-2 text-xs font-black rounded-xl flex items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                 activeTab === 'lineage'
                   ? 'bg-emerald-800 text-white shadow-xs'
                   : 'text-stone-600 hover:text-stone-900'
               }`}
             >
               <span>🌳</span>
-              <span>Family (Papa & Mummy)</span>
+              <span className="hidden sm:inline">Family (Papa & Mummy)</span>
+              <span className="sm:hidden">Family</span>
             </button>
             <button
               onClick={() => setActiveTab('growth')}
-              className={`flex-1 py-2 text-xs font-black rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              className={`flex-1 min-h-[38px] py-1.5 px-2 text-xs font-black rounded-xl flex items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                 activeTab === 'growth'
                   ? 'bg-emerald-800 text-white shadow-xs'
                   : 'text-stone-600 hover:text-stone-900'
               }`}
             >
               <span>⚖️</span>
-              <span>Weight & Milk Logs ({animal.growthHistory.length})</span>
+              <span className="hidden sm:inline">Weight & Milk ({animal.growthHistory.length})</span>
+              <span className="sm:hidden">Weight ({animal.growthHistory.length})</span>
             </button>
             <button
               onClick={() => setActiveTab('health')}
-              className={`flex-1 py-2 text-xs font-black rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              className={`flex-1 min-h-[38px] py-1.5 px-2 text-xs font-black rounded-xl flex items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap ${
                 activeTab === 'health'
                   ? 'bg-emerald-800 text-white shadow-xs'
                   : 'text-stone-600 hover:text-stone-900'
               }`}
             >
               <span>💉</span>
-              <span>Vaccines & Doctor ({animalVacs.length + animalHealth.length})</span>
+              <span className="hidden sm:inline">Vaccines & Health ({animalVacs.length + animalHealth.length})</span>
+              <span className="sm:hidden">Health ({animalVacs.length})</span>
             </button>
           </div>
 
@@ -1085,24 +1057,6 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
                   </select>
                 </div>
               </div>
-
-              {/* Milk Status: ONLY for Cow or Buffalo */}
-              {isEditDairy && (
-                <div className="p-3 rounded-2xl bg-sky-50/70 border border-sky-200 space-y-1">
-                  <label className="text-xs font-black text-sky-950 block">
-                    🥛 Milk Status (Cow & Buffalo only)
-                  </label>
-                  <select
-                    value={editMilk}
-                    onChange={(e) => setEditMilk(e.target.value as AnimalMilkStatus)}
-                    className="w-full px-3 py-2 rounded-xl border border-sky-300 text-xs font-bold bg-white text-stone-900"
-                  >
-                    <option value="Giving Milk">🥛 Giving Milk</option>
-                    <option value="Dry Period">🥥 Dry Period</option>
-                    <option value="Not Milking (Male/Kid)">🚫 Not Milking</option>
-                  </select>
-                </div>
-              )}
 
               {/* Buttons */}
               <div className="flex justify-end gap-2 pt-2 border-t border-stone-200">

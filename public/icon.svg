@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#064E3B" />
+  <circle cx="256" cy="256" r="180" fill="#10B981" stroke="#FBBF24" stroke-width="14" />
+  <!-- Horns -->
+  <path d="M 170 230 C 120 160, 140 100, 210 130 C 180 150, 175 180, 195 210 Z" fill="#F59E0B" />
+  <path d="M 342 230 C 392 160, 372 100, 302 130 C 332 150, 337 180, 317 210 Z" fill="#F59E0B" />
+  <!-- Face -->
+  <polygon points="256,360 195,210 317,210" fill="#FEF3C7" />
+  <circle cx="225" cy="245" r="10" fill="#064E3B" />
+  <circle cx="287" cy="245" r="10" fill="#064E3B" />
+  <ellipse cx="256" cy="330" rx="16" ry="8" fill="#D97706" />
+</svg>

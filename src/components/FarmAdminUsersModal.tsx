@@ -21,12 +21,15 @@ import {
   Sparkles,
   Phone,
   Milk,
-  CheckCircle2
+  CheckCircle2,
+  MapPin,
+  Navigation
 } from 'lucide-react';
 
 interface FarmAdminUsersModalProps {
   farm: Farm;
   currentUser: User;
+  initialTab?: 'team' | 'vaccines' | 'farm' | 'database';
   onClose: () => void;
   onApproveRequest: (requestId: string, assignedRole: UserRole) => void;
   onRejectRequest: (requestId: string) => void;
@@ -42,6 +45,7 @@ interface FarmAdminUsersModalProps {
 export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
   farm,
   currentUser,
+  initialTab,
   onClose,
   onApproveRequest,
   onRejectRequest,
@@ -60,7 +64,7 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
   const isSupportAdmin = currentMember?.role === 'Support Admin';
   const hasAdminRights = isAdmin || isSupportAdmin || isSuperAdmin;
 
-  const [activeTab, setActiveTab] = useState<'team' | 'vaccines' | 'farm' | 'database'>('team');
+  const [activeTab, setActiveTab] = useState<'team' | 'vaccines' | 'farm' | 'database'>(initialTab || 'team');
 
   // Direct user addition form
   const [newUserName, setNewUserName] = useState('');
@@ -69,9 +73,14 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
   const [addSuccessNotice, setAddSuccessNotice] = useState('');
   const [addErrorNotice, setAddErrorNotice] = useState('');
 
-  // Farm Profile State
+  // Configurable Application Name (Default: Testing)
+  const [appNameInput, setAppNameInput] = useState(farm.config?.appName || db.getAppName(farm.id) || 'Testing');
+
+  // Farm Profile & Weather Location State
   const [farmName, setFarmName] = useState(farm.name);
-  const [farmLocation, setFarmLocation] = useState(farm.location);
+  const [farmLocation, setFarmLocation] = useState(farm.config?.weatherLocation || farm.location || 'Anand, Gujarat');
+  const [isDetectingGps, setIsDetectingGps] = useState(false);
+  const [gpsNotice, setGpsNotice] = useState('');
   const [totalAcreage, setTotalAcreage] = useState(String(farm.totalAcreage || 5.0));
   const [contactPhone, setContactPhone] = useState(farm.config?.contactPhone || '+91 98765 43210');
   const [profileSaved, setProfileSaved] = useState(false);
@@ -113,20 +122,50 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
     setNewUserIdentifier('+91 ');
   };
 
+  const handleDetectGPS = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser.');
+      return;
+    }
+    setIsDetectingGps(true);
+    setGpsNotice('');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = parseFloat(pos.coords.latitude.toFixed(2));
+        const lon = parseFloat(pos.coords.longitude.toFixed(2));
+        const gpsStr = `${lat}, ${lon}`;
+        setFarmLocation(gpsStr);
+        setIsDetectingGps(false);
+        setGpsNotice(`✓ Device GPS detected (${gpsStr})! Save settings to apply.`);
+      },
+      (err) => {
+        setIsDetectingGps(false);
+        alert('Could not detect device GPS: ' + err.message);
+      },
+      { timeout: 8000 }
+    );
+  };
+
   const handleSaveFarmProfile = (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanAppName = appNameInput.trim() || 'Testing';
+    const cleanLocation = farmLocation.trim() || 'Anand, Gujarat';
+
     if (onUpdateFarmProfile) {
       onUpdateFarmProfile({
         name: farmName.trim(),
-        location: farmLocation.trim(),
+        location: cleanLocation,
         totalAcreage: parseFloat(totalAcreage) || 5.0,
       });
     }
     if (onUpdateFarmConfig) {
       onUpdateFarmConfig({
+        appName: cleanAppName,
+        weatherLocation: cleanLocation,
         contactPhone: contactPhone.trim(),
       });
     }
+    db.setAppName(cleanAppName, farm.id);
     setProfileSaved(true);
     setTimeout(() => setProfileSaved(false), 2500);
   };
@@ -182,19 +221,19 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-      <div className="bg-white w-full max-w-4xl rounded-3xl border border-stone-200 shadow-2xl overflow-hidden flex flex-col my-auto max-h-[92vh]">
+    <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-6 overflow-y-auto">
+      <div className="bg-white w-full max-w-4xl rounded-2xl sm:rounded-3xl border border-stone-200 shadow-2xl overflow-hidden flex flex-col my-auto max-h-[95vh] sm:max-h-[92vh]">
         
         {/* Header - Responsive Mobile First */}
-        <div className="px-4 sm:px-8 py-3.5 sm:py-5 border-b border-stone-200 bg-[#FFFDF9] flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <span className="text-2xl sm:text-3xl shrink-0">⚙️</span>
+        <div className="px-3.5 sm:px-8 py-3 sm:py-5 border-b border-stone-200 bg-[#FFFDF9] flex items-center justify-between gap-2.5 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <span className="text-xl sm:text-3xl shrink-0">⚙️</span>
             <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-base sm:text-lg font-black text-stone-900 truncate">
-                  Farm Admin & Configuration
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                <h2 className="text-sm sm:text-lg font-black text-stone-900 truncate">
+                  Farm Admin & Config
                 </h2>
-                <span className="font-mono text-xs font-black text-stone-800 bg-stone-100 px-2 py-0.5 rounded">
+                <span className="font-mono text-[11px] sm:text-xs font-black text-stone-800 bg-stone-100 px-1.5 sm:px-2 py-0.5 rounded">
                   {farm.id}
                 </span>
                 {isSuperAdmin && (
@@ -203,7 +242,7 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
                   </span>
                 )}
               </div>
-              <p className="text-xs text-stone-500 font-medium truncate">
+              <p className="text-[11px] sm:text-xs text-stone-500 font-medium truncate">
                 {farm.name} · Boss: <strong>{farm.adminName}</strong>
               </p>
             </div>
@@ -218,17 +257,17 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
         </div>
 
         {/* Tab Bar - Clean horizontal scroll on mobile */}
-        <div className="px-3 sm:px-6 bg-stone-50 border-b border-stone-200 flex items-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar">
+        <div className="px-2.5 sm:px-6 bg-stone-50 border-b border-stone-200 flex items-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar">
           {[
             { id: 'team', label: '👥 Team & Approvals', badge: pendingRequests.length },
-            { id: 'vaccines', label: '💉 Vaccine Policies & Alerts' },
-            { id: 'farm', label: '🏡 Farm Details & Milk Targets' },
-            { id: 'database', label: '🗄️ MySQL Database & Export' },
+            { id: 'vaccines', label: '💉 Vaccine Policies' },
+            { id: 'farm', label: '🏡 Farm, Location & App Name' },
+            { id: 'database', label: '🗄️ Database & Export' },
           ].map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`px-4 py-3 text-xs font-bold transition-all border-b-2 flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+              className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs font-bold transition-all border-b-2 flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
                 activeTab === tab.id
                   ? 'border-emerald-800 text-emerald-950 bg-white'
                   : 'border-transparent text-stone-600 hover:text-stone-900'
@@ -245,7 +284,7 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
         </div>
 
         {/* Content Body */}
-        <div className="p-6 sm:p-8 overflow-y-auto space-y-6">
+        <div className="p-3.5 sm:p-8 overflow-y-auto space-y-5 sm:space-y-6">
 
           {/* TAB 1: TEAM & ACCESS APPROVALS */}
           {activeTab === 'team' && (
@@ -611,17 +650,144 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
             </div>
           )}
 
-          {/* TAB 3: FARM PROFILE & MILK PRODUCTION TARGETS */}
+          {/* TAB 3: FARM PROFILE, WEATHER LOCATION & APPLICATION NAME CONFIGURATION */}
           {activeTab === 'farm' && (
             <div className="space-y-6">
               {profileSaved && (
-                <div className="p-3 rounded-xl bg-emerald-100 text-emerald-900 text-xs font-bold flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-700" />
-                  <span>✓ Farm profile and targets updated successfully!</span>
+                <div className="p-3 rounded-xl bg-emerald-100 text-emerald-900 text-xs font-bold flex items-center gap-1.5 animate-in fade-in duration-200">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                  <span>✓ Application name, farm location, and profile settings saved successfully!</span>
                 </div>
               )}
 
-              <form onSubmit={handleSaveFarmProfile} className="space-y-4">
+              <form onSubmit={handleSaveFarmProfile} className="space-y-5">
+                
+                {/* 1. APPLICATION NAME CONFIGURATION */}
+                <div className="p-5 rounded-2xl border-2 border-emerald-500/30 bg-emerald-50/30 space-y-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">🏷️</span>
+                      <div>
+                        <h3 className="text-sm font-black text-stone-900">
+                          Application Name (एप्लीकेशन का नाम)
+                        </h3>
+                        <p className="text-[11px] text-stone-600 font-medium">
+                          Configurable app brand displayed in the top navbar, header, and system reports.
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setAppNameInput('Testing')}
+                      className="px-2.5 py-1 rounded-lg border border-emerald-400 bg-white hover:bg-emerald-100 text-emerald-900 text-[11px] font-bold cursor-pointer transition-all shadow-2xs"
+                    >
+                      Reset to "Testing"
+                    </button>
+                  </div>
+
+                  <div className="pt-1">
+                    <input
+                      type="text"
+                      required
+                      value={appNameInput}
+                      onChange={(e) => setAppNameInput(e.target.value)}
+                      placeholder="e.g. Testing"
+                      className="w-full sm:max-w-md px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white text-sm font-black text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                    />
+                    <p className="text-[11px] text-stone-500 mt-1">
+                      Currently configured as: <strong className="text-emerald-950 font-black">"{appNameInput || 'Testing'}"</strong>
+                    </p>
+                  </div>
+                </div>
+
+                {/* 2. FARM WEATHER LOCATION CONFIGURATION */}
+                <div className="p-5 rounded-2xl border border-stone-200 bg-white space-y-4">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">☀️</span>
+                      <div>
+                        <h3 className="text-sm font-black text-stone-900 flex items-center gap-1.5">
+                          <MapPin className="w-4 h-4 text-amber-700" />
+                          <span>Farm Weather Location (मौसम स्थान सेटिंग)</span>
+                        </h3>
+                        <p className="text-xs text-stone-600">
+                          Set the city/district of your farm. The live temperature widget in the corner shows live weather for this location.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* GPS Button */}
+                    <button
+                      type="button"
+                      onClick={handleDetectGPS}
+                      disabled={isDetectingGps}
+                      className="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-950 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs disabled:opacity-50"
+                      title="Use device GPS to set farm coordinates"
+                    >
+                      <Navigation className={`w-3.5 h-3.5 text-amber-700 ${isDetectingGps ? 'animate-spin' : ''}`} />
+                      <span>{isDetectingGps ? 'Detecting GPS...' : '📍 Detect Device GPS'}</span>
+                    </button>
+                  </div>
+
+                  {gpsNotice && (
+                    <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 font-bold flex items-center gap-2">
+                      <span>{gpsNotice}</span>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs font-bold text-stone-700 mb-1">
+                      Location / District Name or GPS Coordinates
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={farmLocation}
+                      onChange={(e) => setFarmLocation(e.target.value)}
+                      placeholder="e.g. Anand, Gujarat or Pune, Maharashtra"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                    />
+                  </div>
+
+                  {/* Quick Preset Farming Districts */}
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-bold text-stone-500 block">
+                      Quick Select Farming Hubs (क्विक जिला चयन):
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        'Anand, Gujarat',
+                        'Pune, Maharashtra',
+                        'Karnal, Haryana',
+                        'Jaipur, Rajasthan',
+                        'Ludhiana, Punjab',
+                        'Nagpur, Maharashtra',
+                        'Coimbatore, Tamil Nadu',
+                        'Varanasi, UP',
+                        'Patna, Bihar',
+                        'Hyderabad, Telangana',
+                        'Hisar, Haryana',
+                        'Satara, Maharashtra',
+                      ].map((loc) => (
+                        <button
+                          key={loc}
+                          type="button"
+                          onClick={() => setFarmLocation(loc)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                            farmLocation.toLowerCase().includes(loc.split(',')[0].toLowerCase())
+                              ? 'bg-amber-100 border-amber-400 text-amber-950 font-black shadow-2xs'
+                              : 'bg-stone-50 border-stone-200 hover:bg-stone-100 text-stone-700'
+                          }`}
+                        >
+                          🌾 {loc}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. FARM PROFILE DETAILS */}
                 <div className="p-5 rounded-2xl border border-stone-200 bg-white space-y-4">
                   <h3 className="text-sm font-black text-stone-900">
                     Farm Profile Details
@@ -638,19 +804,6 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
                         value={farmName}
                         onChange={(e) => setFarmName(e.target.value)}
                         className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-bold"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-stone-700 mb-1">
-                        Location / District (स्थान / जिला)
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={farmLocation}
-                        onChange={(e) => setFarmLocation(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-medium"
                       />
                     </div>
 
@@ -678,37 +831,32 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
                         className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-mono font-bold"
                       />
                     </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-stone-700 mb-1">
+                        Daily Milk Target (दैनिक दूध लक्ष्य)
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          step="1"
+                          value={targetMilkLiters}
+                          onChange={(e) => setTargetMilkLiters(Number(e.target.value))}
+                          className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-black font-mono"
+                        />
+                        <span className="text-xs font-bold text-stone-600 shrink-0">Liters</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Milk Yield Target */}
-                <div className="p-5 rounded-2xl border border-stone-200 bg-white space-y-4">
-                  <h3 className="text-sm font-black text-stone-900 flex items-center gap-2">
-                    <Milk className="w-4 h-4 text-emerald-800" />
-                    <span>Daily Milk Yield Target (दैनिक दूध लक्ष्य)</span>
-                  </h3>
-                  <p className="text-xs text-stone-600">
-                    Total expected milk production target per day across all milking cows and goats.
-                  </p>
-
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="number"
-                      step="1"
-                      value={targetMilkLiters}
-                      onChange={(e) => setTargetMilkLiters(Number(e.target.value))}
-                      className="w-36 px-3 py-2 rounded-xl border border-stone-300 text-sm font-black font-mono"
-                    />
-                    <span className="text-xs font-bold text-stone-700">Litres / day</span>
-                  </div>
-                </div>
-
-                <div className="flex justify-end">
+                <div className="flex justify-end pt-1">
                   <button
                     type="submit"
-                    className="px-5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold cursor-pointer shadow-xs"
+                    className="px-6 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-black cursor-pointer shadow-sm active:scale-98 transition-all flex items-center gap-1.5"
                   >
-                    Save All Farm Settings
+                    <Check className="w-4 h-4" />
+                    <span>Save All Farm & Location Settings</span>
                   </button>
                 </div>
               </form>

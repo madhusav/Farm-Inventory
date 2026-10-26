@@ -38,11 +38,15 @@ export function isVaccineManager(role?: UserRole | null, isAdmin?: boolean): boo
 }
 
 export interface FarmConfig {
+  appName?: string; // Configurable application name (default: 'Testing')
   vaccineAlertDaysThreshold: number; // e.g. 7 days before due date
   targetDailyMilkLiters: number;
   defaultMilkUnit: 'Litres' | 'Gallons';
   contactPhone?: string;
   customVaccines?: string[];
+  weatherLocation?: string; // e.g. 'Anand, Gujarat'
+  weatherLatitude?: number;
+  weatherLongitude?: number;
 }
 
 export interface VaccineAlert {

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Animal, Farm, User, VaccinationRecord } from '../types';
 import { useLanguage } from '../i18n/LanguageContext';
 import { db } from '../services/db';
-import { WeatherCard } from './WeatherCard';
 import { 
   Plus, 
   Search, 
@@ -10,7 +9,6 @@ import {
   Lock, 
   PackagePlus, 
   Settings, 
-  Milk, 
   ArrowUpRight, 
   ChevronRight, 
   AlertCircle,
@@ -31,7 +29,6 @@ interface LivestockListProps {
   onOpenAddModal: () => void;
   onOpenBulkModal: (species?: any) => void;
   onOpenSpeciesModal: () => void;
-  onOpenMilkModal: (animal?: Animal) => void;
   onDeleteAnimal: (animalId: string) => void;
   onBatchDeleteAnimals?: (animalIds: string[]) => void;
   onOpenVaccineAlerts?: () => void;
@@ -69,7 +66,6 @@ export const LivestockList: React.FC<LivestockListProps> = ({
   onOpenAddModal,
   onOpenBulkModal,
   onOpenSpeciesModal,
-  onOpenMilkModal,
   onDeleteAnimal,
   onBatchDeleteAnimals,
   onOpenVaccineAlerts,
@@ -202,9 +198,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({
     
     // 2. Status filter for Phase 1 (Sheep & Goat flock statuses)
     let matchesStatus = true;
-    if (selectedStatusFilter === 'Milking') {
-      matchesStatus = a.species === 'Goat' && a.sex === 'Female' && ((a.dailyMilkLitres && a.dailyMilkLitres > 0) || a.milkStatus === 'Giving Milk');
-    } else if (selectedStatusFilter === 'BreedingMale') {
+    if (selectedStatusFilter === 'BreedingMale') {
       matchesStatus = a.sex === 'Male' && (a.status === 'Breeding Sire' || a.name.includes('Buck') || a.name.includes('Ram'));
     } else if (selectedStatusFilter === 'YoungKids') {
       const birth = new Date(a.dateOfBirth);
@@ -289,11 +283,11 @@ export const LivestockList: React.FC<LivestockListProps> = ({
           </div>
         </div>
 
-        {/* Action Grid (Compact & Responsive on Mobile & Tablet) */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+        {/* Action Grid (Responsive on Mobile & Tablet: 2x2 grid on mobile, 4 columns on desktop) */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           <button
             onClick={onOpenAddModal}
-            className="w-full px-2.5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-98 transition-all"
+            className="w-full min-h-[44px] px-2.5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-98 transition-all"
           >
             <Plus className="w-4 h-4 shrink-0" />
             <span>+ Add Animal</span>
@@ -301,7 +295,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({
 
           <button
             onClick={() => onOpenBulkModal(selectedSpecies !== 'All' ? selectedSpecies : undefined)}
-            className="w-full px-2.5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-stone-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-98 transition-all"
+            className="w-full min-h-[44px] px-2.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-stone-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-98 transition-all"
           >
             <PackagePlus className="w-4 h-4 shrink-0" />
             <span>📦 Bulk Add</span>
@@ -314,7 +308,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({
               }
               setShowBulkVaccineModal(true);
             }}
-            className="w-full px-2.5 py-2.5 rounded-xl bg-rose-700 hover:bg-rose-800 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-98 transition-all"
+            className="w-full min-h-[44px] px-2.5 py-2 rounded-xl bg-rose-700 hover:bg-rose-800 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-98 transition-all"
             title="Bulk vaccinate multiple animals"
           >
             <Syringe className="w-4 h-4 shrink-0" />
@@ -322,16 +316,8 @@ export const LivestockList: React.FC<LivestockListProps> = ({
           </button>
 
           <button
-            onClick={() => onOpenMilkModal()}
-            className="w-full px-2.5 py-2.5 rounded-xl bg-sky-700 hover:bg-sky-800 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-98 transition-all"
-          >
-            <Milk className="w-4 h-4 shrink-0" />
-            <span>🥛 Record Milk</span>
-          </button>
-
-          <button
             onClick={onOpenSpeciesModal}
-            className="col-span-2 sm:col-span-1 w-full px-2.5 py-2.5 rounded-xl border border-stone-300 bg-white hover:bg-stone-100 text-stone-700 font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-98 transition-all"
+            className="w-full min-h-[44px] px-2.5 py-2 rounded-xl border border-stone-300 bg-white hover:bg-stone-100 text-stone-700 font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-98 transition-all"
           >
             <Settings className="w-4 h-4 shrink-0 text-stone-600" />
             <span>⚙️ Farm Setup</span>
@@ -343,7 +329,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({
       {alerts.length > 0 && (
         <div 
           onClick={onOpenVaccineAlerts}
-          className="p-3.5 rounded-2xl bg-amber-50 border-2 border-amber-300 shadow-xs flex items-center justify-between gap-3 cursor-pointer hover:bg-amber-100/70 transition-all"
+          className="p-3 sm:p-3.5 rounded-2xl bg-amber-50 border-2 border-amber-300 shadow-xs flex items-center justify-between gap-2.5 sm:gap-3 cursor-pointer hover:bg-amber-100/70 transition-all"
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <span className="text-xl shrink-0 animate-bounce">🔔</span>
@@ -368,16 +354,13 @@ export const LivestockList: React.FC<LivestockListProps> = ({
         </div>
       )}
 
-      {/* Compact Local Weather & Farmer Advisory Card */}
-      <WeatherCard farm={farm} />
-
-      {/* Filter Bar: Wrap cleanly with ZERO horizontal scrollbars */}
+      {/* Filter Bar: Swipeable on mobile, wrapping on desktop */}
       <div className="space-y-2 pt-1">
-        {/* Species Filter Tabs (wrapped) */}
-        <div className="flex flex-wrap gap-1.5">
+        {/* Species Filter Tabs */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 -mx-1 px-1 sm:mx-0 sm:px-0 sm:flex-wrap">
           <button
             onClick={() => setSelectedSpecies('All')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap shrink-0 ${
               selectedSpecies === 'All'
                 ? 'bg-emerald-800 text-white shadow-xs'
                 : 'bg-white border border-stone-200 text-stone-700 hover:bg-stone-50'
@@ -393,7 +376,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({
               <button
                 key={sp}
                 onClick={() => setSelectedSpecies(sp)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                   isSelected
                     ? 'bg-emerald-800 text-white shadow-xs'
                     : 'bg-white border border-stone-200 text-stone-700 hover:bg-stone-50'
@@ -414,7 +397,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search tag number, name, or breed..."
-              className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-stone-300 bg-white text-xs text-stone-900 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-700"
+              className="w-full min-h-[44px] pl-9 pr-3 py-2 rounded-xl border border-stone-300 bg-white text-sm sm:text-xs text-stone-900 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-700"
             />
           </div>
 
@@ -422,12 +405,11 @@ export const LivestockList: React.FC<LivestockListProps> = ({
             <select
               value={selectedStatusFilter}
               onChange={(e) => setSelectedStatusFilter(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl border border-stone-300 bg-white text-xs font-bold text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-700 cursor-pointer"
+              className="w-full min-h-[44px] px-3 py-2 rounded-xl border border-stone-300 bg-white text-sm sm:text-xs font-bold text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-700 cursor-pointer"
             >
               <option value="All">Filter: Whole Flock (All)</option>
               <option value="Healthy">🟢 Healthy & Fit</option>
               <option value="VaccineDue">💉 Vaccine Due</option>
-              <option value="Milking">🥛 Milking Does (बकरियां)</option>
               <option value="BreedingMale">👑 Stud Bucks & Rams (बकरा/मेढ़ा)</option>
               <option value="YoungKids">🐣 Kids & Lambs (मेमने/बच्चे)</option>
               <option value="Pregnant">🤰 Pregnant Care</option>
@@ -525,8 +507,6 @@ export const LivestockList: React.FC<LivestockListProps> = ({
               healthIcon = '🤰';
             }
 
-            const isDairyAnimal = animal.species === 'Cow' || animal.species === 'Buffalo' || animal.species === 'Goat';
-
             return (
               <div
                 key={animal.id}
@@ -552,25 +532,25 @@ export const LivestockList: React.FC<LivestockListProps> = ({
 
                     {/* Animal Name, Tag, Species, Age */}
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-1 flex-wrap">
-                        <div className="flex items-center gap-1">
-                          <span className="font-mono text-xs font-black text-emerald-900 bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-200/80">
+                      <div className="flex items-center justify-between gap-1">
+                        <div className="flex items-center gap-1 min-w-0">
+                          <span className="font-mono text-xs font-black text-emerald-900 bg-emerald-100/90 px-2 py-0.5 rounded border border-emerald-300/80 shrink-0">
                             #{animal.tagId}
                           </span>
                           {onUpdateAnimal && (
                             <button
                               type="button"
                               onClick={(e) => handleOpenQuickTag(e, animal)}
-                              className="px-1.5 py-0.5 rounded bg-amber-100 hover:bg-amber-200 text-amber-950 text-[10px] font-bold border border-amber-300 flex items-center gap-0.5 cursor-pointer active:scale-95 shadow-2xs"
+                              className="px-1.5 py-0.5 rounded bg-amber-100 hover:bg-amber-200 text-amber-950 text-[10px] font-bold border border-amber-300 flex items-center gap-0.5 cursor-pointer active:scale-95 shrink-0"
                               title="Update Tag Number"
                             >
                               <Edit2 className="w-2.5 h-2.5" />
-                              <span>Edit Tag</span>
+                              <span className="hidden xs:inline">Edit</span>
                             </button>
                           )}
                         </div>
 
-                        {/* Multi-select Checkbox */}
+                        {/* Age & Multi-select Checkbox */}
                         <div className="flex items-center gap-1.5 shrink-0">
                           <span className="text-[11px] font-bold text-stone-500">
                             {calculateAge(animal.dateOfBirth)}
@@ -578,17 +558,17 @@ export const LivestockList: React.FC<LivestockListProps> = ({
                           <button
                             type="button"
                             onClick={(e) => handleToggleSelectAnimal(e, animal.id)}
-                            className={`p-1 rounded-lg border cursor-pointer transition-all ${
+                            className={`w-7 h-7 rounded-lg border cursor-pointer flex items-center justify-center transition-all ${
                               isAnimalSelected
                                 ? 'bg-emerald-700 text-white border-emerald-800 shadow-xs'
-                                : 'bg-white text-stone-400 border-stone-200 hover:text-stone-700'
+                                : 'bg-white text-stone-400 border-stone-300 hover:text-stone-700'
                             }`}
-                            title={isAnimalSelected ? 'Deselect from bulk vaccination' : 'Select for bulk vaccination'}
+                            title={isAnimalSelected ? 'Deselect from batch action' : 'Select for batch action'}
                           >
                             {isAnimalSelected ? (
-                              <CheckSquare className="w-3.5 h-3.5" />
+                              <CheckSquare className="w-4 h-4" />
                             ) : (
-                              <Square className="w-3.5 h-3.5" />
+                              <Square className="w-4 h-4" />
                             )}
                           </button>
                         </div>
@@ -625,29 +605,13 @@ export const LivestockList: React.FC<LivestockListProps> = ({
                         </span>
                       </div>
 
-                      {/* Yield or Weight */}
-                      {animal.dailyMilkLitres && animal.dailyMilkLitres > 0 ? (
-                        <div className="p-2 rounded-xl border border-sky-200 bg-sky-50 text-sky-950 flex items-center gap-1.5 truncate">
-                          <span>🥛</span>
-                          <span className="font-bold truncate text-[11px]">
-                            {animal.dailyMilkLitres} L/day milk
-                          </span>
-                        </div>
-                      ) : animal.species === 'Sheep' ? (
-                        <div className="p-2 rounded-xl border border-stone-200 bg-stone-50 text-stone-800 flex items-center gap-1.5 truncate">
-                          <span>🐑</span>
-                          <span className="font-bold truncate text-[11px]">
-                            {animal.currentWeightKg} kg (Wool)
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="p-2 rounded-xl border border-stone-200 bg-stone-50 text-stone-800 flex items-center gap-1.5 truncate">
-                          <span>⚖️</span>
-                          <span className="font-bold truncate text-[11px]">
-                            {animal.currentWeightKg} kg weight
-                          </span>
-                        </div>
-                      )}
+                      {/* Weight Badge (Specialized for Sheep & Goats) */}
+                      <div className="p-2 rounded-xl border border-stone-200 bg-stone-50 text-stone-800 flex items-center gap-1.5 truncate">
+                        <span>{animal.species === 'Sheep' ? '🐑' : '🐐'}</span>
+                        <span className="font-bold truncate text-[11px]">
+                          {animal.currentWeightKg} kg body wt
+                        </span>
+                      </div>
                     </div>
 
                     {/* Breed & Location in 1 quiet line */}
@@ -658,7 +622,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({
                   </div>
                 </div>
 
-                {/* Card Actions: Large touch buttons */}
+                {/* Card Actions: Large touch buttons (min 40px height for mobile ergonomics) */}
                 <div className="px-3 pb-3 pt-1 flex items-center gap-2">
                   <button
                     type="button"
@@ -666,27 +630,11 @@ export const LivestockList: React.FC<LivestockListProps> = ({
                       e.stopPropagation();
                       onSelectAnimal(animal);
                     }}
-                    className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-black flex items-center justify-center gap-1 shadow-2xs cursor-pointer active:scale-98 transition-all"
+                    className="flex-1 min-h-[40px] py-2 px-3 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-black flex items-center justify-center gap-1 shadow-2xs cursor-pointer active:scale-98 transition-all"
                   >
                     <span>View Diary</span>
                     <ChevronRight className="w-4 h-4 shrink-0" />
                   </button>
-
-                  {/* Quick Log Milk button ONLY for female Cow or Buffalo */}
-                  {animal.sex === 'Female' && isDairyAnimal && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenMilkModal(animal);
-                      }}
-                      className="py-2.5 px-3 rounded-xl bg-sky-100 hover:bg-sky-200 text-sky-950 border border-sky-300 text-xs font-black flex items-center justify-center gap-1 cursor-pointer active:scale-98 transition-all shrink-0"
-                      title="Quick Milk Log"
-                    >
-                      <span>🥛</span>
-                      <span className="hidden xs:inline">Milk</span>
-                    </button>
-                  )}
 
                   {/* Delete Button (Admin Only) */}
                   {isAdmin && (
@@ -695,7 +643,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({
                         <button
                           type="button"
                           onClick={(e) => handleConfirmDelete(e, animal.id)}
-                          className="px-2.5 py-2 rounded-xl bg-red-700 text-white text-xs font-black cursor-pointer"
+                          className="min-h-[40px] px-2.5 py-2 rounded-xl bg-red-700 text-white text-xs font-black cursor-pointer"
                         >
                           Delete
                         </button>
@@ -705,7 +653,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({
                             e.stopPropagation();
                             setDeleteConfirmId(null);
                           }}
-                          className="px-2.5 py-2 rounded-xl bg-stone-200 text-stone-700 text-xs font-bold cursor-pointer"
+                          className="min-h-[40px] px-2.5 py-2 rounded-xl bg-stone-200 text-stone-700 text-xs font-bold cursor-pointer"
                         >
                           Cancel
                         </button>
@@ -714,7 +662,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({
                       <button
                         type="button"
                         onClick={(e) => handleDeleteClick(e, animal)}
-                        className="p-2.5 rounded-xl border border-stone-200 hover:bg-red-50 text-stone-400 hover:text-red-700 transition-colors shrink-0 cursor-pointer"
+                        className="min-h-[40px] w-10 flex items-center justify-center rounded-xl border border-stone-200 hover:bg-red-50 text-stone-400 hover:text-red-700 transition-colors shrink-0 cursor-pointer"
                         title="Delete Animal"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -728,9 +676,9 @@ export const LivestockList: React.FC<LivestockListProps> = ({
         </div>
       )}
 
-      {/* Sticky Bottom Action Bar (Appears only when items are selected) */}
+      {/* Sticky Bottom Action Bar (Floats gracefully above mobile bottom nav on phones, and bottom of screen on desktop) */}
       {selectedAnimalIds.length > 0 && (
-        <div className="fixed bottom-3 left-3 right-3 sm:left-1/2 sm:-translate-x-1/2 sm:max-w-xl sm:w-full z-40 bg-stone-900/95 backdrop-blur-md text-white p-2.5 sm:p-3 rounded-2xl shadow-2xl flex items-center justify-between gap-2 border-2 border-emerald-500/80 animate-in slide-in-from-bottom duration-200">
+        <div className="fixed bottom-[68px] left-2.5 right-2.5 lg:bottom-4 lg:left-1/2 lg:-translate-x-1/2 lg:max-w-xl lg:w-full z-40 bg-stone-900/95 backdrop-blur-md text-white p-2.5 sm:p-3 rounded-2xl shadow-2xl flex items-center justify-between gap-2 border-2 border-emerald-500/80 animate-in slide-in-from-bottom duration-200">
           <div className="flex items-center gap-2 min-w-0">
             <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-mono font-black flex items-center justify-center shrink-0">
               {selectedAnimalIds.length}

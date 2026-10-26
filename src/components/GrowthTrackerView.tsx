@@ -20,8 +20,8 @@ export const GrowthTrackerView: React.FC<GrowthTrackerViewProps> = ({
   );
   const targetAnimal = farm.animals.find(a => a.id === selectedAnimalId) || farm.animals[0];
   const [quickWeight, setQuickWeight] = useState<string>(() => targetAnimal ? String(targetAnimal.currentWeightKg) : '35');
-  const [quickBcs, setQuickBcs] = useState<string>('3.7');
-  const [quickYield, setQuickYield] = useState<string>(() => targetAnimal?.species === 'Sheep' ? '3.8' : '2.0');
+  const [quickBcs, setQuickBcs] = useState<string>('3.5');
+  const [quickHeight, setQuickHeight] = useState<string>('65');
   const [quickNotes, setQuickNotes] = useState<string>('');
   const [toastMessage, setToastMessage] = useState<string>('');
 
@@ -31,25 +31,23 @@ export const GrowthTrackerView: React.FC<GrowthTrackerViewProps> = ({
 
     const w = parseFloat(quickWeight) || targetAnimal.currentWeightKg;
     const bcs = parseFloat(quickBcs) || 3.5;
-    const yv = parseFloat(quickYield) || 0;
-    const lastEntry = targetAnimal.growthHistory[targetAnimal.growthHistory.length - 1];
-    const unit = lastEntry?.dailyYieldUnit || (targetAnimal.species === 'Chicken' ? 'eggs/wk' : 'Litres/day');
+    const h = parseFloat(quickHeight) || 65;
 
     onAddGrowthRecord(targetAnimal.id, {
       date: new Date().toISOString().split('T')[0],
       weightKg: w,
-      heightCm: lastEntry?.heightCm || 135,
+      heightCm: h,
       bodyConditionScore: bcs,
       averageDailyGainG: Math.max(10, Math.round(((w - targetAnimal.currentWeightKg) * 1000) / 14)),
-      dailyYieldValue: yv,
-      dailyYieldUnit: unit,
+      dailyYieldValue: 0,
+      dailyYieldUnit: 'kg',
       recordedBy: currentUser.name,
       recordedById: currentUser.id,
       notes: quickNotes.trim() || 'Healthy daily feeding.',
     });
 
     setQuickNotes('');
-    setToastMessage(`✓ Saved ${w} kg and ${yv} ${unit} for ${targetAnimal.name}!`);
+    setToastMessage(`✓ Saved ${w} kg weight & BCS ${bcs} for ${targetAnimal.name}!`);
     setTimeout(() => setToastMessage(''), 3000);
   };
 
@@ -59,10 +57,10 @@ export const GrowthTrackerView: React.FC<GrowthTrackerViewProps> = ({
       {/* Header */}
       <div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-stone-900 tracking-tight">
-          Weight & Daily Milk Diary (वजन और दूध)
+          Flock Weight & Growth Diary (वजन व स्वास्थ्य डायरी)
         </h1>
         <p className="text-xs sm:text-sm text-stone-500 mt-1 font-medium">
-          See how healthy and strong each animal is growing and write today's fresh milk in Litres or egg count.
+          Track body weight gain, average daily gain (ADG), and body condition score (BCS) for your sheep and goats.
         </p>
       </div>
 
@@ -73,7 +71,7 @@ export const GrowthTrackerView: React.FC<GrowthTrackerViewProps> = ({
           <div className="flex items-center justify-between">
             <h2 className="text-base font-extrabold text-stone-900 flex items-center gap-2">
               <Scale className="w-5 h-5 text-emerald-800" />
-              <span>Quick Daily Weigh-In & Milk</span>
+              <span>Quick Weigh-In & Condition</span>
             </h2>
             <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded">
               Today
@@ -81,7 +79,7 @@ export const GrowthTrackerView: React.FC<GrowthTrackerViewProps> = ({
           </div>
           
           <p className="text-xs text-stone-500 leading-relaxed font-medium">
-            Type today's numbers right from your phone while feeding in the shed.
+            Type today's weight and body condition score right from your phone in the shed.
           </p>
 
           <form onSubmit={handleQuickSubmit} className="space-y-3.5">
@@ -108,33 +106,33 @@ export const GrowthTrackerView: React.FC<GrowthTrackerViewProps> = ({
               </select>
             </div>
 
-            <div className="grid grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1">Weight in kg</label>
+                <label className="block text-xs font-bold text-stone-700 mb-1">Weight (kg)</label>
                 <input
                   type="number"
                   step="0.1"
                   required
                   value={quickWeight}
                   onChange={(e) => setQuickWeight(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-stone-300 font-mono text-sm font-black text-stone-900"
+                  className="w-full min-h-[44px] px-3 py-2 rounded-xl border border-stone-300 font-mono text-base sm:text-sm font-black text-stone-900"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1">Milk / Eggs</label>
+                <label className="block text-xs font-bold text-stone-700 mb-1">Height (cm)</label>
                 <input
                   type="number"
-                  step="0.1"
+                  step="1"
                   required
-                  value={quickYield}
-                  onChange={(e) => setQuickYield(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-stone-300 font-mono text-sm font-black text-emerald-900"
+                  value={quickHeight}
+                  onChange={(e) => setQuickHeight(e.target.value)}
+                  className="w-full min-h-[44px] px-3 py-2 rounded-xl border border-stone-300 font-mono text-base sm:text-sm font-black text-emerald-900"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1">Health (1-5)</label>
+                <label className="block text-xs font-bold text-stone-700 mb-1">BCS (1-5)</label>
                 <input
                   type="number"
                   step="0.1"
@@ -143,19 +141,19 @@ export const GrowthTrackerView: React.FC<GrowthTrackerViewProps> = ({
                   required
                   value={quickBcs}
                   onChange={(e) => setQuickBcs(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-stone-300 font-mono text-sm font-black text-stone-900"
+                  className="w-full min-h-[44px] px-3 py-2 rounded-xl border border-stone-300 font-mono text-base sm:text-sm font-black text-stone-900"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-stone-700 mb-1">What did the animal eat today?</label>
+              <label className="block text-xs font-bold text-stone-700 mb-1">Fodder & Feed Notes</label>
               <input
                 type="text"
                 value={quickNotes}
                 onChange={(e) => setQuickNotes(e.target.value)}
-                placeholder="e.g. Fresh green jowar grass & clean water..."
-                className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs text-stone-900"
+                placeholder="e.g. Green Lucerne, concentrate grain feed..."
+                className="w-full min-h-[44px] px-3 py-2 rounded-xl border border-stone-300 text-sm sm:text-xs text-stone-900"
               />
             </div>
 
@@ -170,7 +168,7 @@ export const GrowthTrackerView: React.FC<GrowthTrackerViewProps> = ({
               type="submit"
               className="w-full py-3 px-4 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold text-xs shadow-sm transition-colors cursor-pointer"
             >
-              Save to Animal's Diary
+              Save to Flock Growth Diary
             </button>
           </form>
         </div>
@@ -179,7 +177,7 @@ export const GrowthTrackerView: React.FC<GrowthTrackerViewProps> = ({
         <div className="lg:col-span-7 bg-white rounded-3xl border border-stone-200 overflow-hidden shadow-xs">
           <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-stone-200 flex items-center justify-between bg-stone-50/60">
             <h2 className="text-sm sm:text-base font-extrabold text-stone-900">
-              Flock Weight & Yield Summary
+              Flock Growth & ADG Summary
             </h2>
             <span className="text-xs text-stone-500 font-bold">
               {farm.animals.length} Animals on Farm
@@ -214,15 +212,15 @@ export const GrowthTrackerView: React.FC<GrowthTrackerViewProps> = ({
                         {animal.currentWeightKg} kg
                       </span>
                       <span className="text-[10px] text-stone-400">
-                        (was {animal.birthWeightKg} kg)
+                        (birth {animal.birthWeightKg} kg)
                       </span>
                       <span className="font-mono text-[10px] font-black text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded-full">
-                        {pct}% grown
+                        {pct}% mature
                       </span>
                     </div>
 
                     <div className="text-[11px] text-stone-500 font-medium truncate mt-0.5">
-                      {animal.productivityLabel}: <strong>{animal.currentProductivityValue}</strong>
+                      Target: <strong>{animal.targetMatureWeightKg} kg</strong> · {animal.breed}
                     </div>
                   </div>
 
@@ -241,10 +239,10 @@ export const GrowthTrackerView: React.FC<GrowthTrackerViewProps> = ({
               <thead>
                 <tr className="bg-stone-50 border-b border-stone-200 text-stone-600 font-bold text-[11px]">
                   <th className="py-3 px-4">Animal</th>
-                  <th className="py-3 px-4">Baby Weight</th>
-                  <th className="py-3 px-4">Weight Today</th>
-                  <th className="py-3 px-4">Grown %</th>
-                  <th className="py-3 px-4">Yield / Productivity</th>
+                  <th className="py-3 px-4">Birth Wt</th>
+                  <th className="py-3 px-4">Current Wt</th>
+                  <th className="py-3 px-4">Target Mature</th>
+                  <th className="py-3 px-4">Growth %</th>
                   <th className="py-3 px-4">Diary</th>
                 </tr>
               </thead>
@@ -259,7 +257,7 @@ export const GrowthTrackerView: React.FC<GrowthTrackerViewProps> = ({
                     >
                       <td className="py-3 px-4">
                         <div className="font-extrabold text-stone-900">{animal.name}</div>
-                        <div className="text-[11px] font-mono text-stone-500 font-bold">Tag #{animal.tagId} · {animal.species}</div>
+                        <div className="text-[11px] font-mono text-stone-500 font-bold">Tag #{animal.tagId} · {animal.species} · {animal.breed}</div>
                       </td>
                       <td className="py-3 px-4 font-mono text-stone-600 font-semibold">
                         {animal.birthWeightKg} kg
@@ -267,11 +265,11 @@ export const GrowthTrackerView: React.FC<GrowthTrackerViewProps> = ({
                       <td className="py-3 px-4 font-mono font-black text-stone-900">
                         {animal.currentWeightKg} kg
                       </td>
+                      <td className="py-3 px-4 font-mono font-bold text-stone-700">
+                        {animal.targetMatureWeightKg} kg
+                      </td>
                       <td className="py-3 px-4 font-mono text-emerald-800 font-bold">
                         {pct}% grown
-                      </td>
-                      <td className="py-3 px-4 font-mono font-bold text-emerald-900">
-                        {animal.currentProductivityValue}
                       </td>
                       <td className="py-3 px-4">
                         <span className="text-emerald-800 font-extrabold hover:underline flex items-center gap-0.5">

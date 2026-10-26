@@ -6,7 +6,9 @@ import {
   ChevronRight,
   Receipt,
   ArrowDownLeft,
-  ArrowUpRight
+  ArrowUpRight,
+  TrendingUp,
+  Scale
 } from 'lucide-react';
 
 interface ReportsViewProps {
@@ -36,17 +38,16 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   const netProfit = totalIncome - totalExpense;
   const profitMargin = totalIncome > 0 ? Math.round((netProfit / totalIncome) * 100) : 0;
 
-  // Flock composition (Phase 1: Sheep & Goat)
+  // Flock composition (Specialized for Sheep & Goat / Caprine & Ovine)
   const goatsCount = farm.animals.filter(a => a.species === 'Goat').length;
   const sheepCount = farm.animals.filter(a => a.species === 'Sheep').length;
   const breedingFemales = farm.animals.filter(a => a.sex === 'Female').length;
   const breedingMales = farm.animals.filter(a => a.sex === 'Male').length;
   const healthyCount = farm.animals.filter(a => a.healthStatus === 'Healthy & Fit' || !a.healthStatus).length;
 
-  // Milk yield calculations (Dairy does or cattle if present)
-  const dairyAnimals = farm.animals.filter(a => a.dailyMilkLitres && a.dailyMilkLitres > 0);
-  const totalDailyYield = dairyAnimals.reduce((sum, a) => sum + (a.dailyMilkLitres || 0), 0);
-  const estimatedMonthlyLiters = Math.round(totalDailyYield * 30);
+  // Average weight & total flock biomass
+  const totalWeightKg = farm.animals.reduce((sum, a) => sum + a.currentWeightKg, 0);
+  const avgWeightKg = farm.animals.length > 0 ? (totalWeightKg / farm.animals.length).toFixed(1) : '0';
 
   // Group expenses by category
   const expensesByCategory: Record<string, number> = {};
@@ -56,43 +57,43 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
   const categoryEntries = Object.entries(expensesByCategory).sort((a, b) => b[1] - a[1]);
 
-  // Monthly milk trend data
+  // Monthly flock weight growth performance trend
   const monthsData = [
-    { monthEn: 'May', monthHi: 'मई', liters: 480, income: 24000, expense: 12500 },
-    { monthEn: 'Jun', monthHi: 'जून', liters: 520, income: 26000, expense: 14200 },
-    { monthEn: 'Jul', monthHi: 'जुलाई', liters: 580, income: 29000, expense: 15800 },
-    { monthEn: 'Aug', monthHi: 'अगस्त', liters: 610, income: 30500, expense: 16400 },
-    { monthEn: 'Sep', monthHi: 'सितम्बर', liters: 640, income: 32000, expense: 17100 },
+    { monthEn: 'May', monthHi: 'मई', avgWeight: 31.2, flockGainKg: 180, income: 24000, expense: 12500 },
+    { monthEn: 'Jun', monthHi: 'जून', avgWeight: 32.8, flockGainKg: 210, income: 26000, expense: 14200 },
+    { monthEn: 'Jul', monthHi: 'जुलाई', avgWeight: 34.1, flockGainKg: 245, income: 29000, expense: 15800 },
+    { monthEn: 'Aug', monthHi: 'अगस्त', avgWeight: 35.6, flockGainKg: 270, income: 30500, expense: 16400 },
+    { monthEn: 'Sep', monthHi: 'सितम्बर', avgWeight: 37.0, flockGainKg: 290, income: 32000, expense: 17100 },
     { 
       monthEn: 'Oct',
       monthHi: 'अक्टूबर', 
-      liters: estimatedMonthlyLiters || 670, 
+      avgWeight: parseFloat(avgWeightKg) || 38.4, 
+      flockGainKg: 310, 
       income: totalIncome || 34000, 
       expense: totalExpense || 18500 
     },
   ];
 
-  const maxMonthlyLiters = Math.max(...monthsData.map(m => m.liters));
+  const maxGainKg = Math.max(...monthsData.map(m => m.flockGainKg));
   const activeMonthData = monthsData[selectedMonthIdx] || monthsData[monthsData.length - 1];
 
   // Category palette with icons
   const categoryDetails: Record<string, { bg: string; icon: string; labelEn: string; labelHi: string }> = {
-    'Feed & Fodder': { bg: 'bg-amber-500', icon: '🌾', labelEn: 'Feed & Fodder', labelHi: 'पशु आहार (दाना-भूसा)' },
-    'Medicine & Doctor': { bg: 'bg-rose-500', icon: '💊', labelEn: 'Medicine & Vet', labelHi: 'दवाई व डॉक्टर' },
-    'Vaccination': { bg: 'bg-indigo-500', icon: '💉', labelEn: 'Vaccinations', labelHi: 'टीकाकरण' },
-    'Worker Wages': { bg: 'bg-teal-500', icon: '👥', labelEn: 'Worker Wages', labelHi: 'मजदूरों की मजदूरी' },
-    'Equipment & Shed': { bg: 'bg-sky-500', icon: '🛠️', labelEn: 'Shed & Equipment', labelHi: 'शेड व उपकरण' },
-    'Transport & Fuel': { bg: 'bg-purple-500', icon: '🚛', labelEn: 'Transport & Fuel', labelHi: 'किराया व डीज़ल' },
+    'Feed & Fodder': { bg: 'bg-amber-500', icon: '🌾', labelEn: 'Feed & Lucerne Fodder', labelHi: 'पशु आहार (दाना-भूसा)' },
+    'Medicine & Doctor': { bg: 'bg-rose-500', icon: '💊', labelEn: 'Medicine & Deworming', labelHi: 'दवाई व कृमिनाशक' },
+    'Vaccination': { bg: 'bg-indigo-500', icon: '💉', labelEn: 'Vaccinations (PPR/ET/FMD)', labelHi: 'टीकाकरण (PPR/ET/FMD)' },
+    'Worker Wages': { bg: 'bg-teal-500', icon: '👥', labelEn: 'Flock Shepherd Wages', labelHi: 'मजदूरों की मजदूरी' },
+    'Equipment & Shed': { bg: 'bg-sky-500', icon: '🛠️', labelEn: 'Shed & Fencing Care', labelHi: 'शेड व बाड़ मरम्मत' },
+    'Transport & Fuel': { bg: 'bg-purple-500', icon: '🚛', labelEn: 'Transport & Market Haul', labelHi: 'किराया व परिवहन' },
     'Other Expense': { bg: 'bg-stone-500', icon: '📋', labelEn: 'Other Expenses', labelHi: 'अन्य खर्च' },
   };
 
-  // Top milk champions
-  const milkingLeaderboard = [...farm.animals]
-    .filter(a => a.dailyMilkLitres && a.dailyMilkLitres > 0)
-    .sort((a, b) => (b.dailyMilkLitres || 0) - (a.dailyMilkLitres || 0))
+  // Top weight gain & body condition champions (Goat & Sheep)
+  const growthChampions = [...farm.animals]
+    .sort((a, b) => b.currentWeightKg - a.currentWeightKg)
     .slice(0, 4);
 
-  // Feed to Milk Income ratio
+  // Feed to Income ratio
   const feedCost = expensesByCategory['Feed & Fodder'] || 0;
   const feedRatio = totalIncome > 0 ? Math.round((feedCost / totalIncome) * 100) : 0;
 
@@ -105,13 +106,13 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           <div className="flex items-center gap-2">
             <span className="text-3xl">📊</span>
             <h1 className="text-xl sm:text-2xl font-black text-stone-900 tracking-tight">
-              {isHi ? 'फार्म रिपोर्ट व मुनाफा' : 'Farm Reports & Profit'}
+              {isHi ? 'रेवड़ रिपोर्ट व वित्तीय मुनाफा' : 'Flock Reports & Profit'}
             </h1>
           </div>
           <p className="text-xs sm:text-sm text-stone-500 mt-1 font-medium">
             {isHi 
-              ? `दूध उत्पादन, खर्च और शुद्ध बचत का सरल हिसाब (${farm.name})` 
-              : `Milk production, expense trends, and net profit for ${farm.name}`}
+              ? `बकरी-भेड़ वजन वृद्धि, स्वास्थ्य और शुद्ध बचत का सरल हिसाब (${farm.name})` 
+              : `Flock weight progress, expense analysis, and net profit for ${farm.name}`}
           </p>
         </div>
 
@@ -221,8 +222,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             </div>
             <p className="text-xs sm:text-sm text-emerald-100/90 font-medium max-w-xl">
               {isHi 
-                ? `दूध और अन्य बिक्री से कुल कमाई ₹${totalIncome.toLocaleString('en-IN')} में से दाना, दवाई व मजदूरी का खर्च ₹${totalExpense.toLocaleString('en-IN')} घटाने के बाद बची शुद्ध रकम।`
-                : `Net profit after subtracting feed, medicine, and labor costs (₹${totalExpense.toLocaleString('en-IN')}) from total farm revenue (₹${totalIncome.toLocaleString('en-IN')}).`}
+                ? `भेड़-बकरी बिक्री व अन्य आय ₹${totalIncome.toLocaleString('en-IN')} में से दाना, हरा चारा, टीका व मजदूरी का खर्च ₹${totalExpense.toLocaleString('en-IN')} घटाने के बाद बची शुद्ध रकम।`
+                : `Net profit after subtracting feed, vaccines, and shepherd costs (₹${totalExpense.toLocaleString('en-IN')}) from livestock sales revenue (₹${totalIncome.toLocaleString('en-IN')}).`}
             </p>
           </div>
 
@@ -248,18 +249,18 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         </div>
       </div>
 
-      {/* Monthly Milk Production Trends */}
+      {/* Monthly Flock Weight Gain Trends */}
       <div className="p-5 sm:p-7 rounded-3xl bg-white border border-stone-200 shadow-xs space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xl">📈</span>
+              <TrendingUp className="w-5 h-5 text-emerald-700" />
               <h3 className="text-base sm:text-lg font-black text-stone-900 tracking-tight">
-                {isHi ? 'महीनेवार दूध उत्पादन' : 'Monthly Milk Production Trend'}
+                {isHi ? 'महीनेवार रेवड़ वजन वृद्धि (Flock Weight Gain)' : 'Monthly Flock Weight Gain Trend'}
               </h3>
             </div>
             <p className="text-xs text-stone-500 font-medium mt-0.5">
-              {isHi ? 'पिछले 6 महीनों में हर महीने कितना दूध हुआ (लीटर में)' : 'Monthly milk output over the last 6 months (in Liters)'}
+              {isHi ? 'पिछले 6 महीनों में रेवड़ द्वारा हासिल कुल वजन (किलोग्राम में)' : 'Total flock body weight added across the last 6 months (in kg)'}
             </p>
           </div>
 
@@ -267,8 +268,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             <span className="text-xs font-bold text-stone-500">
               {isHi ? 'चयनित माह:' : 'Selected:'}
             </span>
-            <span className="px-3 py-1 rounded-xl bg-sky-100 text-sky-900 font-black text-xs font-mono">
-              {isHi ? activeMonthData.monthHi : activeMonthData.monthEn} · {activeMonthData.liters} L
+            <span className="px-3 py-1 rounded-xl bg-emerald-100 text-emerald-900 font-black text-xs font-mono">
+              {isHi ? activeMonthData.monthHi : activeMonthData.monthEn} · +{activeMonthData.flockGainKg} kg gain
             </span>
           </div>
         </div>
@@ -277,7 +278,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         <div className="pt-6 pb-2">
           <div className="grid grid-cols-6 gap-2 sm:gap-4 items-end h-56 sm:h-64 border-b-2 border-stone-200 px-2">
             {monthsData.map((m, idx) => {
-              const heightPercent = Math.max(18, Math.round((m.liters / maxMonthlyLiters) * 100));
+              const heightPercent = Math.max(18, Math.round((m.flockGainKg / maxGainKg) * 100));
               const isSelected = selectedMonthIdx === idx;
 
               return (
@@ -286,11 +287,11 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   onClick={() => setSelectedMonthIdx(idx)}
                   className="flex flex-col items-center h-full justify-end group cursor-pointer"
                 >
-                  {/* Liters badge on top of bar */}
+                  {/* Weight gain badge on top of bar */}
                   <span className={`text-[10px] sm:text-xs font-mono font-black mb-1 transition-all ${
-                    isSelected ? 'text-sky-900 scale-110 font-extrabold' : 'text-stone-500 group-hover:text-stone-800'
+                    isSelected ? 'text-emerald-900 scale-110 font-extrabold' : 'text-stone-500 group-hover:text-stone-800'
                   }`}>
-                    {m.liters}L
+                    +{m.flockGainKg}kg
                   </span>
 
                   {/* Vertical Bar */}
@@ -298,8 +299,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                     style={{ height: `${heightPercent}%` }}
                     className={`w-full max-w-[52px] rounded-t-2xl transition-all relative ${
                       isSelected 
-                        ? 'bg-gradient-to-t from-sky-800 to-sky-600 shadow-md ring-2 ring-sky-400/50' 
-                        : 'bg-gradient-to-t from-sky-300 to-sky-200 group-hover:from-sky-400 group-hover:to-sky-300'
+                        ? 'bg-gradient-to-t from-emerald-800 to-emerald-600 shadow-md ring-2 ring-emerald-400/50' 
+                        : 'bg-gradient-to-t from-emerald-300 to-emerald-200 group-hover:from-emerald-400 group-hover:to-emerald-300'
                     }`}
                   >
                     {isSelected && (
@@ -309,7 +310,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
                   {/* Month Label */}
                   <span className={`mt-2 text-[10px] sm:text-xs font-bold truncate max-w-full text-center ${
-                    isSelected ? 'text-sky-950 font-black' : 'text-stone-500 group-hover:text-stone-800'
+                    isSelected ? 'text-emerald-950 font-black' : 'text-stone-500 group-hover:text-stone-800'
                   }`}>
                     {isHi ? m.monthHi : m.monthEn}
                   </span>
@@ -320,25 +321,25 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         </div>
 
         {/* Month Summary Drilldown */}
-        <div className="p-4 rounded-2xl bg-sky-50 border border-sky-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2">
             <span className="text-xl">📅</span>
             <div>
-              <span className="font-black text-sky-950">
-                {isHi ? activeMonthData.monthHi : activeMonthData.monthEn}: {activeMonthData.liters} {isHi ? 'लीटर दूध' : 'Liters Milk'}
+              <span className="font-black text-emerald-950">
+                {isHi ? activeMonthData.monthHi : activeMonthData.monthEn}: +{activeMonthData.flockGainKg} kg {isHi ? 'वजन वृद्धि' : 'Total Flock Gain'}
               </span>
-              <span className="text-sky-700 ml-2">
-                (≈ ₹{activeMonthData.income.toLocaleString('en-IN')} {isHi ? 'कमाई' : 'income'})
+              <span className="text-emerald-700 ml-2">
+                (Avg Weight: {activeMonthData.avgWeight} kg)
               </span>
             </div>
           </div>
-          <div className="text-sky-900 font-bold">
-            {isHi ? 'औसत दैनिक उत्पादन:' : 'Average Daily:'} {(activeMonthData.liters / 30).toFixed(1)} L/{isHi ? 'दिन' : 'day'}
+          <div className="text-emerald-900 font-bold">
+            {isHi ? 'दैनिक औसत वृद्धि (ADG):' : 'Estimated Flock ADG:'} ~{(activeMonthData.flockGainKg / 30 / (farm.animals.length || 1) * 1000).toFixed(0)} g/animal/day
           </div>
         </div>
       </div>
 
-      {/* 2-Column Section: Expense Distribution & Milking Champions */}
+      {/* 2-Column Section: Expense Distribution & Flock Growth Champions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
         {/* Category-wise Expense Distribution */}
@@ -351,7 +352,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               </h3>
             </div>
             <p className="text-xs text-stone-500 font-medium mt-0.5">
-              {isHi ? 'दाना, दवाई, मजदूरी और अन्य खर्चों का वितरण' : 'Breakdown by category across feed, medicine, wages and shed care'}
+              {isHi ? 'दाना, टीका, दवाई, मजदूरी और अन्य खर्चों का वितरण' : 'Breakdown across lucerne fodder, vaccines, deworming, and shepherd wages'}
             </p>
           </div>
 
@@ -426,41 +427,41 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             <span className="text-lg shrink-0">💡</span>
             <div>
               <span className="font-black">
-                {isHi ? 'डेयरी का सुनहरा नियम:' : 'Golden Dairy Rule:'}
+                {isHi ? 'भेड़-बकरी पालन का सुनहरा नियम:' : 'Golden Flock Rule:'}
               </span>
               <p className="font-normal text-amber-900 mt-0.5">
                 {isHi 
-                  ? 'सफल डेयरी में चारे का खर्च दूध की कुल कमाई के 60% से कम रहना चाहिए।'
-                  : 'For healthy dairy profits, total feed expenditure should remain under 60% of milk revenue.'}
+                  ? 'समय पर कृमिनाशक (Deworming) और प्रोटीन युक्त हरा चारा (लूसर्न/दशरथ घास) देने से मेमनों का दैनिक वजन 150-200 ग्राम तक बढ़ता है।'
+                  : 'Timely deworming and high-protein green fodder (Lucerne/Subabul) boost average daily gain (ADG) to 150-200g/day.'}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Top Milking Champions */}
+        {/* Top Flock Growth Champions */}
         <div className="p-5 sm:p-7 rounded-3xl bg-white border border-stone-200 shadow-xs space-y-5">
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xl">🏆</span>
                 <h3 className="text-base sm:text-lg font-black text-stone-900 tracking-tight">
-                  {isHi ? 'दूध की रानी (शीर्ष पशु)' : 'Top Milking Animals'}
+                  {isHi ? 'वजन व कद के सिरमौर पशु' : 'Top Flock Champions'}
                 </h3>
               </div>
               <p className="text-xs text-stone-500 font-medium mt-0.5">
-                {isHi ? 'आपके फार्म में सबसे ज्यादा दूध देने वाले पशु' : 'Highest producing cows and goats on your farm'}
+                {isHi ? 'आपके फार्म में सबसे भारी व उत्तम विकास वाले बकरे/मेढ़े' : 'Heaviest and highest growth animals in your flock'}
               </p>
             </div>
             <Award className="w-6 h-6 text-amber-500 shrink-0" />
           </div>
 
           <div className="divide-y divide-stone-100">
-            {milkingLeaderboard.length === 0 ? (
+            {growthChampions.length === 0 ? (
               <div className="p-8 text-center text-xs text-stone-400">
-                {isHi ? 'अभी किसी पशु का दूध दर्ज नहीं है।' : 'No animals with active milk records.'}
+                {isHi ? 'अभी कोई पशु दर्ज नहीं है।' : 'No animals recorded yet.'}
               </div>
             ) : (
-              milkingLeaderboard.map((animal, rank) => {
+              growthChampions.map((animal, rank) => {
                 const rankBadges = ['🥇', '🥈', '🥉', '🎖️'];
 
                 return (
@@ -470,7 +471,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                     className="py-3 flex items-center justify-between gap-3 hover:bg-stone-50 p-2 rounded-2xl transition-colors cursor-pointer group"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <span className="text-xl shrink-0">{rankBadges[rank] || '🐄'}</span>
+                      <span className="text-xl shrink-0">{rankBadges[rank] || '🐐'}</span>
 
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
@@ -478,11 +479,11 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                             {animal.name}
                           </h4>
                           <span className="text-[10px] font-mono font-bold text-stone-400">
-                            ({animal.tagId})
+                            (#{animal.tagId})
                           </span>
                         </div>
                         <p className="text-[11px] text-stone-500 truncate">
-                          {animal.breed} · {animal.species}
+                          {animal.species === 'Goat' ? '🐐 Goat' : '🐑 Sheep'} · {animal.breed} · {animal.sex}
                         </p>
                       </div>
                     </div>
@@ -490,10 +491,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                     <div className="flex items-center gap-3 shrink-0">
                       <div className="text-right">
                         <div className="text-sm sm:text-base font-black text-emerald-800 font-mono">
-                          {animal.dailyMilkLitres} L/{isHi ? 'दिन' : 'day'}
+                          {animal.currentWeightKg} kg
                         </div>
                         <div className="text-[10px] text-stone-400 font-medium">
-                          ≈ ₹{((animal.dailyMilkLitres || 0) * 50).toFixed(0)}/{isHi ? 'दिन' : 'day'}
+                          Mature target: {animal.targetMatureWeightKg} kg
                         </div>
                       </div>
 
@@ -508,7 +509,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           {/* Quick Ledger Shortcut */}
           <div className="pt-2 border-t border-stone-100 flex items-center justify-between">
             <span className="text-xs text-stone-500 font-medium">
-              {isHi ? 'रोज का दूध या चारा खर्च दर्ज करें' : 'Record milk or feed expenses in diary'}
+              {isHi ? 'रोज का चारा, दवा व बिक्री खर्च दर्ज करें' : 'Record fodder, medicines, or sales'}
             </span>
             <button
               onClick={onOpenLedger}
