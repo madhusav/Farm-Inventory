@@ -11,6 +11,16 @@ export const CHICKEN_ILLUSTRATION = `data:image/svg+xml;utf8,<svg xmlns="http://
 
 export const DEFAULT_USERS: User[] = [
   {
+    id: 'user-superadmin-madhu',
+    name: 'Madhu S (System Admin)',
+    identifier: 'madhusav@gmail.com',
+    authType: 'email',
+    email: 'madhusav@gmail.com',
+    phone: '+91 99999 00001',
+    isSuperAdmin: true,
+    createdAt: '2026-01-01',
+  },
+  {
     id: 'user-superadmin-1',
     name: 'Super Admin',
     identifier: '9999999999',

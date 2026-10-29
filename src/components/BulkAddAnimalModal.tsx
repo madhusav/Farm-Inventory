@@ -7,6 +7,7 @@ import {
   CHICKEN_ILLUSTRATION 
 } from '../data/initialData';
 import { useLanguage } from '../i18n/LanguageContext';
+import { db } from '../services/db';
 import { X, Check, Tag } from 'lucide-react';
 
 interface BulkAddAnimalModalProps {
@@ -25,10 +26,14 @@ const SPECIES_ILLUSTRATIONS: Record<string, string> = {
   Buffalo: COW_ILLUSTRATION,
 };
 
-const BREED_SUGGESTIONS: Record<string, string[]> = {
-  Goat: ['Sirohi Brown Goat', 'Jamnapari Goat', 'Barbari White Goat', 'Black Bengal Goat', 'Osmanabadi Goat', 'Boer Meat Goat', 'Beetal Goat', 'Sojat Goat'],
-  Sheep: ['Deccani Wool Sheep', 'Nellore Meat Sheep', 'Bellary Sheep', 'Mandya Sheep', 'Merino Sheep', 'Nali Carpet Sheep', 'Marwari Sheep'],
-};
+function getBreedsForSpecies(sp: Species): string[] {
+  const live = db.getBreedNames(sp);
+  if (live && live.length > 0) return live;
+  if (sp === 'Goat') {
+    return ['Sirohi Brown Goat', 'Jamnapari Goat', 'Barbari White Goat', 'Black Bengal Goat', 'Osmanabadi Goat', 'Boer Meat Goat', 'Beetal Goat', 'Sojat Goat'];
+  }
+  return ['Deccani Wool Sheep', 'Nellore Meat Sheep', 'Bellary Sheep', 'Mandya Sheep', 'Merino Sheep', 'Nali Carpet Sheep', 'Marwari Sheep'];
+}
 
 function getSuggestedTagPrefix(sp: Species): string {
   if (sp === 'Sheep') return 'SHEEP-';
@@ -47,8 +52,7 @@ export const BulkAddAnimalModal: React.FC<BulkAddAnimalModalProps> = ({
   onBulkAdd,
   initialSpecies,
 }) => {
-  const { lang, t } = useLanguage();
-  const isHi = lang === 'hi';
+  const { t, localeText } = useLanguage();
 
   const availableSpecies: Species[] = ['Goat', 'Sheep'];
 
@@ -56,14 +60,18 @@ export const BulkAddAnimalModal: React.FC<BulkAddAnimalModalProps> = ({
     ? initialSpecies
     : 'Goat';
 
+  const PRESET_QUANTITIES = [5, 10, 20, 25, 50, 100];
+
   const [species, setSpecies] = useState<Species>(startingSpecies);
   const [quantity, setQuantity] = useState<number>(10);
+  const [isOthersMode, setIsOthersMode] = useState<boolean>(false);
+  const [customQuantityInput, setCustomQuantityInput] = useState<string>('10');
   const [genderMode, setGenderMode] = useState<'all_female' | 'all_male' | 'split'>('all_female');
-  const [femaleCount, setFemaleCount] = useState<number>(8);
-  const [maleCount, setMaleCount] = useState<number>(2);
+  const [femaleCount, setFemaleCount] = useState<number>(7);
+  const [maleCount, setMaleCount] = useState<number>(3);
 
   // Details
-  const [breed, setBreed] = useState<string>(BREED_SUGGESTIONS[startingSpecies]?.[0] || 'Desi Local');
+  const [breed, setBreed] = useState<string>(() => getBreedsForSpecies(startingSpecies)[0] || 'Desi Local');
   const [tagPrefix, setTagPrefix] = useState<string>(getSuggestedTagPrefix(startingSpecies));
   const [startTagNum, setStartTagNum] = useState<number>(() => {
     if (startingSpecies === 'Sheep') return 201;
@@ -94,8 +102,8 @@ export const BulkAddAnimalModal: React.FC<BulkAddAnimalModalProps> = ({
 
   const handleSpeciesChange = (newSpecies: Species) => {
     setSpecies(newSpecies);
-    const breeds = BREED_SUGGESTIONS[newSpecies] || ['Local Desi Breed'];
-    setBreed(breeds[0]);
+    const breeds = getBreedsForSpecies(newSpecies);
+    setBreed(breeds[0] || 'Desi Local');
     
     // Automatically update tag prefix to match selected species
     const newPrefix = getSuggestedTagPrefix(newSpecies);
@@ -130,36 +138,101 @@ export const BulkAddAnimalModal: React.FC<BulkAddAnimalModalProps> = ({
     }
   };
 
+  const applyNewQuantity = (rawQ: number) => {
+    const clamped = Math.max(1, Math.min(1000, Math.floor(rawQ) || 1));
+    setQuantity(clamped);
+    setCustomQuantityInput(String(clamped));
+    if (genderMode === 'split') {
+      const f = Math.max(1, Math.ceil(clamped * 0.7));
+      const m = Math.max(0, clamped - f);
+      setFemaleCount(f);
+      setMaleCount(m);
+    }
+  };
+
+  const handlePresetSelect = (q: number) => {
+    setIsOthersMode(false);
+    applyNewQuantity(q);
+  };
+
+  const handleSelectOther = () => {
+    setIsOthersMode(true);
+    setCustomQuantityInput(String(quantity));
+  };
+
+  const handleCustomQuantityChange = (valStr: string) => {
+    // Strictly accept only numbers (digits 0-9)
+    const cleaned = valStr.replace(/[^0-9]/g, '');
+
+    if (cleaned === '') {
+      setCustomQuantityInput('');
+      return;
+    }
+
+    let parsed = parseInt(cleaned, 10);
+    if (!isNaN(parsed)) {
+      if (parsed > 1000) {
+        parsed = 1000;
+        setCustomQuantityInput('1000');
+      } else {
+        setCustomQuantityInput(cleaned);
+      }
+      if (parsed >= 1) {
+        setQuantity(parsed);
+        if (genderMode === 'split') {
+          const f = Math.max(1, Math.ceil(parsed * 0.7));
+          const m = Math.max(0, parsed - f);
+          setFemaleCount(f);
+          setMaleCount(m);
+        }
+      }
+    }
+  };
+
+  const handleCustomQuantityBlur = () => {
+    if (!customQuantityInput || parseInt(customQuantityInput, 10) < 1) {
+      applyNewQuantity(1);
+    } else {
+      const parsed = Math.min(1000, Math.max(1, parseInt(customQuantityInput, 10)));
+      applyNewQuantity(parsed);
+    }
+  };
+
   const handleGenderModeChange = (mode: 'all_female' | 'all_male' | 'split') => {
     setGenderMode(mode);
     if (mode === 'split') {
-      const f = Math.max(1, Math.floor(quantity * 0.8));
-      const m = Math.max(1, quantity - f);
+      const f = Math.max(1, Math.ceil(quantity * 0.7));
+      const m = Math.max(0, quantity - f);
       setFemaleCount(f);
       setMaleCount(m);
     }
   };
 
-  const handleQuantitySelect = (q: number) => {
-    setQuantity(q);
-    if (genderMode === 'split') {
-      const f = Math.max(1, Math.floor(q * 0.8));
-      const m = Math.max(1, q - f);
-      setFemaleCount(f);
-      setMaleCount(m);
-    }
+  const handleFemaleCountChange = (newF: number) => {
+    const clampedF = Math.max(0, Math.min(quantity, newF));
+    setFemaleCount(clampedF);
+    setMaleCount(quantity - clampedF);
   };
 
-  const handleSplitChange = (f: number, m: number) => {
-    setFemaleCount(f);
-    setMaleCount(m);
-    setQuantity(f + m);
+  const handleMaleCountChange = (newM: number) => {
+    const clampedM = Math.max(0, Math.min(quantity, newM));
+    setMaleCount(clampedM);
+    setFemaleCount(quantity - clampedM);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const finalQuantity = genderMode === 'split' ? femaleCount + maleCount : quantity;
+    const finalQuantity = Math.max(1, Math.min(1000, quantity));
     if (finalQuantity <= 0) return;
+
+    let actualFemales = femaleCount;
+    let actualMales = maleCount;
+    if (genderMode === 'split') {
+      if (actualFemales + actualMales !== finalQuantity) {
+        actualFemales = Math.max(0, Math.min(finalQuantity, femaleCount));
+        actualMales = finalQuantity - actualFemales;
+      }
+    }
 
     const generatedAnimals: Animal[] = [];
     const today = new Date().toISOString().split('T')[0];
@@ -202,7 +275,7 @@ export const BulkAddAnimalModal: React.FC<BulkAddAnimalModalProps> = ({
       if (genderMode === 'all_male') {
         sex = 'Male';
       } else if (genderMode === 'split') {
-        sex = i < femaleCount ? 'Female' : 'Male';
+        sex = i < actualFemales ? 'Female' : 'Male';
       }
 
       // Name
@@ -293,7 +366,7 @@ export const BulkAddAnimalModal: React.FC<BulkAddAnimalModalProps> = ({
     onClose();
   };
 
-  const finalQuantity = genderMode === 'split' ? femaleCount + maleCount : quantity;
+  const finalQuantity = quantity;
   const cleanPrefix = tagPrefix.trim().toUpperCase() || `${species.toUpperCase().slice(0, 4)}-`;
   const endTagNum = startTagNum + finalQuantity - 1;
 
@@ -306,10 +379,10 @@ export const BulkAddAnimalModal: React.FC<BulkAddAnimalModalProps> = ({
           <div>
             <h2 className="text-lg sm:text-xl font-black text-stone-950 flex items-center gap-2">
               <span>📦</span>
-              <span>{isHi ? 'एक साथ कई पशु जोड़ें (Bulk Add)' : 'Add Animals in Bulk'}</span>
+              <span>{t('bulkTitle', 'Add Animals in Bulk')}</span>
             </h2>
             <p className="text-xs text-stone-900 font-bold mt-0.5">
-              {isHi ? 'बकरी व भेड़ 1 क्लिक में जोड़ें (Phase 1)' : 'Quickly add goats or sheep in bulk (Phase 1 Tracker)'}
+              {t('bulkSubtitle', 'Quickly add goats or sheep in bulk (Phase 1 Tracker)')}
             </p>
           </div>
           <button
@@ -349,7 +422,7 @@ export const BulkAddAnimalModal: React.FC<BulkAddAnimalModalProps> = ({
                     }`}
                   >
                     <span className="text-3xl mb-1">{emoji}</span>
-                    <span className="text-xs font-black">{sp}</span>
+                    <span className="text-xs font-black">{sp === 'Goat' ? t('goat', 'Goat') : t('sheep_single', 'Sheep')}</span>
                     <span className="text-[10px] text-stone-500 font-medium mt-0.5">
                       {sp === 'Goat' ? 'Sirohi, Jamnapari, Boer' : 'Deccani, Nellore, Bellary'}
                     </span>
@@ -365,41 +438,155 @@ export const BulkAddAnimalModal: React.FC<BulkAddAnimalModalProps> = ({
             </p>
           </div>
 
-          {/* Step 2: Quantity Selection */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
+          {/* Step 2: Quantity Selection (Presets: 5, 10, 20, 25, 50, 100 & Other: 1 - 1000) */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between flex-wrap gap-1">
               <label className="text-xs font-black text-stone-800 uppercase tracking-wider">
-                2. How Many Animals?
+                {localeText({
+                  en: '2. How Many Animals? (Select 5, 10, 20, 25, 50, 100 or custom)',
+                  hi: '2. कितने पशु जोड़ने हैं? (5, 10, 20, 25, 50, 100 या अन्य)',
+                  kn: '2. ಎಷ್ಟು ಪ್ರಾಣಿಗಳನ್ನು ಸೇರಿಸಬೇಕು? (5, 10, 20, 25, 50, 100 ಅಥವಾ ಇತರೆ)',
+                  te: '2. ఎన్ని జీవాలు చేర్చాలి? (5, 10, 20, 25, 50, 100 లేదా ఇతరులు)',
+                  ta: '2. எத்தனை கால்நடைகள் சேர்க்க வேண்டும்? (5, 10, 20, 25, 50, 100 அல்லது மற்றவை)',
+                  ml: '2. എത്ര മൃഗങ്ങളെ ചേർക്കണം? (5, 10, 20, 25, 50, 100 അല്ലെങ്കിൽ മറ്റുള്ളവ)',
+                  mr: '2. किती जनावरे जोडायची? (5, 10, 20, 25, 50, 100 किंवा इतर)'
+                })}
               </label>
-              <span className="text-xs font-mono font-black text-emerald-900 bg-emerald-100 px-2.5 py-0.5 rounded-full">
-                Total: {finalQuantity} {species}s
-              </span>
+              <div className="flex items-center gap-1.5">
+                {finalQuantity % 2 !== 0 ? (
+                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
+                    <span>⚡</span>
+                    <span>{localeText({ en: 'Odd Number', hi: 'विषम संख्या', kn: 'ಬೆಸ ಸಂಖ್ಯೆ', te: 'బేసి సంఖ్య', ta: 'ஒற்றைப்படை எண்', ml: 'ഒറ്റ സംഖ്യ', mr: 'विषम संख्या' })}</span>
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center gap-1">
+                    <span>⚖️</span>
+                    <span>{localeText({ en: 'Even Number', hi: 'सम संख्या', kn: 'ಸಮ ಸಂಖ್ಯೆ', te: 'సరి సంఖ్య', ta: 'இரட்டைப்படை எண்', ml: 'ഇരട്ട സംഖ്യ', mr: 'सम संख्या' })}</span>
+                  </span>
+                )}
+                <span className="text-xs font-mono font-black text-emerald-950 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full">
+                  Total: {finalQuantity} {species}s
+                </span>
+              </div>
             </div>
 
-            {/* Quick Presets */}
-            <div className="grid grid-cols-4 gap-2">
-              {[5, 10, 20, 50].map(q => (
-                <button
-                  key={q}
-                  type="button"
-                  onClick={() => handleQuantitySelect(q)}
-                  className={`py-2 rounded-xl border text-xs font-black cursor-pointer transition-all ${
-                    quantity === q && genderMode !== 'split'
-                      ? 'border-amber-500 bg-amber-500 text-stone-950 shadow-xs'
-                      : 'border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100'
-                  }`}
-                >
-                  +{q} {species}s
-                </button>
-              ))}
+            {/* Presets: 5, 10, 20, 25, 50, 100, and Other */}
+            <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
+              {PRESET_QUANTITIES.map(q => {
+                const isSelected = quantity === q && !isOthersMode;
+                return (
+                  <button
+                    key={q}
+                    type="button"
+                    onClick={() => handlePresetSelect(q)}
+                    className={`py-2 px-1 rounded-xl border text-xs font-black cursor-pointer transition-all ${
+                      isSelected
+                        ? 'border-emerald-700 bg-emerald-600 text-white shadow-xs scale-102 ring-2 ring-emerald-300'
+                        : 'border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100'
+                    }`}
+                  >
+                    <span>{q}</span>
+                    <span className="text-[9px] block opacity-80">{species}s</span>
+                  </button>
+                );
+              })}
+
+              {/* 'Other' Button: Opens number text field (1 - 1000) */}
+              <button
+                type="button"
+                onClick={handleSelectOther}
+                className={`py-2 px-1 rounded-xl border text-xs font-black cursor-pointer transition-all ${
+                  isOthersMode
+                    ? 'border-purple-600 bg-purple-700 text-white shadow-xs scale-102 ring-2 ring-purple-300'
+                    : 'border-purple-300 bg-purple-50 text-purple-950 hover:bg-purple-100'
+                }`}
+              >
+                <span>Other ✍️</span>
+                <span className="text-[9px] block opacity-80">1 - 1000</span>
+              </button>
             </div>
+
+            {/* Dedicated Custom / Other Quantity Text Field (Strictly Numbers, 1 - 1000) */}
+            {isOthersMode ? (
+              <div className="p-3 sm:p-3.5 rounded-2xl border-2 border-purple-500 bg-purple-50/60 shadow-xs space-y-2">
+                <div className="flex items-center justify-between flex-wrap gap-1">
+                  <label htmlFor="custom-bulk-qty-input" className="text-xs font-black text-purple-950 flex items-center gap-1.5">
+                    <span>🔢</span>
+                    <span>{localeText({
+                      en: 'Enter Number of Animals (1 - 1000):',
+                      hi: 'संख्या दर्ज करें (1 - 1000):',
+                      kn: 'ಪ್ರಾಣಿಗಳ ಸಂಖ್ಯೆಯನ್ನು ನಮೂದಿಸಿ (1 - 1000):',
+                      te: 'జీవాల సంఖ్యను నమోదు చేయండి (1 - 1000):',
+                      ta: 'கால்நடைகளின் எண்ணிக்கையை உள்ளிடவும் (1 - 1000):',
+                      ml: 'മൃഗങ്ങളുടെ എണ്ണം നൽകുക (1 - 1000):',
+                      mr: 'जनावरांची संख्या प्रविष्ट करा (1 - 1000):'
+                    })}</span>
+                  </label>
+                  <span className="text-[11px] text-purple-900 font-bold bg-purple-100 border border-purple-200 px-2 py-0.5 rounded-full">
+                    {quantity} {species}s selected
+                  </span>
+                </div>
+
+                <div className="relative">
+                  <input
+                    id="custom-bulk-qty-input"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    autoFocus
+                    value={customQuantityInput}
+                    onChange={(e) => handleCustomQuantityChange(e.target.value)}
+                    onBlur={handleCustomQuantityBlur}
+                    onKeyDown={(e) => {
+                      const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'];
+                      if (allowedKeys.includes(e.key) || e.ctrlKey || e.metaKey) {
+                        return;
+                      }
+                      if (!/^[0-9]$/.test(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
+                    placeholder="Enter number (1 - 1000)..."
+                    className="w-full pl-3.5 pr-20 py-2.5 rounded-xl border border-purple-300 bg-white font-mono text-base font-black text-stone-900 focus:outline-none focus:ring-2 focus:ring-purple-600 shadow-inner"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-purple-700 bg-purple-100 px-2 py-1 rounded">
+                    {species}s
+                  </span>
+                </div>
+                <p className="text-[11px] text-purple-800 font-medium">
+                  Type any number from 1 to 1000. Only numbers are accepted.
+                </p>
+              </div>
+            ) : (
+              <div className="p-2.5 rounded-xl bg-stone-50 border border-stone-200 flex items-center justify-between text-xs text-stone-600">
+                <span className="flex items-center gap-1.5">
+                  <span className="text-emerald-600 font-bold">✓</span>
+                  <span>Preset chosen: <strong>{quantity} {species}s</strong></span>
+                </span>
+                <button
+                  type="button"
+                  onClick={handleSelectOther}
+                  className="text-purple-700 hover:text-purple-900 font-bold hover:underline cursor-pointer text-xs"
+                >
+                  Custom number? Click 'Other' (1-1000) &rarr;
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* Step 3: Gender Breakdown */}
+          {/* Step 3: Gender Breakdown (Supports Exact Odd Split) */}
           <div className="space-y-1.5">
-            <label className="text-xs font-black text-stone-800 uppercase tracking-wider block">
-              3. Gender Selection
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-black text-stone-800 uppercase tracking-wider block">
+                3. Gender Selection
+              </label>
+              {genderMode === 'split' && (
+                <span className="text-[11px] font-bold text-stone-500">
+                  {femaleCount} ♀ + {maleCount} ♂ = {finalQuantity} Total
+                </span>
+              )}
+            </div>
+
             <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
@@ -410,7 +597,7 @@ export const BulkAddAnimalModal: React.FC<BulkAddAnimalModalProps> = ({
                     : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
                 }`}
               >
-                ♀ All Females
+                ♀ All Females ({finalQuantity})
               </button>
               <button
                 type="button"
@@ -421,7 +608,7 @@ export const BulkAddAnimalModal: React.FC<BulkAddAnimalModalProps> = ({
                     : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
                 }`}
               >
-                ♂ All Males
+                ♂ All Males ({finalQuantity})
               </button>
               <button
                 type="button"
@@ -432,27 +619,34 @@ export const BulkAddAnimalModal: React.FC<BulkAddAnimalModalProps> = ({
                     : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
                 }`}
               >
-                ⚖️ Mixed
+                ⚖️ Mixed Split
               </button>
             </div>
 
             {genderMode === 'split' && (
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <div className="p-2.5 bg-stone-50 rounded-xl border border-stone-200 flex items-center justify-between">
-                  <span className="text-xs font-bold text-stone-700">Females:</span>
+                  <div>
+                    <span className="text-xs font-bold text-stone-700 block">{t('mummy', 'Females')}:</span>
+                    <span className="text-[10px] text-stone-400 font-medium">
+                      {Math.round((femaleCount / Math.max(1, finalQuantity)) * 100)}%
+                    </span>
+                  </div>
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
-                      onClick={() => handleSplitChange(Math.max(1, femaleCount - 1), maleCount)}
-                      className="w-7 h-7 rounded-lg bg-stone-200 hover:bg-stone-300 font-bold text-stone-800"
+                      onClick={() => handleFemaleCountChange(femaleCount - 1)}
+                      disabled={femaleCount <= 0}
+                      className="w-7 h-7 rounded-lg bg-stone-200 hover:bg-stone-300 font-bold text-stone-800 disabled:opacity-40 cursor-pointer"
                     >
                       -
                     </button>
-                    <span className="font-mono font-black text-sm w-6 text-center">{femaleCount}</span>
+                    <span className="font-mono font-black text-sm min-w-6 text-center">{femaleCount}</span>
                     <button
                       type="button"
-                      onClick={() => handleSplitChange(femaleCount + 1, maleCount)}
-                      className="w-7 h-7 rounded-lg bg-stone-200 hover:bg-stone-300 font-bold text-stone-800"
+                      onClick={() => handleFemaleCountChange(femaleCount + 1)}
+                      disabled={femaleCount >= finalQuantity}
+                      className="w-7 h-7 rounded-lg bg-stone-200 hover:bg-stone-300 font-bold text-stone-800 disabled:opacity-40 cursor-pointer"
                     >
                       +
                     </button>
@@ -460,20 +654,27 @@ export const BulkAddAnimalModal: React.FC<BulkAddAnimalModalProps> = ({
                 </div>
 
                 <div className="p-2.5 bg-stone-50 rounded-xl border border-stone-200 flex items-center justify-between">
-                  <span className="text-xs font-bold text-stone-700">Males:</span>
+                  <div>
+                    <span className="text-xs font-bold text-stone-700 block">{t('papa', 'Males')}:</span>
+                    <span className="text-[10px] text-stone-400 font-medium">
+                      {Math.round((maleCount / Math.max(1, finalQuantity)) * 100)}%
+                    </span>
+                  </div>
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
-                      onClick={() => handleSplitChange(femaleCount, Math.max(0, maleCount - 1))}
-                      className="w-7 h-7 rounded-lg bg-stone-200 hover:bg-stone-300 font-bold text-stone-800"
+                      onClick={() => handleMaleCountChange(maleCount - 1)}
+                      disabled={maleCount <= 0}
+                      className="w-7 h-7 rounded-lg bg-stone-200 hover:bg-stone-300 font-bold text-stone-800 disabled:opacity-40 cursor-pointer"
                     >
                       -
                     </button>
-                    <span className="font-mono font-black text-sm w-6 text-center">{maleCount}</span>
+                    <span className="font-mono font-black text-sm min-w-6 text-center">{maleCount}</span>
                     <button
                       type="button"
-                      onClick={() => handleSplitChange(femaleCount, maleCount + 1)}
-                      className="w-7 h-7 rounded-lg bg-stone-200 hover:bg-stone-300 font-bold text-stone-800"
+                      onClick={() => handleMaleCountChange(maleCount + 1)}
+                      disabled={maleCount >= finalQuantity}
+                      className="w-7 h-7 rounded-lg bg-stone-200 hover:bg-stone-300 font-bold text-stone-800 disabled:opacity-40 cursor-pointer"
                     >
                       +
                     </button>
@@ -560,7 +761,7 @@ export const BulkAddAnimalModal: React.FC<BulkAddAnimalModalProps> = ({
                 onChange={(e) => setBreed(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-bold bg-white text-stone-900 focus:ring-2 focus:ring-emerald-700"
               >
-                {(BREED_SUGGESTIONS[species] || ['Desi Local Breed']).map(b => (
+                {getBreedsForSpecies(species).map(b => (
                   <option key={b} value={b}>{b}</option>
                 ))}
               </select>

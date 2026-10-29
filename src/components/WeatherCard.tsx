@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import { Farm } from '../types';
 import { useLanguage } from '../i18n/LanguageContext';
+import { Language } from '../i18n/translations';
+import { getWeatherDescription, getPrimaryFarmerTip, parseLocationCoordinates, KNOWN_FARM_LOCATIONS } from './CornerTemperature';
 
 interface WeatherCardProps {
   farm: Farm;
@@ -34,88 +36,8 @@ interface DailyForecast {
   rainChance: number;
 }
 
-const KNOWN_FARM_LOCATIONS: Record<string, { lat: number; lon: number; label: string }> = {
-  anand: { lat: 22.56, lon: 72.95, label: 'Anand, Gujarat' },
-  pune: { lat: 18.52, lon: 73.85, label: 'Pune, Maharashtra' },
-  karnal: { lat: 29.69, lon: 76.98, label: 'Karnal, Haryana' },
-  ludhiana: { lat: 30.90, lon: 75.85, label: 'Ludhiana, Punjab' },
-  jaipur: { lat: 26.91, lon: 75.78, label: 'Jaipur, Rajasthan' },
-  nagpur: { lat: 21.14, lon: 79.08, label: 'Nagpur, Maharashtra' },
-  coimbatore: { lat: 11.01, lon: 76.95, label: 'Coimbatore, TN' },
-  varanasi: { lat: 25.31, lon: 82.97, label: 'Varanasi, UP' },
-  patna: { lat: 25.59, lon: 85.13, label: 'Patna, Bihar' },
-};
-
-function parseLocationCoordinates(locString: string): { lat: number; lon: number; label: string } {
-  const lower = (locString || '').toLowerCase();
-  for (const [key, val] of Object.entries(KNOWN_FARM_LOCATIONS)) {
-    if (lower.includes(key)) {
-      return val;
-    }
-  }
-  return { lat: 22.56, lon: 72.95, label: locString || 'Anand, Gujarat' };
-}
-
-function getWeatherDescription(code: number, isHi: boolean): { text: string; emoji: string } {
-  if (code === 0) return { text: isHi ? 'साफ धूप' : 'Clear & Sunny', emoji: '☀️' };
-  if (code === 1 || code === 2) return { text: isHi ? 'हल्के बादल' : 'Partly Cloudy', emoji: '⛅' };
-  if (code === 3) return { text: isHi ? 'घने बादल' : 'Cloudy Sky', emoji: '☁️' };
-  if (code === 45 || code === 48) return { text: isHi ? 'कोहरा' : 'Morning Fog', emoji: '🌫️' };
-  if (code >= 51 && code <= 65) return { text: isHi ? 'बारिश' : 'Rain Showers', emoji: '🌧️' };
-  if (code >= 80 && code <= 82) return { text: isHi ? 'तेज बारिश' : 'Heavy Rain', emoji: '🌧️' };
-  if (code >= 95) return { text: isHi ? 'तूफान' : 'Thunderstorm', emoji: '⛈️' };
-  return { text: isHi ? 'सुखद मौसम' : 'Fair Weather', emoji: '🌤️' };
-}
-
-function getPrimaryFarmerTip(temp: number, rainChance: number, wind: number, isHi: boolean): { emoji: string; text: string; urgency: 'normal' | 'warn' } {
-  if (temp >= 35) {
-    return {
-      emoji: '💧',
-      text: isHi 
-        ? 'गर्मी ज्यादा है: बकरियों और भेड़ों को दिन में छायादार शेड में रखें और ठंडा साफ पानी पिलाएं।' 
-        : 'High Heat: Keep goats and sheep in shade with plenty of clean drinking water.',
-      urgency: 'warn',
-    };
-  }
-  if (rainChance >= 40) {
-    return {
-      emoji: '☔',
-      text: isHi 
-        ? 'बारिश की संभावना: सूखा चारा व दाना भीगने से बचाएं। बकरी-भेड़ बाड़ा सूखा रखें।' 
-        : 'Rain expected: Keep dry feed covered and keep flock pens clean and dry.',
-      urgency: 'warn',
-    };
-  }
-  if (wind >= 25) {
-    return {
-      emoji: '💨',
-      text: isHi 
-        ? 'तेज हवा: शेड के पर्दे और टीन की चादरें सुरक्षित बांधें।' 
-        : 'Strong winds: Secure loose shed sheets and protect goat pens and sheep shelters.',
-      urgency: 'warn',
-    };
-  }
-  if (temp <= 16) {
-    return {
-      emoji: '❄️',
-      text: isHi 
-        ? 'सर्दी: छोटे बछड़ों और मेमनों के लिए नीचे सूखी पुआल बिछाएं।' 
-        : 'Cold night: Put clean dry straw bedding on the floor for baby calves & lambs.',
-      urgency: 'warn',
-    };
-  }
-  return {
-    emoji: '🌿',
-    text: isHi 
-      ? 'उत्तम मौसम: बकरियों व भेड़ों को चराने और शेड की सफाई के लिए बढ़िया दिन।' 
-      : 'Pleasant weather: Great day for pasture grazing, milking, and shed cleaning.',
-    urgency: 'normal',
-  };
-}
-
 export const WeatherCard: React.FC<WeatherCardProps> = ({ farm }) => {
-  const { lang } = useLanguage();
-  const isHi = lang === 'hi';
+  const { lang, localeText } = useLanguage();
 
   const defaultCoords = parseLocationCoordinates(farm.location);
   const [coords, setCoords] = useState(defaultCoords);
@@ -145,11 +67,25 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({ farm }) => {
 
       const dailyDays: DailyForecast[] = (data.daily.time || []).slice(0, 3).map((dStr: string, idx: number) => {
         const dObj = new Date(dStr);
-        const dayNamesEn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const dayNamesHi = ['रवि', 'सोम', 'मंगल', 'बुध', 'गुरु', 'शुक्र', 'शनि'];
+        const dayNames: Record<Language, string[]> = {
+          en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+          hi: ['रवि', 'सोम', 'मंगल', 'बुध', 'गुरु', 'शुक्र', 'शनि'],
+          kn: ['ಭಾನು', 'ಸೋಮ', 'ಮಂಗಳ', 'ಬುಧ', 'ಗುರು', 'ಶುಕ್ರ', 'ಶನಿ'],
+          te: ['ఆది', 'సోమ', 'మంగళ', 'బుధ', 'గురు', 'శుక్ర', 'శని'],
+          ta: ['ஞாயிறு', 'திங்கள்', 'செவ்வாய்', 'புதன்', 'வியாழன்', 'வெள்ளி', 'சனி'],
+          ml: ['ഞായർ', 'തിങ്കൾ', 'ചൊവ്വ', 'ബുധൻ', 'വ്യാഴം', 'വെള്ളി', 'ശനി'],
+          mr: ['रवि', 'सोम', 'मंगळ', 'बुध', 'गुरु', 'शुक्र', 'शनि'],
+        };
+        const todayLabels: Record<Language, string> = {
+          en: 'Today', hi: 'आज', kn: 'ಇಂದು', te: 'ఈరోజు', ta: 'இன்று', ml: 'ഇന്ന്', mr: 'आज'
+        };
+        const tomorrowLabels: Record<Language, string> = {
+          en: 'Tomorrow', hi: 'कल', kn: 'ನಾಳೆ', te: 'రేపు', ta: 'நாளை', ml: 'നാളെ', mr: 'उद्या'
+        };
+
         const dayName = idx === 0 
-          ? (isHi ? 'आज' : 'Today') 
-          : (idx === 1 ? (isHi ? 'कल' : 'Tomorrow') : (isHi ? dayNamesHi[dObj.getDay()] : dayNamesEn[dObj.getDay()]));
+          ? (todayLabels[lang] || 'Today') 
+          : (idx === 1 ? (tomorrowLabels[lang] || 'Tomorrow') : (dayNames[lang] || dayNames.en)[dObj.getDay()]);
 
         return {
           date: dStr,
@@ -175,6 +111,12 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({ farm }) => {
       }
     } catch {
       // Safe fallback
+      const todayLabels: Record<Language, string> = {
+        en: 'Today', hi: 'आज', kn: 'ಇಂದು', te: 'ఈరోజు', ta: 'இன்று', ml: 'ಇന്ന്', mr: 'आज'
+      };
+      const tomorrowLabels: Record<Language, string> = {
+        en: 'Tomorrow', hi: 'कल', kn: 'ನಾಳೆ', te: 'రేపు', ta: 'நாளை', ml: 'നാളെ', mr: 'उद्या'
+      };
       setCurrent({
         temperature: 30,
         apparentTemperature: 32,
@@ -184,14 +126,14 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({ farm }) => {
         weatherCode: 0,
       });
       setForecast([
-        { date: '2026-10-14', dayName: isHi ? 'आज' : 'Today', weatherCode: 0, tempMax: 35, tempMin: 24, rainChance: 5 },
-        { date: '2026-10-15', dayName: isHi ? 'कल' : 'Tomorrow', weatherCode: 1, tempMax: 34, tempMin: 24, rainChance: 10 },
-        { date: '2026-10-16', dayName: isHi ? 'परसों' : 'Day 3', weatherCode: 2, tempMax: 33, tempMin: 23, rainChance: 15 },
+        { date: '2026-10-14', dayName: todayLabels[lang] || 'Today', weatherCode: 0, tempMax: 35, tempMin: 24, rainChance: 5 },
+        { date: '2026-10-15', dayName: tomorrowLabels[lang] || 'Tomorrow', weatherCode: 1, tempMax: 34, tempMin: 24, rainChance: 10 },
+        { date: '2026-10-16', dayName: localeText({ en: 'Day 3', hi: 'परसों', kn: 'ನಾಡದ್ದು', te: 'ఎల్లుండి', ta: 'மறுநாள்', ml: 'മറ്റന്നാൾ', mr: 'परवा' }), weatherCode: 2, tempMax: 33, tempMin: 23, rainChance: 15 },
       ]);
     } finally {
       setLoading(false);
     }
-  }, [farm.id, isHi]);
+  }, [farm.id, lang, localeText]);
 
   useEffect(() => {
     fetchWeather(coords.lat, coords.lon, coords.label);
@@ -204,7 +146,15 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({ farm }) => {
       (pos) => {
         const lat = parseFloat(pos.coords.latitude.toFixed(2));
         const lon = parseFloat(pos.coords.longitude.toFixed(2));
-        const label = isHi ? 'जीपीएस स्थान' : 'GPS Location';
+        const label = localeText({
+          en: 'GPS Location',
+          hi: 'जीपीएस स्थान',
+          kn: 'ಜಿಪಿಎಸ್ ಸ್ಥಳ',
+          te: 'GPS స్థానం',
+          ta: 'GPS இருப்பிடம்',
+          ml: 'GPS ലൊക്കേഷൻ',
+          mr: 'जीपीएस स्थान'
+        });
         setCoords({ lat, lon, label });
         setLocatingGPS(false);
         setShowLocationPicker(false);
@@ -215,9 +165,9 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({ farm }) => {
     );
   };
 
-  const weatherDesc = current ? getWeatherDescription(current.weatherCode, isHi) : { text: 'Loading...', emoji: '☀️' };
+  const weatherDesc = current ? getWeatherDescription(current.weatherCode, lang) : { text: 'Loading...', emoji: '☀️' };
   const rainChance = forecast.length > 0 ? forecast[0].rainChance : 0;
-  const tip = current ? getPrimaryFarmerTip(current.temperature, rainChance, current.windSpeed, isHi) : null;
+  const tip = current ? getPrimaryFarmerTip(current.temperature, lang) : null;
 
   return (
     <div className="bg-white rounded-2xl border border-stone-200/90 shadow-xs overflow-hidden">
@@ -248,7 +198,7 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({ farm }) => {
           <div className="px-2 py-1 rounded-xl bg-sky-50 border border-sky-200 text-center">
             <span className="text-[10px] font-bold text-sky-800 block flex items-center gap-0.5 justify-center">
               <CloudRain className="w-3 h-3 text-sky-600" />
-              <span>{isHi ? 'बारिश' : 'Rain'}</span>
+              <span>{localeText({ en: 'Rain', hi: 'बारिश', kn: 'ಮಳೆ', te: 'వర్షం', ta: 'மழை', ml: 'മഴ', mr: 'पाऊस' })}</span>
             </span>
             <span className="text-xs font-black text-sky-950 block">
               {rainChance}%
@@ -260,7 +210,11 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({ farm }) => {
             className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
             title={showDetails ? 'Hide Forecast' : 'View Forecast & Location'}
           >
-            <span className="hidden xs:inline text-[11px]">{showDetails ? (isHi ? 'कम' : 'Hide') : (isHi ? 'पूर्वानुमान' : 'Forecast')}</span>
+            <span className="hidden xs:inline text-[11px]">
+              {showDetails 
+                ? localeText({ en: 'Hide', hi: 'कम', kn: 'ಮರೆಮಾಡಿ', te: 'దాచు', ta: 'மறைக்க', ml: 'മറയ്ക്കുക', mr: 'लपवा' })
+                : localeText({ en: 'Forecast', hi: 'पूर्वानुमान', kn: 'ಮುನ್ಸೂಚನೆ', te: 'సూచన', ta: 'வானிலை முன்னறிவிப்பு', ml: 'പ്രവചനം', mr: 'अंदाज' })}
+            </span>
             {showDetails ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
         </div>
@@ -269,7 +223,7 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({ farm }) => {
       {/* 1 Actionable Farmer Livestock Tip - Big, clear, zero jargon */}
       {tip && (
         <div className={`mx-3 sm:mx-4 mb-3 p-2.5 rounded-xl border text-xs flex items-center gap-2 ${
-          tip.urgency === 'warn'
+          current && current.temperature >= 35
             ? 'bg-amber-50/80 border-amber-200 text-amber-950 font-bold'
             : 'bg-emerald-50/80 border-emerald-200 text-emerald-950 font-semibold'
         }`}>
@@ -290,14 +244,14 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({ farm }) => {
               <div className="p-2 rounded-xl bg-white border border-stone-200 flex items-center gap-2">
                 <Droplets className="w-4 h-4 text-emerald-600 shrink-0" />
                 <div>
-                  <span className="text-[10px] text-stone-500 font-bold block">{isHi ? 'हवा में नमी' : 'Humidity'}</span>
+                  <span className="text-[10px] text-stone-500 font-bold block">{localeText({ en: 'Humidity', hi: 'हवा में नमी', kn: 'ತೇವಾಂಶ', te: 'తేమ', ta: 'ஈரப்பதம்', ml: 'ഈർപ്പം', mr: 'हवेतील आर्द्रता' })}</span>
                   <span className="text-xs font-black text-stone-900">{current.humidity}%</span>
                 </div>
               </div>
               <div className="p-2 rounded-xl bg-white border border-stone-200 flex items-center gap-2">
                 <Wind className="w-4 h-4 text-amber-600 shrink-0" />
                 <div>
-                  <span className="text-[10px] text-stone-500 font-bold block">{isHi ? 'हवा की गति' : 'Wind Speed'}</span>
+                  <span className="text-[10px] text-stone-500 font-bold block">{localeText({ en: 'Wind Speed', hi: 'हवा की गति', kn: 'ಗಾಳಿಯ ವೇಗ', te: 'గాలి వేగం', ta: 'காற்றின் வேகம்', ml: 'കാറ്റിന്റെ വേഗത', mr: 'वाऱ्याचा वेग' })}</span>
                   <span className="text-xs font-black text-stone-900">{current.windSpeed} km/h</span>
                 </div>
               </div>
@@ -307,7 +261,7 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({ farm }) => {
           {/* 3-Day Mini Strip */}
           <div className="grid grid-cols-3 gap-2">
             {forecast.map((day) => {
-              const dDesc = getWeatherDescription(day.weatherCode, isHi);
+              const dDesc = getWeatherDescription(day.weatherCode, lang);
               return (
                 <div key={day.date} className="p-2 rounded-xl bg-white border border-stone-200 text-center">
                   <span className="text-[11px] font-black text-stone-700 block">{day.dayName}</span>
@@ -330,7 +284,7 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({ farm }) => {
               className="text-xs font-bold text-emerald-800 hover:text-emerald-950 flex items-center gap-1 cursor-pointer"
             >
               <MapPin className="w-3.5 h-3.5" />
-              <span>{isHi ? 'स्थान बदलें' : 'Change District'}</span>
+              <span>{localeText({ en: 'Change District', hi: 'स्थान बदलें', kn: 'ಜಿಲ್ಲೆ ಬದಲಾಯಿಸಿ', te: 'జిల్లా మార్చండి', ta: 'மாவட்டத்தை மாற்றவும்', ml: 'ജില്ല മാറ്റുക', mr: 'जिल्हा बदला' })}</span>
             </button>
 
             <div className="flex items-center gap-1.5">
@@ -340,7 +294,7 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({ farm }) => {
                 className="px-2.5 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-950 text-xs font-bold flex items-center gap-1 cursor-pointer disabled:opacity-50"
               >
                 <Navigation className={`w-3 h-3 ${locatingGPS ? 'animate-spin' : ''}`} />
-                <span>{isHi ? 'जीपीएस' : 'GPS'}</span>
+                <span>GPS</span>
               </button>
 
               <button
@@ -356,7 +310,7 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({ farm }) => {
 
           {showLocationPicker && (
             <div className="flex flex-wrap gap-1.5 pt-1 animate-in fade-in duration-150">
-              {Object.entries(KNOWN_FARM_LOCATIONS).map(([k, val]) => (
+              {Object.entries(KNOWN_FARM_LOCATIONS).map(([k, val]: [string, { lat: number; lon: number; label: string }]) => (
                 <button
                   key={k}
                   onClick={() => {

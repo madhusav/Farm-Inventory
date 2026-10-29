@@ -16,7 +16,9 @@ import {
   X,
   GitBranch,
   Scale,
-  Receipt
+  Receipt,
+  ListTodo,
+  Target
 } from 'lucide-react';
 import { CornerTemperature } from './CornerTemperature';
 import { PWAInstallButton } from './PWAInstallButton';
@@ -32,8 +34,13 @@ interface NavbarProps {
   onOpenAdminLocation?: () => void;
   onOpenSpeciesModal: () => void;
   onOpenVaccineAlertsModal?: () => void;
+  onOpenTasksModal?: (filter?: any) => void;
   onOpenLedger?: () => void;
+  onOpenSystemAdmin?: () => void;
   vaccineAlertsCount?: number;
+  tasksCount?: number;
+  dueRemindersCount?: number;
+  pendingBreedProposalsCount?: number;
   onLogout: () => void;
 }
 
@@ -48,8 +55,13 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAdminLocation,
   onOpenSpeciesModal,
   onOpenVaccineAlertsModal,
+  onOpenTasksModal,
   onOpenLedger,
+  onOpenSystemAdmin,
   vaccineAlertsCount = 0,
+  tasksCount = 0,
+  dueRemindersCount = 0,
+  pendingBreedProposalsCount = 0,
   onLogout,
 }) => {
   const { lang, setLang, t } = useLanguage();
@@ -185,7 +197,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               }`}
             >
               <span>📊</span>
-              <span>Reports</span>
+              <span>{t('reports', 'Reports')}</span>
             </button>
           </nav>
 
@@ -210,7 +222,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Bell className={`w-4 h-4 ${vaccineAlertsCount > 0 ? 'text-amber-700 fill-amber-500/20' : 'text-stone-500'}`} />
               <span className="hidden xl:inline">
-                {vaccineAlertsCount > 0 ? `${vaccineAlertsCount} Due` : 'Alerts'}
+                {vaccineAlertsCount > 0 ? `${vaccineAlertsCount} ${t('vaccineDue', 'Due')}` : t('alerts', 'Alerts')}
               </span>
               {vaccineAlertsCount > 0 && (
                 <span className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-red-600 text-white text-[9px] sm:text-[10px] font-black flex items-center justify-center shadow-xs">
@@ -218,6 +230,31 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </span>
               )}
             </button>
+
+            {/* Sheep & Goat Tasks, Targets & Reminders Button */}
+            {onOpenTasksModal && (
+              <button
+                onClick={() => onOpenTasksModal('all')}
+                className={`relative p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+                  dueRemindersCount > 0
+                    ? 'border-purple-400 bg-purple-50 text-purple-950 hover:bg-purple-100 ring-2 ring-purple-300/60'
+                    : 'border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-700'
+                }`}
+                title="Sheep & Goat Tasks, Target Progress & Reminders"
+              >
+                <Target className={`w-4 h-4 ${dueRemindersCount > 0 ? 'text-purple-700' : 'text-stone-600'}`} />
+                <span className="hidden xl:inline">
+                  {dueRemindersCount > 0 ? `${dueRemindersCount} ${t('tasksAndTargets', 'Tasks Due')}` : t('tasksAndTargets', 'Tasks & Targets')}
+                </span>
+                {tasksCount > 0 && (
+                  <span className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full text-white text-[9px] sm:text-[10px] font-black flex items-center justify-center shadow-xs ${
+                    dueRemindersCount > 0 ? 'bg-purple-700 animate-pulse' : 'bg-emerald-700'
+                  }`}>
+                    {dueRemindersCount > 0 ? dueRemindersCount : tasksCount}
+                  </span>
+                )}
+              </button>
+            )}
 
             {/* Desktop Only: Language Selector Dropdown */}
             <div className="relative hidden md:block">
@@ -270,10 +307,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={onOpenLedger}
               className="hidden lg:flex p-2 sm:px-2.5 sm:py-1.5 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-950 text-xs font-black items-center gap-1.5 cursor-pointer shadow-2xs shrink-0"
-              title="Farm Money Ledger"
+              title={t('ledger', 'Farm Money Ledger')}
             >
               <span className="text-emerald-800 font-black">₹</span>
-              <span>{lang === 'hi' ? 'बहीखाता' : 'Ledger'}</span>
+              <span>{t('ledger', 'Ledger')}</span>
             </button>
 
             {/* Desktop Only: Farm Animals Setup Button */}
@@ -294,11 +331,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                   ? 'border-amber-400 bg-amber-50 text-amber-900 hover:bg-amber-100'
                   : 'border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100'
               }`}
-              title="Farm Admin Tool: Helpers, MySQL Database, Vaccines & Settings"
+              title="Farm Admin Tool: Helpers, Database, Vaccines & Settings"
             >
               <Users className="w-3.5 h-3.5 text-stone-600" />
               <span className="hidden md:inline">
-                {isAdmin ? 'Admin Tool' : t('farmHelpers', 'Farm Helpers')}
+                {isAdmin ? t('adminTool', 'Admin Tool') : t('farmHelpers', 'Farm Helpers')}
               </span>
               {pendingRequestsCount > 0 && (
                 <span className="w-4 h-4 rounded-full bg-amber-600 text-white text-[9px] font-bold flex items-center justify-center">
@@ -306,6 +343,27 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </span>
               )}
             </button>
+
+            {/* Desktop Only: System Admin Dashboard Trigger */}
+            {onOpenSystemAdmin && (
+              <button
+                onClick={onOpenSystemAdmin}
+                className={`hidden md:flex relative px-2.5 py-1.5 rounded-xl border text-xs font-black items-center gap-1.5 transition-colors cursor-pointer shrink-0 ${
+                  pendingBreedProposalsCount > 0
+                    ? 'border-purple-400 bg-purple-50 text-purple-950 hover:bg-purple-100 ring-2 ring-purple-300/60'
+                    : 'border-purple-200 bg-purple-50/60 text-purple-900 hover:bg-purple-100'
+                }`}
+                title="System Admin Dashboard: Approve / Reject Breed Proposals & Manage Universal Catalog"
+              >
+                <span className="text-sm">🛡️</span>
+                <span className="hidden xl:inline">{t('systemAdmin', 'System Admin')}</span>
+                {pendingBreedProposalsCount > 0 && (
+                  <span className="w-4 h-4 rounded-full bg-purple-700 text-white text-[9px] font-black flex items-center justify-center animate-pulse">
+                    {pendingBreedProposalsCount}
+                  </span>
+                )}
+              </button>
+            )}
 
             {/* In-App PWA Install Button for Offline Farm Use */}
             <PWAInstallButton variant="compact" className="hidden sm:flex" />
@@ -393,18 +451,84 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="flex items-center justify-between p-2.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-950">
               <div className="flex items-center gap-2">
                 <span className="text-emerald-700">📋</span>
-                <span>Farm Code: <strong className="font-mono">{currentFarm.id}</strong></span>
+                <span>{t('farmCode', 'Farm Code')}: <strong className="font-mono">{currentFarm.id}</strong></span>
               </div>
               <button
                 onClick={handleCopyFarmId}
                 className="px-2.5 py-1 rounded-xl bg-emerald-800 text-white text-[11px] font-black cursor-pointer active:scale-95 transition-all"
               >
-                {copiedId ? 'Copied ✓' : 'Copy Code'}
+                {copiedId ? t('copied', 'Copied ✓') : t('copyCode', 'Copy Code')}
               </button>
             </div>
 
             {/* Offline PWA Install Prompt in Mobile Drawer */}
             <PWAInstallButton variant="full" />
+
+            {/* System Admin Dashboard in Mobile Drawer */}
+            {onOpenSystemAdmin && (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMobileDrawer(false);
+                  onOpenSystemAdmin();
+                }}
+                className="w-full p-3 rounded-2xl bg-gradient-to-r from-purple-950 via-stone-900 to-stone-950 text-white flex items-center justify-between cursor-pointer shadow-xs active:scale-98 transition-all border border-purple-500/30"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xl">🛡️</span>
+                  <div className="text-left">
+                    <div className="text-xs font-black">{t('systemAdmin', 'System Admin')}</div>
+                    <div className="text-[10px] text-purple-200 font-medium">Review & Approve Breed Proposals</div>
+                  </div>
+                </div>
+                {pendingBreedProposalsCount > 0 ? (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-400 text-stone-950 text-[10px] font-black animate-pulse">
+                    {pendingBreedProposalsCount} Pending
+                  </span>
+                ) : (
+                  <span className="text-stone-400 text-xs">→</span>
+                )}
+              </button>
+            )}
+
+            {/* Sheep & Goat Tasks & Targets in Mobile Drawer */}
+            {onOpenTasksModal && (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMobileDrawer(false);
+                  onOpenTasksModal('all');
+                }}
+                className={`w-full p-3 rounded-2xl flex items-center justify-between cursor-pointer shadow-xs active:scale-98 transition-all border ${
+                  dueRemindersCount > 0
+                    ? 'bg-gradient-to-r from-purple-900 via-stone-900 to-stone-900 text-white border-purple-400/50 ring-2 ring-purple-400/30'
+                    : 'bg-emerald-900 text-white border-emerald-800'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xl">🎯</span>
+                  <div className="text-left">
+                    <div className="text-xs font-black flex items-center gap-2">
+                      <span>{t('flockTasksTargets', 'Flock Tasks & Targets')}</span>
+                      {dueRemindersCount > 0 && (
+                        <span className="px-2 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black animate-pulse">
+                          {dueRemindersCount} {t('dueToday', 'Due Today!')}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-emerald-200 font-medium">
+                      Shearing, deworming, dipping & staff reminders
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="px-2 py-0.5 rounded-full bg-white/20 text-white text-xs font-mono font-bold">
+                    {tasksCount}
+                  </span>
+                  <span className="text-stone-300 text-xs">→</span>
+                </div>
+              </button>
+            )}
 
             {/* Primary Mobile Action Links */}
             <div className="grid grid-cols-2 gap-2 text-xs font-black">
@@ -425,7 +549,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   )}
                 </div>
                 <div>
-                  <div className="text-xs font-extrabold">Admin Tool</div>
+                  <div className="text-xs font-extrabold">{t('adminTool', 'Admin Tool')}</div>
                   <div className="text-[10px] text-amber-800 font-medium">Team, Location & App Name</div>
                 </div>
               </button>
@@ -440,7 +564,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <span className="text-lg">🐐</span>
                 <div>
-                  <div className="text-xs font-extrabold">Animals Setup</div>
+                  <div className="text-xs font-extrabold">{t('farmSettings', 'Animals Setup')}</div>
                   <div className="text-[10px] text-stone-500 font-medium">Available Sheep & Goats</div>
                 </div>
               </button>
@@ -459,7 +583,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <span className="text-lg">🌳</span>
                 <div>
-                  <div className="text-xs font-extrabold">Family Tree</div>
+                  <div className="text-xs font-extrabold">{t('familyTree', 'Family Tree')}</div>
                   <div className={`text-[10px] font-medium ${activeTab === 'lineage' ? 'text-emerald-200' : 'text-stone-500'}`}>
                     Parents & Matchmaking
                   </div>
@@ -480,7 +604,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <span className="text-lg">⚖️</span>
                 <div>
-                  <div className="text-xs font-extrabold">Weight & Growth</div>
+                  <div className="text-xs font-extrabold">{t('weightGrowth', 'Weight & Growth')}</div>
                   <div className={`text-[10px] font-medium ${activeTab === 'growth' ? 'text-emerald-200' : 'text-stone-500'}`}>
                     Body condition & records
                   </div>
@@ -492,7 +616,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="space-y-1.5 pt-1">
               <div className="text-[11px] font-black uppercase text-stone-400 tracking-wider flex items-center gap-1.5">
                 <Globe className="w-3.5 h-3.5 text-stone-500" />
-                <span>Language (भाषा / ಭಾಷೆ)</span>
+                <span>{t('language', 'Language')}</span>
               </div>
               <div className="grid grid-cols-2 gap-1.5">
                 {SUPPORTED_LANGUAGES.map(item => (
@@ -542,7 +666,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="px-3 py-2 rounded-xl bg-stone-100 hover:bg-red-50 text-stone-700 hover:text-red-700 text-xs font-black flex items-center gap-1.5 cursor-pointer transition-colors shrink-0"
               >
                 <LogOut className="w-3.5 h-3.5" />
-                <span>Sign Out</span>
+                <span>{t('signOut', 'Sign Out')}</span>
               </button>
             </div>
 
@@ -562,7 +686,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           }`}
         >
           <span className="text-xl">🐐</span>
-          <span className="text-[10px] mt-0.5 truncate w-full text-center">{lang === 'hi' ? 'रेवड़' : 'Flock'}</span>
+          <span className="text-[10px] mt-0.5 truncate w-full text-center">{t('flock', 'Flock')}</span>
         </button>
 
         {/* 2. Family Tree & Pedigree */}
@@ -575,7 +699,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           }`}
         >
           <span className="text-xl">🌳</span>
-          <span className="text-[10px] mt-0.5 truncate w-full text-center">{lang === 'hi' ? 'खानदान' : 'Pedigree'}</span>
+          <span className="text-[10px] mt-0.5 truncate w-full text-center">{t('pedigree', 'Pedigree')}</span>
         </button>
 
         {/* 3. Vaccines */}
@@ -588,7 +712,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           }`}
         >
           <span className="text-xl">💉</span>
-          <span className="text-[10px] mt-0.5 truncate w-full text-center">{lang === 'hi' ? 'टीके' : 'Vaccines'}</span>
+          <span className="text-[10px] mt-0.5 truncate w-full text-center">{t('vaccines', 'Vaccines')}</span>
           {vaccineAlertsCount > 0 && (
             <span className="absolute top-0 right-1 w-2.5 h-2.5 rounded-full bg-red-600 ring-2 ring-white"></span>
           )}
@@ -604,7 +728,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           }`}
         >
           <span className="text-xl">⚖️</span>
-          <span className="text-[10px] mt-0.5 truncate w-full text-center">{lang === 'hi' ? 'वजन' : 'Weight'}</span>
+          <span className="text-[10px] mt-0.5 truncate w-full text-center">{t('weight', 'Weight')}</span>
         </button>
 
         {/* 5. Reports & Profit */}
@@ -617,7 +741,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           }`}
         >
           <span className="text-xl">📊</span>
-          <span className="text-[10px] mt-0.5 truncate w-full text-center">{lang === 'hi' ? 'रिपोर्ट' : 'Reports'}</span>
+          <span className="text-[10px] mt-0.5 truncate w-full text-center">{t('reports', 'Reports')}</span>
         </button>
       </nav>
     </>

@@ -30,8 +30,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   onLogin,
   onRegister,
 }) => {
-  const { lang, setLang } = useLanguage();
-  const isHi = lang === 'hi';
+  const { lang, setLang, t, localeText } = useLanguage();
   const displayAppName = appName || db.getAppName() || 'Testing';
 
   const [mode, setMode] = useState<'login' | 'register' | 'verify_otp'>('login');
@@ -103,13 +102,29 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
     const cleanName = regName.trim();
     if (cleanName.length < 2) {
-      setRegError(isHi ? 'कृपया अपना पूरा नाम दर्ज करें' : 'Please enter your full name (at least 2 letters)');
+      setRegError(localeText({
+        en: 'Please enter your full name (at least 2 letters)',
+        hi: 'कृपया अपना पूरा नाम दर्ज करें',
+        kn: 'ದಯವಿಟ್ಟು ನಿಮ್ಮ ಪೂರ್ಣ ಹೆಸರನ್ನು ನಮೂದಿಸಿ (ಕನಿಷ್ಠ 2 ಅಕ್ಷರಗಳು)',
+        te: 'దయచేసి మీ పూర్తి పేరును నమోదు చేయండి (కనీసం 2 అక్షరాలు)',
+        ta: 'தயவுசெய்து உங்கள் முழு பெயரை உள்ளிடவும் (குறைந்தது 2 எழுத்துக்கள்)',
+        ml: 'ദയവായി നിങ്ങളുടെ മുഴുവൻ പേര് നൽകുക (കുറഞ്ഞത് 2 അക്ഷരങ്ങൾ)',
+        mr: 'कृपया आपले पूर्ण नाव प्रविष्ट करा (किमान २ अक्षरे)'
+      }));
       return;
     }
 
     const cleanDigits = extractCleanDigits(regPhone);
     if (cleanDigits.length < 10) {
-      setRegError(isHi ? 'कृपया वैध 10 अंकों का मोबाइल नंबर दर्ज करें' : 'Please enter a valid 10-digit mobile phone number');
+      setRegError(localeText({
+        en: 'Please enter a valid 10-digit mobile phone number',
+        hi: 'कृपया वैध 10 अंकों का मोबाइल नंबर दर्ज करें',
+        kn: 'ದಯವಿಟ್ಟು ಮಾನ್ಯವಾದ 10 ಅಂಕಿಗಳ ಮೊಬೈಲ್ ಸಂಖ್ಯೆಯನ್ನು ನಮೂದಿಸಿ',
+        te: 'దయచేసి సరైన 10 అంకెల మొబైల్ నంబర్ నమోదు చేయండి',
+        ta: 'தயவுசெய்து சரியான 10 இலக்க மொபைல் எண்ணை உள்ளிடவும்',
+        ml: 'സാധുവായ 10 അക്ക മൊബൈൽ നമ്പർ നൽകുക',
+        mr: 'कृपया वैध 10 अंकी मोबाइल क्रमांक प्रविष्ट करा'
+      }));
       return;
     }
 
@@ -123,9 +138,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
     if (existing) {
       setRegError(
-        isHi 
-          ? `यह मोबाइल नंबर पहले से पंजीकृत है (${existing.name})। कृपया "साइन इन" टैब चुनें।`
-          : `This mobile number is already registered for ${existing.name}. Please select "Sign In".`
+        localeText({
+          en: `This mobile number is already registered for ${existing.name}. Please select "Sign In".`,
+          hi: `यह मोबाइल नंबर पहले से पंजीकृत है (${existing.name})। कृपया "साइन इन" टैब चुनें।`,
+          kn: `ಈ ಮೊಬೈಲ್ ಸಂಖ್ಯೆ ಈಗಾಗಲೇ ನೋಂದಾಯಿತವಾಗಿದೆ (${existing.name}). ದಯವಿಟ್ಟು "ಸೈನ್ ಇನ್" ಆಯ್ಕೆಮಾಡಿ.`,
+          te: `ఈ మొబైల్ నంబర్ ఇప్పటికే నమోదు చేయబడింది (${existing.name}). దయచేసి "సైన్ ఇన్" ఎంచుకోండి.`,
+          ta: `இந்த மொபைல் எண் ஏற்கனவே பதிவு செய்யப்பட்டுள்ளது (${existing.name}). தயவுசெய்து "உள்நுழை" என்பதைத் தேர்ந்தெடுக்கவும்.`,
+          ml: `ഈ മൊബൈൽ നമ്പർ ഇതിനകം രജിസ്റ്റർ ചെയ്തിട്ടുണ്ട് (${existing.name}). ദയവായി "സൈൻ ഇൻ" തിരഞ്ഞെടുക്കുക.`,
+          mr: `हा मोबाइल क्रमांक आधीच नोंदणीकृत आहे (${existing.name}). कृपया "साइन इन" निवडा.`
+        })
       );
       return;
     }
@@ -140,7 +161,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
     const cleanDigits = extractCleanDigits(loginPhone);
     if (cleanDigits.length < 10 && !loginPhone.includes('@')) {
-      setLoginError(isHi ? 'कृपया 10 अंकों का मोबाइल नंबर दर्ज करें' : 'Please enter a valid 10-digit mobile number');
+      setLoginError(localeText({
+        en: 'Please enter a valid 10-digit mobile number',
+        hi: 'कृपया 10 अंकों का मोबाइल नंबर दर्ज करें',
+        kn: 'ದಯವಿಟ್ಟು 10 ಅಂಕಿಗಳ ಮೊಬೈಲ್ ಸಂಖ್ಯೆಯನ್ನು ನಮೂದಿಸಿ',
+        te: 'దయచేసి 10 అంకెల మొబైల్ నంబర్ నమోదు చేయండి',
+        ta: 'தயவுசெய்து 10 இலக்க மொபைல் எண்ணை உள்ளிடவும்',
+        ml: 'ദയവായി 10 അക്ക മൊബൈൽ നമ്പർ നൽകുക',
+        mr: 'कृपया 10 अंकी मोबाइल क्रमांक प्रविष्ट करा'
+      }));
       return;
     }
 
@@ -154,9 +183,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
     if (!matched) {
       setLoginError(
-        isHi 
-          ? `मोबाइल नंबर "${loginPhone}" पंजीकृत नहीं है। कृपया "रजिस्टर" टैब से नया खाता बनाएं।`
-          : `Mobile number "${loginPhone}" not found. Tap "Register" to create an account.`
+        localeText({
+          en: `Mobile number "${loginPhone}" not found. Tap "Register" to create an account.`,
+          hi: `मोबाइल नंबर "${loginPhone}" पंजीकृत नहीं है। कृपया "रजिस्टर" टैब से नया खाता बनाएं।`,
+          kn: `ಮೊಬೈಲ್ ಸಂಖ್ಯೆ "${loginPhone}" ಕಂಡುಬಂದಿಲ್ಲ. ಖಾತೆ ತೆರೆಯಲು "ನೋಂದಣಿ" ಒತ್ತಿ.`,
+          te: `మొబైల్ సంఖ్య "${loginPhone}" కనుగొనబడలేదు. ఖాతాను సృష్టించడానికి "రిజిస్టర్" నొక్కండి.`,
+          ta: `மொபைல் எண் "${loginPhone}" இல்லை. கணக்கை உருவாக்க "பதிவு செய்" என்பதைத் தொடவும்.`,
+          ml: `മൊബൈൽ നമ്പർ "${loginPhone}" കണ്ടെത്തിയില്ല. അക്കൗണ്ട് സൃഷ്ടിക്കാൻ "രജിസ്റ്റർ" ചെയ്യുക.`,
+          mr: `मोबाइल क्रमांक "${loginPhone}" सापडला नाही. खाते तयार करण्यासाठी "नोंदणी" टॅप करा.`
+        })
       );
       return;
     }
@@ -218,17 +253,41 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
     const enteredOtp = otpDigits.join('');
     if (enteredOtp.length < 6) {
-      setOtpError(isHi ? 'कृपया पूरा 6 अंकों का ओटीपी दर्ज करें' : 'Please enter all 6 digits of the OTP code');
+      setOtpError(localeText({
+        en: 'Please enter all 6 digits of the OTP code',
+        hi: 'कृपया पूरा 6 अंकों का ओटीपी दर्ज करें',
+        kn: 'ದಯವಿಟ್ಟು ಎಲ್ಲಾ 6 ಅಂಕಿಗಳ OTP ಕೋಡ್ ನಮೂದಿಸಿ',
+        te: 'దయచేసి మొత్తం 6 అంకెల OTP కోడ్‌ను నమోదు చేయండి',
+        ta: 'தயவுசெய்து 6 இலக்க OTP குறியீட்டை உள்ளிடவும்',
+        ml: 'എല്ലാ 6 അക്ക OTP കോഡും നൽകുക',
+        mr: 'कृपया सर्व 6 अंकी OTP कोड प्रविष्ट करा'
+      }));
       return;
     }
 
     if (enteredOtp !== generatedOtp) {
-      setOtpError(isHi ? 'गलत ओटीपी! कृपया सही कोड दर्ज करें या नया ओटीपी मंगाएं।' : 'Invalid OTP code! Please enter the code shown in the SMS or request a new one.');
+      setOtpError(localeText({
+        en: 'Invalid OTP code! Please enter the code shown in the SMS or request a new one.',
+        hi: 'गलत ओटीपी! कृपया सही कोड दर्ज करें या नया ओटीपी मंगाएं।',
+        kn: 'ತಪ್ಪಾದ OTP ಕೋಡ್! ದಯವಿಟ್ಟು SMS ನಲ್ಲಿ ತೋರಿಸಿರುವ ಕೋಡ್ ನಮೂದಿಸಿ.',
+        te: 'చెల్లని OTP కోడ్! దయచేసి SMS లో చూపిన కోడ్‌ను నమోదు చేయండి.',
+        ta: 'தவறான OTP குறியீடு! SMS-ல் காட்டப்பட்டுள்ள குறியீட்டை உள்ளிடவும்.',
+        ml: 'തെറ്റായ OTP കോഡ്! SMS-ൽ കാണിച്ചിരിക്കുന്ന കോഡ് നൽകുക.',
+        mr: 'अवैध OTP कोड! कृपया SMS मध्ये दर्शविलेला कोड प्रविष्ट करा.'
+      }));
       return;
     }
 
     // Success!
-    setOtpSuccessMessage(isHi ? '✓ मोबाइल नंबर सफलतापूर्वक सत्यापित हुआ!' : '✓ Mobile number verified successfully!');
+    setOtpSuccessMessage(localeText({
+      en: '✓ Mobile number verified successfully!',
+      hi: '✓ मोबाइल नंबर सफलतापूर्वक सत्यापित हुआ!',
+      kn: '✓ ಮೊಬೈಲ್ ಸಂಖ್ಯೆ ಯಶಸ್ವಿಯಾಗಿ ಪರಿಶೀಲಿಸಲ್ಪಟ್ಟಿದೆ!',
+      te: '✓ మొబైల్ సంఖ్య విజయవంతంగా ధృవీకరించబడింది!',
+      ta: '✓ மொபைல் எண் வெற்றிகரமாக சரிபார்க்கப்பட்டது!',
+      ml: '✓ മൊബൈൽ നമ്പർ വിജയകരമായി പരിശോധിച്ചു!',
+      mr: '✓ मोबाइल क्रमांक यशस्वीरित्या सत्यापित झाला!'
+    }));
 
     setTimeout(() => {
       setShowSimulatedSms(false);
@@ -285,12 +344,28 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-1">
                 <span className="text-[11px] font-black uppercase tracking-wider text-emerald-400">
-                  {isHi ? '📲 मैसेज (SMS) प्राप्त हुआ' : '📲 SMS Notification Received'}
+                  {localeText({
+                    en: '📲 SMS Notification Received',
+                    hi: '📲 मैसेज (SMS) प्राप्त हुआ',
+                    kn: '📲 SMS ಸಂದೇಶ ಸ್ವೀಕರಿಸಲಾಗಿದೆ',
+                    te: '📲 SMS సందేశం అందింది',
+                    ta: '📲 SMS செய்தி பெறப்பட்டது',
+                    ml: '📲 SMS സന്ദേശം ലഭിച്ചു',
+                    mr: '📲 SMS संदेश प्राप्त झाला'
+                  })}
                 </span>
                 <span className="text-[10px] text-stone-400">Just now</span>
               </div>
               <p className="text-xs text-stone-200 font-medium mt-0.5 leading-snug">
-                {isHi ? 'आपका फार्मट्रैक सत्यापन कोड है:' : 'Your Flock Diary verification OTP is:'}{' '}
+                {localeText({
+                  en: 'Your Flock Diary verification OTP is:',
+                  hi: 'आपका फार्मट्रैक सत्यापन कोड है:',
+                  kn: 'ನಿಮ್ಮ ಹಿಂಡಿನ ಡೈರಿ ಪರಿಶೀಲನಾ OTP:',
+                  te: 'మీ మంద డైరీ ధృవీకరణ OTP:',
+                  ta: 'உங்கள் மந்தை நாட்குறிப்பு சரிபார்ப்பு OTP:',
+                  ml: 'നിങ്ങളുടെ ആട്ടിൻകൂട്ടം ഡയറി പരിശോധന OTP:',
+                  mr: 'तुमचा कळप डायरी पडताळणी OTP आहे:'
+                })}{' '}
                 <strong className="font-mono text-white text-sm bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-600 font-black">
                   {generatedOtp}
                 </strong>
@@ -303,7 +378,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black cursor-pointer shadow-xs active:scale-95 transition-all flex items-center gap-1"
                 >
                   <Sparkles className="w-3 h-3" />
-                  <span>{isHi ? '⚡ 1-टैप ऑटो भरें' : '⚡ 1-Tap Auto-fill OTP'}</span>
+                  <span>
+                    {localeText({
+                      en: '⚡ 1-Tap Auto-fill OTP',
+                      hi: '⚡ 1-टैप ऑटो भरें',
+                      kn: '⚡ 1-ಟ್ಯಾಪ್ ಸ್ವಯಂ ಭರ್ತಿ',
+                      te: '⚡ 1-ట్యాప్ ఆటో ఫిల్',
+                      ta: '⚡ 1-தட்டு தானாக நிரப்பு',
+                      ml: '⚡ 1-ടാപ്പ് സ്വയം പൂരിപ്പിക്കുക',
+                      mr: '⚡ 1-टॅप ऑटो भरा'
+                    })}
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -380,7 +465,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             {displayAppName}
           </h1>
           <p className="text-xs text-stone-500 font-bold">
-            {isHi ? 'बकरी व भेड़ रेवड़ डायरी (Sheep & Goat Diary)' : 'Sheep & Goat Flock Diary (Phase 1)'}
+            {t('appNameSubtitle', 'Sheep & Goat Flock Diary')}
           </p>
         </div>
 
@@ -400,7 +485,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   : 'text-stone-600 hover:text-stone-900'
               }`}
             >
-              {isHi ? 'साइन इन (लॉगिन)' : 'Sign In'}
+              {t('signIn', 'Sign In')}
             </button>
             <button
               type="button"
@@ -415,7 +500,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   : 'text-stone-600 hover:text-stone-900'
               }`}
             >
-              {isHi ? 'नया रजिस्ट्रेशन (ओटीपी)' : 'Register with OTP'}
+              {localeText({
+                en: 'Register with OTP',
+                hi: 'नया रजिस्ट्रेशन',
+                kn: 'OTP ಯೊಂದಿಗೆ ನೋಂದಣಿ',
+                te: 'OTP తో రిజిస్ట్రేషన్',
+                ta: 'OTP உடன் பதிவு',
+                ml: 'OTP ഉപയോഗിച്ച് രജിസ്റ്റർ ചെയ്യുക',
+                mr: 'OTP सह नोंदणी'
+              })}
             </button>
           </div>
         )}
@@ -425,7 +518,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           <form onSubmit={handleRegisterGetOtp} className="space-y-3.5">
             <div>
               <label className="block text-xs font-black text-stone-700 mb-1">
-                {isHi ? 'आपका पूरा नाम' : 'Your Full Name'}
+                {localeText({
+                  en: 'Your Full Name',
+                  hi: 'आपका पूरा नाम',
+                  kn: 'ನಿಮ್ಮ ಪೂರ್ಣ ಹೆಸರು',
+                  te: 'మీ పూర్తి పేరు',
+                  ta: 'உங்கள் முழு பெயர்',
+                  ml: 'നിങ്ങളുടെ മുഴുവൻ പേര്',
+                  mr: 'आपले पूर्ण नाव'
+                })}
               </label>
               <div className="relative">
                 <UserIcon className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -442,7 +543,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
             <div>
               <label className="block text-xs font-black text-stone-700 mb-1">
-                {isHi ? 'मोबाइल नंबर (ओटीपी सत्यापन के लिए)' : 'Mobile Phone Number (for OTP)'}
+                {localeText({
+                  en: 'Mobile Phone Number (for OTP)',
+                  hi: 'मोबाइल नंबर (ओटीपी सत्यापन के लिए)',
+                  kn: 'ಮೊಬೈಲ್ ಸಂಖ್ಯೆ (OTP ಗಾಗಿ)',
+                  te: 'మొబైల్ నంబర్ (OTP కోసం)',
+                  ta: 'மொபைல் எண் (OTP க்காக)',
+                  ml: 'മൊബൈൽ നമ്പർ (OTP ക്കായി)',
+                  mr: 'मोबाइल क्रमांक (OTP साठी)'
+                })}
               </label>
               <div className="flex gap-2">
                 <div className="w-20 shrink-0">
@@ -471,7 +580,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 </div>
               </div>
               <span className="text-[11px] text-stone-400 font-medium block mt-1">
-                {isHi ? 'पंजीकरण के लिए इस नंबर पर 6 अंकों का ओटीपी भेजा जाएगा।' : 'We will send a 6-digit OTP code to verify this mobile number.'}
+                {localeText({
+                  en: 'We will send a 6-digit OTP code to verify this mobile number.',
+                  hi: 'पंजीकरण के लिए इस नंबर पर 6 अंकों का ओटीपी भेजा जाएगा।',
+                  kn: 'ಈ ಮೊಬೈಲ್ ಸಂಖ್ಯೆಯನ್ನು ಪರಿಶೀಲಿಸಲು ನಾವು 6 ಅಂಕಿಗಳ OTP ಕಳುಹಿಸುತ್ತೇವೆ.',
+                  te: 'ఈ మొబైల్ సంఖ్యను ధృవీకరించడానికి మేము 6 అంకెల OTP కోడ్‌ను పంపుతాము.',
+                  ta: 'இந்த மொபைல் எண்ணை சரிபார்க்க 6 இலக்க OTP குறியீட்டை அனுப்புவோம்.',
+                  ml: 'ഈ മൊബൈൽ നമ്പർ പരിശോധിക്കാൻ 6 അക്ക OTP അയക്കും.',
+                  mr: 'हा मोबाइल नंबर पडताळण्यासाठी आम्ही 6 अंकी OTP पाठवू.'
+                })}
               </span>
             </div>
 
@@ -485,7 +602,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               type="submit"
               className="w-full min-h-[44px] py-3 px-4 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-98"
             >
-              <span>{isHi ? 'ओटीपी प्राप्त करें 📲' : 'Get Verification OTP 📲'}</span>
+              <span>
+                {localeText({
+                  en: 'Get Verification OTP 📲',
+                  hi: 'ओटीपी प्राप्त करें 📲',
+                  kn: 'ಪರಿಶೀಲನಾ OTP ಪಡೆಯಿರಿ 📲',
+                  te: 'ధృవీకరణ OTP పొందండి 📲',
+                  ta: 'சரிபார்ப்பு OTP பெறவும் 📲',
+                  ml: 'പരിശോധന OTP നേടുക 📲',
+                  mr: 'पडताळणी OTP मिळवा 📲'
+                })}
+              </span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
@@ -498,10 +625,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <ShieldCheck className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
               <div className="min-w-0">
                 <span className="font-black block text-emerald-900">
-                  {isHi ? 'मोबाइल नंबर सत्यापन' : 'Verify Your Mobile Number'}
+                  {localeText({
+                    en: 'Verify Your Mobile Number',
+                    hi: 'मोबाइल नंबर सत्यापन',
+                    kn: 'ಮೊಬೈಲ್ ಸಂಖ್ಯೆ ಪರಿಶೀಲನೆ',
+                    te: 'మొబైల్ నంబర్ ధృవీకరణ',
+                    ta: 'மொபைல் எண் சரிபார்ப்பு',
+                    ml: 'മൊബൈൽ നമ്പർ പരിശോധന',
+                    mr: 'मोबाइल क्रमांक पडताळणी'
+                  })}
                 </span>
                 <span className="text-emerald-800 font-medium">
-                  {isHi ? 'ओटीपी भेजा गया:' : '6-digit OTP sent to:'}{' '}
+                  {localeText({
+                    en: '6-digit OTP sent to:',
+                    hi: 'ओटीपी भेजा गया:',
+                    kn: 'OTP ಕಳುಹಿಸಲಾಗಿದೆ:',
+                    te: 'OTP పంపబడింది:',
+                    ta: 'OTP அனுப்பப்பட்டது:',
+                    ml: 'OTP അയച്ചു:',
+                    mr: 'OTP पाठवला गेला:'
+                  })}{' '}
                   <strong className="font-mono font-bold text-emerald-950">{targetPhoneFormatted}</strong>
                 </span>
                 <button
@@ -509,7 +652,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   onClick={() => setMode(otpPurpose)}
                   className="text-[11px] text-emerald-900 underline block font-bold mt-1 cursor-pointer"
                 >
-                  {isHi ? 'नंबर बदलें / सुधारें' : 'Change or edit number'}
+                  {localeText({
+                    en: 'Change or edit number',
+                    hi: 'नंबर बदलें / सुधारें',
+                    kn: 'ಸಂಖ್ಯೆಯನ್ನು ಬದಲಾಯಿಸಿ / ಸಂಪಾದಿಸಿ',
+                    te: 'నంబర్‌ను మార్చండి / సవరించండి',
+                    ta: 'எண்ணை மாற்றவும் / திருத்தவும்',
+                    ml: 'നമ്പർ മാറ്റുക / തിരുത്തുക',
+                    mr: 'क्रमांक बदला / संपादित करा'
+                  })}
                 </button>
               </div>
             </div>
@@ -517,7 +668,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             {/* 6 Digit Input Boxes */}
             <div>
               <label className="block text-xs font-black text-stone-700 mb-2 text-center">
-                {isHi ? '6 अंकों का ओटीपी कोड दर्ज करें' : 'Enter 6-Digit OTP Code'}
+                {localeText({
+                  en: 'Enter 6-Digit OTP Code',
+                  hi: '6 अंकों का ओटीपी कोड दर्ज करें',
+                  kn: '6 ಅಂಕಿಗಳ OTP ಕೋಡ್ ನಮೂದಿಸಿ',
+                  te: '6 అంకెల OTP కోడ్‌ను నమోదు చేయండి',
+                  ta: '6 இலக்க OTP குறியீட்டை உள்ளிடவும்',
+                  ml: '6 അക്ക OTP കോഡ് നൽകുക',
+                  mr: '6 अंकी OTP कोड प्रविष्ट करा'
+                })}
               </label>
 
               <div 
@@ -551,7 +710,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-100 hover:bg-emerald-200 text-emerald-900 text-xs font-black border border-emerald-300 cursor-pointer active:scale-95 transition-all"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
-                  <span>{isHi ? `ओटीपी स्वतः भरें: ${generatedOtp}` : `Auto-fill OTP: ${generatedOtp}`}</span>
+                  <span>
+                    {localeText({
+                      en: `Auto-fill OTP: ${generatedOtp}`,
+                      hi: `ओटीपी स्वतः भरें: ${generatedOtp}`,
+                      kn: `ಸ್ವಯಂ ಭರ್ತಿ OTP: ${generatedOtp}`,
+                      te: `ఆటో ఫిల్ OTP: ${generatedOtp}`,
+                      ta: `தானாக நிரப்பு OTP: ${generatedOtp}`,
+                      ml: `സ്വയം പൂരിപ്പിക്കുക OTP: ${generatedOtp}`,
+                      mr: `ऑटो भरा OTP: ${generatedOtp}`
+                    })}
+                  </span>
                 </button>
               </div>
             )}
@@ -575,8 +744,24 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             >
               <span>
                 {otpPurpose === 'register' 
-                  ? (isHi ? 'सत्यापित करें व फार्म बनाएं 🚀' : 'Verify & Set Up Farm 🚀')
-                  : (isHi ? 'सत्यापित करें व साइन इन करें' : 'Verify & Sign In')}
+                  ? localeText({
+                      en: 'Verify & Set Up Farm 🚀',
+                      hi: 'सत्यापित करें व फार्म बनाएं 🚀',
+                      kn: 'ಪರಿಶೀಲಿಸಿ ಮತ್ತು ಫಾರ್ಮ್ ರಚಿಸಿ 🚀',
+                      te: 'ధృవీకరించి ఫామ్ ఏర్పాటు చేయండి 🚀',
+                      ta: 'சரிபார்த்து பண்ணையை அமைக்கவும் 🚀',
+                      ml: 'പരിശോധിച്ച് ഫാം ആരംഭിക്കുക 🚀',
+                      mr: 'पडताळणी करा आणि फार्म तयार करा 🚀'
+                    })
+                  : localeText({
+                      en: 'Verify & Sign In',
+                      hi: 'सत्यापित करें व साइन इन करें',
+                      kn: 'ಪರಿಶೀಲಿಸಿ ಮತ್ತು ಸೈನ್ ಇನ್ ಮಾಡಿ',
+                      te: 'ధృవీకరించి సైన్ ఇన్ చేయండి',
+                      ta: 'சரிபார்த்து உள்நுழையவும்',
+                      ml: 'പരിശോധിച്ച് സൈൻ ഇൻ ചെയ്യുക',
+                      mr: 'पडताळणी करा आणि साइन इन करा'
+                    })}
               </span>
               <ArrowRight className="w-4 h-4" />
             </button>
@@ -585,7 +770,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <div className="text-center pt-1">
               {resendTimer > 0 ? (
                 <span className="text-xs text-stone-500 font-medium">
-                  {isHi ? `नया ओटीपी भेजें (${resendTimer} सेकंड में)` : `Resend OTP code in ${resendTimer}s`}
+                  {localeText({
+                    en: `Resend OTP code in ${resendTimer}s`,
+                    hi: `नया ओटीपी भेजें (${resendTimer} सेकंड में)`,
+                    kn: `ಮತ್ತೆ OTP ಕಳುಹಿಸಿ (${resendTimer} ಸೆ)`,
+                    te: `మళ్లీ OTP పంపండి (${resendTimer} సె)`,
+                    ta: `மீண்டும் OTP அனுப்பவும் (${resendTimer} வி)`,
+                    ml: `വീണ്ടും OTP അയക്കുക (${resendTimer} സെ)`,
+                    mr: `पुन्हा OTP पाठवा (${resendTimer} सेकंदात)`
+                  })}
                 </span>
               ) : (
                 <button
@@ -594,7 +787,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   className="text-xs font-bold text-emerald-800 hover:text-emerald-950 underline flex items-center gap-1 mx-auto cursor-pointer"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
-                  <span>{isHi ? 'ओटीपी नहीं मिला? दोबारा भेजें' : "Didn't receive code? Resend OTP"}</span>
+                  <span>
+                    {localeText({
+                      en: "Didn't receive code? Resend OTP",
+                      hi: 'ओटीपी नहीं मिला? दोबारा भेजें',
+                      kn: 'ಕೋಡ್ ಬಂದಿಲ್ಲವೇ? ಮತ್ತೆ OTP ಕಳುಹಿಸಿ',
+                      te: 'కోడ్ రాలేదా? మళ్లీ OTP పంపండి',
+                      ta: 'குறியீடு வரவில்லையா? மீண்டும் OTP அனுப்பவும்',
+                      ml: 'കോഡ് ലഭിച്ചില്ലേ? വീണ്ടും OTP അയക്കുക',
+                      mr: 'कोड मिळाला नाही? पुन्हा OTP पाठवा'
+                    })}
+                  </span>
                 </button>
               )}
             </div>
@@ -606,7 +809,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           <form onSubmit={handleLoginSubmit} className="space-y-3.5">
             <div>
               <label className="block text-xs font-black text-stone-700 mb-1">
-                {isHi ? 'पंजीकृत मोबाइल नंबर' : 'Registered Mobile Number'}
+                {localeText({
+                  en: 'Registered Mobile Number',
+                  hi: 'पंजीकृत मोबाइल नंबर',
+                  kn: 'ನೋಂದಾಯಿತ ಮೊಬೈಲ್ ಸಂಖ್ಯೆ',
+                  te: 'నమోదైన మొబైల్ నంబర్',
+                  ta: 'பதிவுசெய்யப்பட்ட ಮೊபைಲ್ எண்',
+                  ml: 'രജിസ്റ്റർ ചെയ്ത മൊബൈൽ നമ്പർ',
+                  mr: 'नोंदणीकृत मोबाइल क्रमांक'
+                })}
               </label>
               <div className="relative">
                 <Smartphone className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -624,7 +835,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             {/* Method toggle: OTP vs PIN */}
             <div className="flex items-center justify-between text-xs font-bold pt-0.5">
               <span className="text-stone-500">
-                {isHi ? 'साइन इन विधि:' : 'Login Method:'}
+                {localeText({
+                  en: 'Login Method:',
+                  hi: 'साइन इन विधि:',
+                  kn: 'ಲಾಗಿನ್ ವಿಧಾನ:',
+                  te: 'లాగిన్ పద్ధతి:',
+                  ta: 'உள்நுழைவு முறை:',
+                  ml: 'ലോഗിൻ രീതി:',
+                  mr: 'लॉगिन पद्धत:'
+                })}
               </span>
               <div className="flex items-center gap-2">
                 <button
@@ -683,8 +902,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             >
               <span>
                 {loginMethod === 'otp'
-                  ? (isHi ? 'लॉगिन ओटीपी प्राप्त करें 📲' : 'Send Login OTP 📲')
-                  : (isHi ? 'साइन इन करें' : 'Sign In to Flock')}
+                  ? localeText({
+                      en: 'Send Login OTP 📲',
+                      hi: 'लॉगिन ओटीपी प्राप्त करें 📲',
+                      kn: 'ಲಾಗಿನ್ OTP ಕಳುಹಿಸಿ 📲',
+                      te: 'లాగిన్ OTP పంపండి 📲',
+                      ta: 'உள்நுழைவு OTP அனுப்பவும் 📲',
+                      ml: 'ലോഗിൻ OTP അയക്കുക 📲',
+                      mr: 'लॉगिन OTP पाठवा 📲'
+                    })
+                  : t('signIn', 'Sign In')}
               </span>
               <ArrowRight className="w-4 h-4" />
             </button>
@@ -692,25 +919,43 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             {/* Quick 1-Tap Demo Logins */}
             <div className="pt-2 border-t border-stone-100">
               <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider block mb-2 text-center">
-                {isHi ? 'त्वरित डेमो खाते (1-टैप):' : 'Demo Accounts (1-Tap):'}
+                {localeText({
+                  en: 'Demo Accounts (1-Tap):',
+                  hi: 'त्वरित डेमो खाते (1-टैप):',
+                  kn: 'ಡೆಮೊ ಖಾತೆಗಳು (1-ಟ್ಯಾಪ್):',
+                  te: 'డెమో ఖాతాలు (1-ట్యాప్):',
+                  ta: 'டெமோ கணக்குகள் (1-தட்டு):',
+                  ml: 'ഡെമോ അക്കൗണ്ടുകൾ (1-ടാപ്പ്):',
+                  mr: 'डेमो खाती (1-टॅप):'
+                })}
               </span>
-              <div className="grid grid-cols-2 gap-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
                 <button
                   type="button"
-                  onClick={() => onLogin(DEFAULT_USERS[1])}
-                  className="px-2.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-950 text-xs font-bold text-left cursor-pointer transition-all truncate"
+                  onClick={() => onLogin(DEFAULT_USERS[0])}
+                  className="px-2.5 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-950 text-xs font-bold text-left cursor-pointer transition-all truncate"
+                  title="Log in as System Admin (madhusav@gmail.com)"
                 >
-                  <span className="block truncate">👑 Ramesh Patel</span>
-                  <span className="text-[10px] text-emerald-800 block">Farm Boss (+91 98765 43210)</span>
+                  <span className="block truncate text-purple-900 font-black">🛡️ Madhu S</span>
+                  <span className="text-[10px] text-purple-700 block truncate">System Admin (madhusav@gmail.com)</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => onLogin(DEFAULT_USERS[2])}
+                  className="px-2.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-950 text-xs font-bold text-left cursor-pointer transition-all truncate"
+                >
+                  <span className="block truncate font-black">👑 Ramesh Patel</span>
+                  <span className="text-[10px] text-emerald-800 block truncate">Farm Boss (FARM-7821)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onLogin(DEFAULT_USERS[3])}
                   className="px-2.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 border border-stone-200 text-stone-800 text-xs font-bold text-left cursor-pointer transition-all truncate"
                 >
-                  <span className="block truncate">🚜 Suresh Kumar</span>
-                  <span className="text-[10px] text-stone-500 block">Herdsman Helper</span>
+                  <span className="block truncate font-bold">🚜 Suresh Kumar</span>
+                  <span className="text-[10px] text-stone-500 block truncate">Herdsman Helper</span>
                 </button>
               </div>
             </div>

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Farm } from '../types';
 import { useLanguage } from '../i18n/LanguageContext';
+import { Language } from '../i18n/translations';
 
 export interface CornerTemperatureProps {
   farm: Farm;
@@ -26,7 +27,7 @@ interface CurrentWeather {
   weatherCode: number;
 }
 
-const KNOWN_FARM_LOCATIONS: Record<string, { lat: number; lon: number; label: string }> = {
+export const KNOWN_FARM_LOCATIONS: Record<string, { lat: number; lon: number; label: string }> = {
   anand: { lat: 22.56, lon: 72.95, label: 'Anand, Gujarat' },
   pune: { lat: 18.52, lon: 73.85, label: 'Pune, Maharashtra' },
   karnal: { lat: 29.69, lon: 76.98, label: 'Karnal, Haryana' },
@@ -71,39 +72,63 @@ export function parseLocationCoordinates(locString: string): { lat: number; lon:
   return { lat: 22.56, lon: 72.95, label: clean || 'Anand, Gujarat' };
 }
 
-export function getWeatherDescription(code: number, isHi: boolean): { text: string; emoji: string } {
-  if (code === 0) return { text: isHi ? 'साफ धूप' : 'Clear & Sunny', emoji: '☀️' };
-  if (code === 1 || code === 2) return { text: isHi ? 'हल्के बादल' : 'Partly Cloudy', emoji: '⛅' };
-  if (code === 3) return { text: isHi ? 'घने बादल' : 'Cloudy Sky', emoji: '☁️' };
-  if (code === 45 || code === 48) return { text: isHi ? 'कोहरा' : 'Morning Fog', emoji: '🌫️' };
-  if (code >= 51 && code <= 65) return { text: isHi ? 'बारिश' : 'Rain Showers', emoji: '🌧️' };
-  if (code >= 80 && code <= 82) return { text: isHi ? 'तेज बारिश' : 'Heavy Rain', emoji: '🌧️' };
-  if (code >= 95) return { text: isHi ? 'तूफान' : 'Thunderstorm', emoji: '⛈️' };
-  return { text: isHi ? 'सुखद मौसम' : 'Fair Weather', emoji: '🌤️' };
+export function getWeatherDescription(code: number, langOrIsHi: Language | boolean): { text: string; emoji: string } {
+  const lang: Language = typeof langOrIsHi === 'string' ? langOrIsHi : (langOrIsHi ? 'hi' : 'en');
+  const pick = (map: Record<Language, string>) => map[lang] || map.en;
+
+  if (code === 0) return { text: pick({ en: 'Clear & Sunny', hi: 'साफ धूप', kn: 'ಬಿಸಿಲು & ನಿರ್ಮಲ', te: 'ఎండ & స్వచ్ఛమైనది', ta: 'தெளிவான வெயில்', ml: 'തെളിഞ്ഞ വെയിൽ', mr: 'स्वच्छ ऊन' }), emoji: '☀️' };
+  if (code === 1 || code === 2) return { text: pick({ en: 'Partly Cloudy', hi: 'हल्के बादल', kn: 'ಭಾಗಶಃ ಮೋಡ', te: 'పాక్షికంగా మేఘావృతం', ta: 'பகுதி மேகமூட்டம்', ml: 'ഭാഗികമായി മേഘാവൃതം', mr: 'अंशतः ढगाळ' }), emoji: '⛅' };
+  if (code === 3) return { text: pick({ en: 'Cloudy Sky', hi: 'घने बादल', kn: 'ಮೋಡ ಕವಿದ ಆಕಾಶ', te: 'మేఘావృతమైన ఆకాశం', ta: 'மேகமூட்டமான வானம்', ml: 'മേഘാവൃതമായ ആകാശം', mr: 'ढगाळ आकाश' }), emoji: '☁️' };
+  if (code === 45 || code === 48) return { text: pick({ en: 'Morning Fog', hi: 'कोहरा', kn: 'ಮಂಜು', te: 'పొಗమంచు', ta: 'காலை மூடுபனி', ml: 'രാവിലെ മൂടൽമഞ്ഞ്', mr: 'धुके' }), emoji: '🌫️' };
+  if (code >= 51 && code <= 65) return { text: pick({ en: 'Rain Showers', hi: 'बारिश', kn: 'ಮಳೆ ಹನಿಗಳು', te: 'వాన జల్లులు', ta: 'மழை தூறல்', ml: 'മഴത്തുള്ളികൾ', mr: 'पावसाच्या सरी' }), emoji: '🌧️' };
+  if (code >= 80 && code <= 82) return { text: pick({ en: 'Heavy Rain', hi: 'तेज बारिश', kn: 'ಭಾರೀ ಮಳೆ', te: 'భారీ వర్షం', ta: 'கனமழை', ml: 'കനത്ത മഴ', mr: 'मुसळधार पाऊस' }), emoji: '🌧️' };
+  if (code >= 95) return { text: pick({ en: 'Thunderstorm', hi: 'तूफान', kn: 'ಗುಡುಗು ಸಹಿತ ಬಿರುಗಾಳಿ', te: 'ఉరుములతో కూడిన తుఫాను', ta: 'இடியுடன் கூடிய புயல்', ml: 'ഇടിമിന്നലോടുകൂടിയ കാറ്റ്', mr: 'वादळी पाऊस' }), emoji: '⛈️' };
+  return { text: pick({ en: 'Fair Weather', hi: 'सुखद मौसम', kn: 'ಉತ್ತಮ ಹವಾಮಾನ', te: 'అనుకూಲ వాతావరణం', ta: 'சாதகமான வானிலை', ml: 'നല്ല കാലാവസ്ഥ', mr: 'अनुकूल हवामान' }), emoji: '🌤️' };
 }
 
-export function getPrimaryFarmerTip(temp: number, isHi: boolean): { emoji: string; text: string } {
+export function getPrimaryFarmerTip(temp: number, langOrIsHi: Language | boolean): { emoji: string; text: string } {
+  const lang: Language = typeof langOrIsHi === 'string' ? langOrIsHi : (langOrIsHi ? 'hi' : 'en');
+  const pick = (map: Record<Language, string>) => map[lang] || map.en;
+
   if (temp >= 35) {
     return {
       emoji: '💧',
-      text: isHi 
-        ? 'गर्मी ज्यादा है: बकरियों और भेड़ों को दिन में छायादार शेड में रखें और ठंडा पानी दें।' 
-        : 'High Heat: Keep goats and sheep in shade with cool drinking water.',
+      text: pick({
+        en: 'High Heat: Keep goats and sheep in shade with cool drinking water.',
+        hi: 'गर्मी ज्यादा है: बकरियों और भेड़ों को दिन में छायादार शेड में रखें और ठंडा पानी दें।',
+        kn: 'ಬಿಸಿಲು ಹೆಚ್ಚಿದೆ: ಆಡು-ಕುರಿಗಳನ್ನು ನೆರಳಿನಲ್ಲಿ ಇರಿಸಿ ಮತ್ತು ತಣ್ಣನೆಯ ನೀರು ನೀಡಿ.',
+        te: 'ఎండ తీవ్రత ఎక్కువ: జీవాలను నీడలో ఉంచి చల్లని తాగునీరు అందించండి.',
+        ta: 'வெயில் அதிகம்: ஆடுகளை நிழலில் கட்டி குளிர்ந்த குடிநீர் வழங்கவும்.',
+        ml: 'ചൂട് കൂടുതലാണ്: ആടുകളെ തണലിൽ നിർത്തുകയും തണുത്ത കുടിവെള്ളം നൽകുകയും ചെയ്യുക.',
+        mr: 'उष्णता जास्त आहे: शेळ्या-मेंढ्यांना सावलीत ठेवा आणि थंड पाणी द्या.'
+      })
     };
   }
   if (temp <= 16) {
     return {
       emoji: '❄️',
-      text: isHi 
-        ? 'ठंड का मौसम: छोटे मेमनों के नीचे सूखी पुआल बिछाएं और रात को हवा से बचाएं।' 
-        : 'Cold night: Provide dry straw bedding for young kids and lambs.',
+      text: pick({
+        en: 'Cold night: Provide dry straw bedding for young kids and lambs.',
+        hi: 'ठंड का मौसम: छोटे मेमनों के नीचे सूखी पुआल बिछाएं और रात को हवा से बचाएं।',
+        kn: 'ಚಳಿ ಇದೆ: ಮರಿಗಳ ಕೆಳಗೆ ಒಣ ಹುಲ್ಲು ಹಾಸಿ, ಚಳಿಗಾಳಿಯಿಂದ ರಕ್ಷಿಸಿ.',
+        te: 'చలి వాతావరణం: చిన్న పిల్లల కింద ఎండు గడ్డి వేసి చలిగాలి తగలకుండా చూడండి.',
+        ta: 'குளிர் காலம்: சிறு குட்டிகளுக்கு உலர்ந்த வைக்கோல் படுக்கை அமைத்து குளிர்காற்றிலிருந்து பாதுகாக்கவும்.',
+        ml: 'തണുപ്പാണ്: ചെറിയ കുഞ്ഞുങ്ങൾക്ക് ഉണങ്ങിയ വൈക്കോൽ വിരിച്ച് തണുപ്പിൽ നിന്ന് സംരക്ഷിക്കുക.',
+        mr: 'थंडीचे दिवस: लहान पिल्लांखाली सुका पेंढा अंथरा आणि रात्रीच्या हवेपासून वाचवा.'
+      })
     };
   }
   return {
     emoji: '🌿',
-    text: isHi 
-      ? 'उत्तम मौसम: बकरियों व भेड़ों को चराने और शेड की सफाई के लिए अनुकूल समय।' 
-      : 'Pleasant weather: Ideal for grazing flock and regular shed inspection.',
+    text: pick({
+      en: 'Pleasant weather: Ideal for grazing flock and regular shed inspection.',
+      hi: 'उत्तम मौसम: बकरियों व भेड़ों को चराने और शेड की सफाई के लिए अनुकूल समय।',
+      kn: 'ಉತ್ತಮ ದಿನ: ಮೇಯಿಸಲು ಮತ್ತು ಶೆಡ್ ಸ್ವಚ್ಛತೆಗೆ ಸೂಕ್ತವಾದ ದಿನ.',
+      te: 'అనుకూల వాతావరణం: మేతకు మరియు షెడ్ శుభ్రతకు మంచి రోజు.',
+      ta: 'நல்ல சூழல்: மேய்ச்சலுக்கும் கொட்டில் பராமரிப்பிற்கும் ஏற்ற நாள்.',
+      ml: 'അനുയോജ്യമായ ദിവസം: മേച്ചിലിനും കൂട് വൃത്തിയാക്കുന്നതിനും അനുയോജ്യമായ ദിവസം.',
+      mr: 'चांगले वातावरण: चरण्यासाठी आणि गोठा तपासण्यासाठी उत्तम दिवस.'
+    })
   };
 }
 
@@ -112,8 +137,7 @@ export const CornerTemperature: React.FC<CornerTemperatureProps> = ({
   onOpenAdminLocation,
   className = '',
 }) => {
-  const { lang } = useLanguage();
-  const isHi = lang === 'hi';
+  const { lang, localeText } = useLanguage();
   const popoverRef = useRef<HTMLDivElement>(null);
 
   const effectiveLocation = farm.config?.weatherLocation || farm.location || 'Anand, Gujarat';
@@ -191,11 +215,11 @@ export const CornerTemperature: React.FC<CornerTemperatureProps> = ({
   }, [showPopover]);
 
   const weatherDesc = current 
-    ? getWeatherDescription(current.weatherCode, isHi) 
+    ? getWeatherDescription(current.weatherCode, lang) 
     : { text: 'Loading...', emoji: '☀️' };
 
   const shortCity = resolvedCoords.label.split(',')[0].trim();
-  const farmerTip = current ? getPrimaryFarmerTip(current.temperature, isHi) : null;
+  const farmerTip = current ? getPrimaryFarmerTip(current.temperature, lang) : null;
 
   return (
     <div className={`relative inline-block ${className}`} ref={popoverRef}>
@@ -258,7 +282,7 @@ export const CornerTemperature: React.FC<CornerTemperatureProps> = ({
                 <Droplets className="w-4 h-4 text-sky-600 shrink-0" />
                 <div>
                   <span className="text-[10px] text-stone-500 font-bold block">
-                    {isHi ? 'हवा में नमी' : 'Humidity'}
+                    {localeText({ en: 'Humidity', hi: 'हवा में नमी', kn: 'ತೇವಾಂಶ', te: 'తేమ', ta: 'ஈரப்பதம்', ml: 'ഈർപ്പം', mr: 'हवेतील आर्द्रता' })}
                   </span>
                   <span className="text-xs font-black text-stone-900">
                     {current.humidity}%
@@ -270,7 +294,7 @@ export const CornerTemperature: React.FC<CornerTemperatureProps> = ({
                 <Wind className="w-4 h-4 text-emerald-600 shrink-0" />
                 <div>
                   <span className="text-[10px] text-stone-500 font-bold block">
-                    {isHi ? 'हवा की गति' : 'Wind Speed'}
+                    {localeText({ en: 'Wind Speed', hi: 'हवा की गति', kn: 'ಗಾಳಿಯ ವೇಗ', te: 'గాలి వేగం', ta: 'காற்றின் வேகம்', ml: 'കാറ്റിന്റെ വേഗത', mr: 'वाऱ्याचा वेग' })}
                   </span>
                   <span className="text-xs font-black text-stone-900">
                     {current.windSpeed} km/h
@@ -306,7 +330,7 @@ export const CornerTemperature: React.FC<CornerTemperatureProps> = ({
                   className="px-2.5 py-1 rounded-lg bg-stone-900 hover:bg-black text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
                 >
                   <Settings className="w-3 h-3" />
-                  <span>{isHi ? 'स्थान बदलें' : 'Set Location'}</span>
+                  <span>{localeText({ en: 'Set Location', hi: 'स्थान बदलें', kn: 'ಸ್ಥಳ ಬದಲಾಯಿಸಿ', te: 'స్థలం మార్చండి', ta: 'இடத்தை மாற்றவும்', ml: 'സ്ഥലം മാറ്റുക', mr: 'ठिकाण बदला' })}</span>
                 </button>
               )}
             </div>

@@ -17,6 +17,7 @@ import {
   Camera,
   Edit2
 } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface AnimalDetailModalProps {
   animal: Animal;
@@ -48,6 +49,7 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
   onUpdateAnimal,
 }) => {
   const isAdmin = farm.adminUserId === currentUser.id;
+  const { t, localeText } = useLanguage();
   const currentMember = farm.members.find(m => m.userId === currentUser.id);
   const canManageVaccine = isVaccineManager(currentMember?.role, isAdmin);
   const [activeTab, setActiveTab] = useState<'lineage' | 'growth' | 'health'>('lineage');
@@ -446,7 +448,7 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
             <div className="space-y-5">
               <div>
                 <h3 className="text-base font-extrabold text-stone-900">
-                  Animal Family Tree (माता-पिता व खानदान)
+                  {t('familyTree', 'Animal Family Tree')}
                 </h3>
                 <p className="text-xs text-stone-500 mt-0.5">
                   See who the Papa (father) and Mummy (mother) are. Tap on them to see their records!
@@ -600,7 +602,7 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     <div>
                       <label className="block text-xs font-bold text-stone-700 mb-1">
-                        Body Weight in kg (वजन)
+                        {t('bodyWeight', 'Body Weight')} (kg)
                       </label>
                       <input
                         type="number"
@@ -614,7 +616,7 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
 
                     <div>
                       <label className="block text-xs font-bold text-stone-700 mb-1">
-                        Daily Milk in Litres or Eggs (दूध)
+                        {t('dailyMilk', 'Daily Milk')} (L)
                       </label>
                       <input
                         type="number"
@@ -847,11 +849,11 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
                           onChange={(e) => setHealthType(e.target.value as HealthRecord['type'])}
                           className="w-full px-3 py-1.5 rounded-xl border border-stone-300 text-xs"
                         >
-                          <option value="Routine Checkup">General Health Check</option>
-                          <option value="Treatment">Medicine Treatment</option>
-                          <option value="Deworming">Tummy Worm Medicine (पेट की दवा)</option>
-                          <option value="Maternal / Birth">Baby Birth Checkup</option>
-                          <option value="Hoof & Coat Care">Nails & Skin Care</option>
+                          <option value="Routine Checkup">{localeText({ en: 'General Health Check', hi: 'सामान्य स्वास्थ्य जांच', kn: 'ಸಾಮಾನ್ಯ ಆರೋಗ್ಯ ತಪಾಸಣೆ', te: 'సాధారణ ఆరోగ్య పరీక్ష', ta: 'பொது சுகாதார பரிசோதனை', ml: 'പൊതുവായ ആരോഗ്യ പരിശോധന', mr: 'सामान्य आरोग्य तपासणी' })}</option>
+                          <option value="Treatment">{localeText({ en: 'Medicine Treatment', hi: 'दवा / उपचार', kn: 'ಔಷಧ ಚಿಕಿತ್ಸೆ', te: 'మందుల చికిత్స', ta: 'மருத்துவ சிகிச்சை', ml: 'മരുന്ന് ചികിത്സ', mr: 'औषधोपचार' })}</option>
+                          <option value="Deworming">{t('deworming', 'Deworming')}</option>
+                          <option value="Maternal / Birth">{localeText({ en: 'Baby Birth Checkup', hi: 'प्रसव व मेमना देखभाल', kn: 'ಹೆರಿಗೆ ಮತ್ತು ಮರಿ ಆರೈಕೆ', te: 'ప్రసవ మరియు పిల్లల సంరక్షణ', ta: 'பிரசவம் & குட்டி பராமரிப்பு', ml: 'പ്രസവവും കുഞ്ഞുങ്ങളുടെ പരിചരണവും', mr: 'प्रसूती व करडू काळजी' })}</option>
+                          <option value="Hoof & Coat Care">{localeText({ en: 'Nails & Skin Care', hi: 'खुर व त्वचा देखभाल', kn: 'ಗೊರಸು ಮತ್ತು ಚರ್ಮದ ಆರೈಕೆ', te: 'డెక్కలు & చర్మ సంరక్షణ', ta: 'குளம்பு & தோல் பராமரிப்பு', ml: 'കുളമ്പും ചർമ്മ പരിചരണവും', mr: 'खूर व त्वचा काळजी' })}</option>
                         </select>
                       </div>
                       <div>
@@ -988,8 +990,8 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
                     onChange={(e) => setEditSpecies(e.target.value as Species)}
                     className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-bold bg-white text-stone-900"
                   >
-                    <option value="Goat">🐐 Goat (बकरी)</option>
-                    <option value="Sheep">🐑 Sheep (भेड़)</option>
+                    <option value="Goat">🐐 {t('goat', 'Goat')}</option>
+                    <option value="Sheep">🐑 {t('sheep_single', 'Sheep')}</option>
                   </select>
                 </div>
 

@@ -54,7 +54,7 @@ export const VaccineAlertNotificationModal: React.FC<VaccineAlertNotificationMod
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-black text-stone-900">
-                  {t('vaccineAlertsTitle', 'Vaccine Due Alerts (टीकाकरण सूचना)')}
+                  {t('vaccineAlertsTitle', 'Vaccine Due Alerts')}
                 </h2>
                 <span className="px-2 py-0.5 rounded-full text-xs font-black bg-amber-200 text-amber-900">
                   {alerts.length} {t('alerts', 'Alerts')}

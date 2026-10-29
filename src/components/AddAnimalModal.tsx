@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Animal, Species, Farm, User } from '../types';
+import { db } from '../services/db';
 import { 
   COW_ILLUSTRATION, 
   GOAT_ILLUSTRATION, 
   SHEEP_ILLUSTRATION, 
   CHICKEN_ILLUSTRATION 
 } from '../data/initialData';
-import { X, Plus, Camera } from 'lucide-react';
+import { X, Plus, Camera, Sparkles } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface AddAnimalModalProps {
   farm: Farm;
@@ -29,6 +31,7 @@ export const AddAnimalModal: React.FC<AddAnimalModalProps> = ({
   onClose,
   onAddAnimal,
 }) => {
+  const { t, lang, localeText } = useLanguage();
   const [species, setSpecies] = useState<Species>('Goat');
   const [tagId, setTagId] = useState(() => `GOAT-${Math.floor(100 + Math.random() * 900)}`);
   const [name, setName] = useState('');
@@ -226,8 +229,16 @@ export const AddAnimalModal: React.FC<AddAnimalModalProps> = ({
             </div>
             <div className="grid grid-cols-2 gap-3">
               {[
-                { id: 'Goat', label: '🐐 Goat (बकरी)', desc: 'Meat & Kidding (Sirohi, Jamnapari, Boer)' },
-                { id: 'Sheep', label: '🐑 Sheep (भेड़)', desc: 'Wool & Meat (Deccani, Nellore, Bellary)' },
+                { 
+                  id: 'Goat', 
+                  label: `🐐 ${localeText({ en: 'Goat', hi: 'बकरी', kn: 'ಆಡು', te: 'మేక', ta: 'வெள்ளாடு', ml: 'ആട്', mr: 'शेळी' })}`, 
+                  desc: 'Meat & Kidding (Sirohi, Jamnapari, Boer)' 
+                },
+                { 
+                  id: 'Sheep', 
+                  label: `🐑 ${localeText({ en: 'Sheep', hi: 'भेड़', kn: 'ಕುರಿ', te: 'గొర్రె', ta: 'செம்மறி', ml: 'ചെമ്മരിയാട്', mr: 'मेंढी' })}`, 
+                  desc: 'Wool & Meat (Deccani, Nellore, Bellary)' 
+                },
               ].map(item => (
                 <button
                   key={item.id}
@@ -293,18 +304,48 @@ export const AddAnimalModal: React.FC<AddAnimalModalProps> = ({
           {/* Breed, Boy/Girl, Shed */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-bold text-stone-700 mb-1">Breed</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-stone-700">
+                  {localeText({ en: 'Breed', hi: 'नस्ल', kn: 'ತಳಿ', te: 'జాతి', ta: 'இனம்', ml: 'ഇനം', mr: 'जात' })}
+                </label>
+                <span className="text-[10px] text-purple-700 font-bold">Universal Catalog</span>
+              </div>
               <input
                 type="text"
                 required
+                list="global-breed-options"
                 value={breed}
                 onChange={(e) => setBreed(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-medium"
+                placeholder="Select or enter breed..."
+                className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-bold bg-white"
               />
+              <datalist id="global-breed-options">
+                {db.getBreedNames(species).map(bName => (
+                  <option key={bName} value={bName} />
+                ))}
+              </datalist>
             </div>
             <div>
               <label className="block text-xs font-bold text-stone-700 mb-1">
-                {species === 'Goat' ? 'Sex (Doe or Buck?)' : 'Sex (Ewe or Ram?)'}
+                {species === 'Goat'
+                  ? localeText({
+                      en: 'Sex (Doe or Buck?)',
+                      hi: 'लिंग (बकरी या बकरा?)',
+                      kn: 'ಲಿಂಗ (ಹೆಣ್ಣು ಅಥವಾ ಗಂಡು?)',
+                      te: 'లింగం (ఆడ లేదా మగ?)',
+                      ta: 'பாலினம் (பெண் அல்லது ஆண்?)',
+                      ml: 'ലിംഗം (പെൺ അല്ലെങ്കിൽ ആൺ?)',
+                      mr: 'लिंग (शेळी की बोकड?)'
+                    })
+                  : localeText({
+                      en: 'Sex (Ewe or Ram?)',
+                      hi: 'लिंग (भेड़ या मेढ़ा?)',
+                      kn: 'ಲಿಂಗ (ಹೆಣ್ಣು ಕುರಿ ಅಥವಾ ಟಗರು?)',
+                      te: 'లింగం (ఆడ లేదా పొట్టేలు?)',
+                      ta: 'பாலினம் (பெண் அல்லது கிடா?)',
+                      ml: 'ലിംഗം (പെൺ അല്ലെങ്കിൽ മുട്ടൻ?)',
+                      mr: 'लिंग (मेंढी की मेंढा?)'
+                    })}
               </label>
               <select
                 value={sex}
@@ -312,10 +353,14 @@ export const AddAnimalModal: React.FC<AddAnimalModalProps> = ({
                 className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-bold bg-white"
               >
                 <option value="Female">
-                  {species === 'Goat' ? '♀ Female (Doe / बकरी)' : '♀ Female (Ewe / भेड़)'}
+                  {species === 'Goat'
+                    ? `♀ ${localeText({ en: 'Female (Doe)', hi: 'मादा (बकरी)', kn: 'ಹೆಣ್ಣು (ಆಡು)', te: 'ఆడ (మేక)', ta: 'பெண் (வெள்ளாடு)', ml: 'പെൺ (ആട്)', mr: 'मादी (शेळी)' })}`
+                    : `♀ ${localeText({ en: 'Female (Ewe)', hi: 'मादा (भेड़)', kn: 'ಹೆಣ್ಣು (ಕುರಿ)', te: 'ఆడ (గొర్రె)', ta: 'பெண் (செம்மறி)', ml: 'പെൺ (ചെമ്മരിയാട്)', mr: 'मादी (मेंढी)' })}`}
                 </option>
                 <option value="Male">
-                  {species === 'Goat' ? '♂ Male (Buck / बकरा)' : '♂ Male (Ram / मेढ़ा)'}
+                  {species === 'Goat'
+                    ? `♂ ${localeText({ en: 'Male (Buck)', hi: 'नर (बकरा)', kn: 'ಗಂಡು (ಬೊक್ಕ)', te: 'మగ (మేకపోతు)', ta: 'ஆண் (கடா)', ml: 'ആൺ (കൊറ്റൻ)', mr: 'नर (बोकड)' })}`
+                    : `♂ ${localeText({ en: 'Male (Ram)', hi: 'नर (मेढ़ा)', kn: 'ಗಂಡು (ಟಗರು)', te: 'మగ (పొట్టేలు)', ta: 'ஆண் (கிடா)', ml: 'ആൺ (മുട്ടൻ)', mr: 'नर (मेंढा)' })}`}
                 </option>
               </select>
             </div>
@@ -333,21 +378,57 @@ export const AddAnimalModal: React.FC<AddAnimalModalProps> = ({
           {/* Family Section (Papa & Mummy) */}
           <div className="p-4 rounded-2xl bg-[#FFFDF7] border-2 border-amber-200 space-y-3">
             <h4 className="text-xs font-black text-amber-950 uppercase">
-              2. Who are the Parents? (माता-पिता)
+              {localeText({
+                en: '2. Parents Information',
+                hi: '2. माता-पिता की जानकारी',
+                kn: '2. ಪೋಷಕರ ಮಾಹಿತಿ',
+                te: '2. తల్లిదండ్రుల సమాచారం',
+                ta: '2. பெற்றோர் விவரங்கள்',
+                ml: '2. മാതാപിതാക്കളുടെ വിവരം',
+                mr: '2. आई-वडिलांची माहिती'
+              })}
             </h4>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Sire (Father) */}
               <div>
                 <label className="block text-xs font-bold text-stone-700 mb-1">
-                  Sire / Father ({species === 'Goat' ? 'Stud Buck / बकरा' : 'Stud Ram / मेढ़ा'})
+                  {species === 'Goat'
+                    ? localeText({
+                        en: 'Sire / Father (Stud Buck)',
+                        hi: 'पिता / नर (बकरा)',
+                        kn: 'ತಂದೆ / ಗಂಡು (ಬೊಕ್ಕ)',
+                        te: 'తండ్రి / మగ (పోతు)',
+                        ta: 'தந்தை / ஆண் (கடா)',
+                        ml: 'പിതാവ് / ആൺ (കൊറ്റൻ)',
+                        mr: 'वडील / नर (बोकड)'
+                      })
+                    : localeText({
+                        en: 'Sire / Father (Stud Ram)',
+                        hi: 'पिता / नर (मेढ़ा)',
+                        kn: 'ತಂದೆ / ಗಂಡು (ಟಗರು)',
+                        te: 'తండ్రి / మగ (పొట్టేలు)',
+                        ta: 'தந்தை / ஆண் (கிடா)',
+                        ml: 'പിതാവ് / ആൺ (മുട്ടൻ)',
+                        mr: 'वडील / नर (मेंढा)'
+                      })}
                 </label>
                 <select
                   value={selectedSireId}
                   onChange={(e) => setSelectedSireId(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white text-xs mb-1.5"
                 >
-                  <option value="custom">+ Type Father's Name Below</option>
+                  <option value="custom">
+                    + {localeText({
+                      en: "Type Father's Name Below",
+                      hi: 'नीचे पिता का नाम लिखें',
+                      kn: 'ಕೆಳಗೆ ತಂದೆಯ ಹೆಸರು ಬರೆಯಿರಿ',
+                      te: 'క్రింద తండ్రి పేరు రాయండి',
+                      ta: 'கீழே தந்தை பெயரை எழுதவும்',
+                      ml: 'താഴെ പിതാവിന്റെ പേര് എഴുതുക',
+                      mr: 'खाली वडिलांचे नाव लिहा'
+                    })}
+                  </option>
                   {farm.animals.map(a => (
                     <option key={a.id} value={a.id}>
                       {a.name} (Tag #{a.tagId} · {a.breed})
@@ -360,14 +441,14 @@ export const AddAnimalModal: React.FC<AddAnimalModalProps> = ({
                       type="text"
                       value={customSireName}
                       onChange={(e) => setCustomSireName(e.target.value)}
-                      placeholder="Papa Name"
+                      placeholder={localeText({ en: 'Sire Name', hi: 'पिता का नाम', kn: 'ತಂದೆಯ ಹೆಸರು', te: 'తండ్రి పేరు', ta: 'தந்தை பெயர்', ml: 'പിതാവിന്റെ പേര്', mr: 'वडिलांचे नाव' })}
                       className="px-2 py-1.5 rounded-lg border border-stone-300 bg-white text-xs"
                     />
                     <input
                       type="text"
                       value={customSireTag}
                       onChange={(e) => setCustomSireTag(e.target.value)}
-                      placeholder="Papa Tag"
+                      placeholder={localeText({ en: 'Sire Tag', hi: 'टैग नंबर', kn: 'ಟ್ಯಾಗ್ ಸಂಖ್ಯೆ', te: 'ట్యాగ్ నంబర్', ta: 'டேக் எண்', ml: 'ടാഗ് നമ്പർ', mr: 'टॅग क्रमांक' })}
                       className="px-2 py-1.5 rounded-lg border border-stone-300 bg-white text-xs font-mono uppercase"
                     />
                   </div>
@@ -377,14 +458,42 @@ export const AddAnimalModal: React.FC<AddAnimalModalProps> = ({
               {/* Dam (Mother) */}
               <div>
                 <label className="block text-xs font-bold text-stone-700 mb-1">
-                  Dam / Mother ({species === 'Goat' ? 'Breeder Doe / बकरी' : 'Breeder Ewe / भेड़'})
+                  {species === 'Goat'
+                    ? localeText({
+                        en: 'Dam / Mother (Breeder Doe)',
+                        hi: 'माता / मादा (बकरी)',
+                        kn: 'ತಾಯಿ / ಹೆಣ್ಣು (ಆಡು)',
+                        te: 'తల్లి / ఆడ (మేక)',
+                        ta: 'தாய் / பெண் (வெள்ளாடு)',
+                        ml: 'മാതാവ് / പെൺ (ആട്)',
+                        mr: 'आई / मादी (शेळी)'
+                      })
+                    : localeText({
+                        en: 'Dam / Mother (Breeder Ewe)',
+                        hi: 'माता / मादा (भेड़)',
+                        kn: 'ತಾಯಿ / ಹೆಣ್ಣು (ಕುರಿ)',
+                        te: 'తల్లి / ఆడ (గొర్రె)',
+                        ta: 'தாய் / பெண் (செம்மறி)',
+                        ml: 'മാതാവ് / പെൺ (ചെമ്മരിയാട്)',
+                        mr: 'आई / मादी (मेंढी)'
+                      })}
                 </label>
                 <select
                   value={selectedDamId}
                   onChange={(e) => setSelectedDamId(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white text-xs mb-1.5"
                 >
-                  <option value="custom">+ Type Mother's Name Below</option>
+                  <option value="custom">
+                    + {localeText({
+                      en: "Type Mother's Name Below",
+                      hi: 'नीचे माता का नाम लिखें',
+                      kn: 'ಕೆಳಗೆ ತಾಯಿಯ ಹೆಸರು ಬರೆಯಿರಿ',
+                      te: 'క్రింద తల్లి పేరు రాయండి',
+                      ta: 'கீழே தாய் பெயரை எழுதவும்',
+                      ml: 'താഴെ മാതാവിന്റെ പേര് എഴുതുക',
+                      mr: 'खाली आईचे नाव लिहा'
+                    })}
+                  </option>
                   {farm.animals.map(a => (
                     <option key={a.id} value={a.id}>
                       {a.name} (Tag #{a.tagId} · {a.breed})

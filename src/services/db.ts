@@ -11,7 +11,10 @@ import {
   FarmConfig, 
   VaccineAlert,
   FinancialRecord,
-  isVaccineManager
+  isVaccineManager,
+  BreedProposal,
+  GlobalBreed,
+  FarmTask
 } from '../types';
 import { DEFAULT_USERS, INITIAL_FARMS } from '../data/initialData';
 
@@ -20,6 +23,297 @@ const STORAGE_FARMS_KEY = 'farmtrack_mysql_farms_v3';
 const STORAGE_CURRENT_USER_KEY = 'farmtrack_mysql_curr_user_v3';
 const STORAGE_CURRENT_FARM_KEY = 'farmtrack_mysql_curr_farm_v3';
 const STORAGE_APP_NAME_KEY = 'farmtrack_app_name_config';
+const STORAGE_GLOBAL_BREEDS_KEY = 'farmtrack_global_breeds_v1';
+const STORAGE_BREED_PROPOSALS_KEY = 'farmtrack_breed_proposals_v1';
+
+export const DEFAULT_GLOBAL_BREEDS: GlobalBreed[] = [
+  // GOAT BREEDS
+  {
+    id: 'breed-goat-1',
+    species: 'Goat',
+    name: 'Sirohi Brown Goat',
+    originRegion: 'Rajasthan & Gujarat border',
+    primaryPurpose: 'Dual Purpose (Meat & Milk)',
+    characteristics: 'Hardy desert goat with compact cylindrical body, brown coat with light/dark brown patches, drooping leaf-like ears, fast growth.',
+    averageMatureWeightKg: 50,
+    isSystemDefault: true,
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'breed-goat-2',
+    species: 'Goat',
+    name: 'Jamnapari Goat',
+    originRegion: 'Etawah, Uttar Pradesh',
+    primaryPurpose: 'Dual Purpose (Meat & Milk)',
+    characteristics: 'Majestic large dairy goat with prominent convex Roman nose, long pendulous folded ears, high milk yield (2-3 L/day), tall leggy stature.',
+    averageMatureWeightKg: 65,
+    isSystemDefault: true,
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'breed-goat-3',
+    species: 'Goat',
+    name: 'Barbari White Goat',
+    originRegion: 'Delhi, Haryana & Western UP',
+    primaryPurpose: 'Dual Purpose (Meat & Milk)',
+    characteristics: 'Compact alert stall-feeding breed, white with reddish-brown spots, erect tubular ears, early sexual maturity and high prolificacy (frequent triplets).',
+    averageMatureWeightKg: 35,
+    isSystemDefault: true,
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'breed-goat-4',
+    species: 'Goat',
+    name: 'Black Bengal Goat',
+    originRegion: 'West Bengal, Bihar & Assam',
+    primaryPurpose: 'Meat',
+    characteristics: 'Renowned for world-class tender chevon meat and superior leather skin; high reproductive rate (twins/triplets every 8 months); short black glossy coat.',
+    averageMatureWeightKg: 28,
+    isSystemDefault: true,
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'breed-goat-5',
+    species: 'Goat',
+    name: 'Osmanabadi Goat',
+    originRegion: 'Marathwada, Maharashtra',
+    primaryPurpose: 'Meat',
+    characteristics: 'Hardy disease-resistant meat breed with shiny black coat, excellent immunity to local diseases, adaptable to semi-arid drought conditions.',
+    averageMatureWeightKg: 42,
+    isSystemDefault: true,
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'breed-goat-6',
+    species: 'Goat',
+    name: 'Boer Meat Goat',
+    originRegion: 'South Africa / Global Crosses',
+    primaryPurpose: 'Meat',
+    characteristics: 'Premier terminal meat sire breed; thick muscular build, reddish-brown head with white body, rapid daily weight gain (ADG 200g+).',
+    averageMatureWeightKg: 85,
+    isSystemDefault: true,
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'breed-goat-7',
+    species: 'Goat',
+    name: 'Beetal Goat',
+    originRegion: 'Punjab & Gurdaspur',
+    primaryPurpose: 'Dual Purpose (Meat & Milk)',
+    characteristics: 'Large majestic breed with Roman nose, long flat drooping ears, reddish or golden coat with spots, high milking ability and heavy weight gain.',
+    averageMatureWeightKg: 60,
+    isSystemDefault: true,
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'breed-goat-8',
+    species: 'Goat',
+    name: 'Sojat Goat',
+    originRegion: 'Pali & Jodhpur, Rajasthan',
+    primaryPurpose: 'Meat',
+    characteristics: 'Heavy white-coated goat with pink skin and flat drooping ears, highly prized for heavy live-weight gain during festive markets.',
+    averageMatureWeightKg: 58,
+    isSystemDefault: true,
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'breed-goat-9',
+    species: 'Goat',
+    name: 'Tellicherry / Malabari Goat',
+    originRegion: 'Malabar, Kerala',
+    primaryPurpose: 'Dual Purpose (Meat & Milk)',
+    characteristics: 'Coastal adapted breed with white, brown, or black mottled coats; high twinning rate and calm docile temperament; thrives on stall foliage.',
+    averageMatureWeightKg: 40,
+    isSystemDefault: true,
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'breed-goat-10',
+    species: 'Goat',
+    name: 'Jakhrana Goat',
+    originRegion: 'Alwar, Rajasthan',
+    primaryPurpose: 'Milk',
+    characteristics: 'Top Indian milch goat producing 3-4 liters/day; jet black coat with white specks on ears and muzzle; compact dairy wedge conformation.',
+    averageMatureWeightKg: 52,
+    isSystemDefault: true,
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'breed-goat-11',
+    species: 'Goat',
+    name: 'Kanni Adu Goat',
+    originRegion: 'Ramanathapuram & Tirunelveli, Tamil Nadu',
+    primaryPurpose: 'Meat',
+    characteristics: 'Tall graceful meat goat with black body and distinct white/tan stripes on face and legs; thrives in dry scrublands with outstanding drought resistance.',
+    averageMatureWeightKg: 38,
+    isSystemDefault: false,
+    addedFromProposalId: 'prop-sample-approved-1',
+    createdAt: '2026-01-15T00:00:00Z',
+  },
+
+  // SHEEP BREEDS
+  {
+    id: 'breed-sheep-1',
+    species: 'Sheep',
+    name: 'Deccani Wool Sheep',
+    originRegion: 'Maharashtra, Karnataka & Telangana',
+    primaryPurpose: 'Wool & Fiber',
+    characteristics: 'Hardy pastoral sheep with coarse hairy fleece (black, white, or roan) used for rough Kambli blankets; robust trekking ability in semi-arid zones.',
+    averageMatureWeightKg: 42,
+    isSystemDefault: true,
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'breed-sheep-2',
+    species: 'Sheep',
+    name: 'Nellore Meat Sheep',
+    originRegion: 'Andhra Pradesh & Telangana',
+    primaryPurpose: 'Meat',
+    characteristics: 'Tallest sheep breed in India; distinct hair coat (no wool), long legs, dewlap on rams; prized for lean mutton yield and rapid feedlot weight gain.',
+    averageMatureWeightKg: 55,
+    isSystemDefault: true,
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'breed-sheep-3',
+    species: 'Sheep',
+    name: 'Bellary Sheep',
+    originRegion: 'Bellary & Davanagere, Karnataka',
+    primaryPurpose: 'Meat',
+    characteristics: 'Medium-sized sheep with coarse black, grey, or piebald fleece; heavy chest and excellent foraging ability in harsh rain-shadow tracts.',
+    averageMatureWeightKg: 40,
+    isSystemDefault: true,
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'breed-sheep-4',
+    species: 'Sheep',
+    name: 'Mandya Sheep',
+    originRegion: 'Mandya & Mysuru, Karnataka',
+    primaryPurpose: 'Meat',
+    characteristics: 'Compact blocky wedge body shape (Bannur sheep), white coat with brown patches; renowned across Southern India for premium tender mutton flavor.',
+    averageMatureWeightKg: 36,
+    isSystemDefault: true,
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'breed-sheep-5',
+    species: 'Sheep',
+    name: 'Merino Sheep',
+    originRegion: 'Temperate Crosses / Nilgiris',
+    primaryPurpose: 'Wool & Fiber',
+    characteristics: 'World famous fine fleece apparel wool sheep; dense crimped white wool yielding high clean fleece weight.',
+    averageMatureWeightKg: 50,
+    isSystemDefault: true,
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'breed-sheep-6',
+    species: 'Sheep',
+    name: 'Nali Carpet Sheep',
+    originRegion: 'Bikaner & Ganganagar, Rajasthan',
+    primaryPurpose: 'Wool & Fiber',
+    characteristics: 'Heavy wool producer with dense white/cream fleece ideal for hand-knotted Rajasthani carpets; long ears and pink nose.',
+    averageMatureWeightKg: 45,
+    isSystemDefault: true,
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'breed-sheep-7',
+    species: 'Sheep',
+    name: 'Marwari Sheep',
+    originRegion: 'Jodhpur & Nagaur, Rajasthan',
+    primaryPurpose: 'Dual Purpose (Meat & Milk)',
+    characteristics: 'Classic black face with white body; long droopy ears; outstanding immune resistance to worm burdens and black disease in drylands.',
+    averageMatureWeightKg: 48,
+    isSystemDefault: true,
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'breed-sheep-8',
+    species: 'Sheep',
+    name: 'Madras Red Sheep',
+    originRegion: 'Kanchipuram & Chengalpattu, Tamil Nadu',
+    primaryPurpose: 'Meat',
+    characteristics: 'Hardy hair sheep with rich brown-red coat; rams have curled horns and thick neck ruff; favorite for festival meat markets.',
+    averageMatureWeightKg: 38,
+    isSystemDefault: true,
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'breed-sheep-9',
+    species: 'Sheep',
+    name: 'Muzaffarnagri Sheep',
+    originRegion: 'Muzaffarnagar & Meerut, UP',
+    primaryPurpose: 'Meat',
+    characteristics: 'Heaviest and largest indigenous Indian sheep; long cylindrical body, slightly convex face, thick long tail, superb stall-fed mutton producer.',
+    averageMatureWeightKg: 62,
+    isSystemDefault: true,
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'breed-sheep-10',
+    species: 'Sheep',
+    name: 'Chokla Sheep',
+    originRegion: 'Shekhawati, Rajasthan',
+    primaryPurpose: 'Wool & Fiber',
+    characteristics: 'Known as the "Indian Merino"; produces the finest indigenous carpet and apparel wool in the country; distinct dark brown face and white body.',
+    averageMatureWeightKg: 35,
+    isSystemDefault: true,
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+];
+
+export const DEFAULT_BREED_PROPOSALS: BreedProposal[] = [
+  {
+    id: 'prop-1',
+    species: 'Goat',
+    breedName: 'Attappady Black Goat',
+    originRegion: 'Attappady Hills, Palakkad, Kerala',
+    primaryPurpose: 'Meat',
+    characteristics: 'Indigenous mountain goat with jet black coat, bronze eyes, curved horns, and high resistance to tick-borne illnesses and foot rot in damp weather.',
+    averageMatureWeightKg: 34,
+    proposedByFarmId: 'FARM-7821',
+    proposedByFarmName: 'Gokul Pure Dairy & Livestock',
+    proposedByUserId: 'user-admin-1',
+    proposedByUserName: 'Ramesh Patel',
+    status: 'pending',
+    createdAt: '2026-10-25T11:20:00Z',
+  },
+  {
+    id: 'prop-2',
+    species: 'Sheep',
+    breedName: 'Dumba Fat-Tailed Sheep',
+    originRegion: 'Thar Desert / Punjab Border',
+    primaryPurpose: 'Meat',
+    characteristics: 'Signature bilobed fat cushion at base of tail for energy storage during dry spells, heavy live weight gain on thorny shrubs, distinct convex head.',
+    averageMatureWeightKg: 65,
+    proposedByFarmId: 'FARM-7821',
+    proposedByFarmName: 'Gokul Pure Dairy & Livestock',
+    proposedByUserId: 'user-admin-1',
+    proposedByUserName: 'Ramesh Patel',
+    status: 'pending',
+    createdAt: '2026-10-26T08:45:00Z',
+  },
+  {
+    id: 'prop-sample-approved-1',
+    species: 'Goat',
+    breedName: 'Kanni Adu Goat',
+    originRegion: 'Ramanathapuram & Tirunelveli, Tamil Nadu',
+    primaryPurpose: 'Meat',
+    characteristics: 'Tall graceful meat goat with black body and distinct white/tan stripes on face and legs; thrives in dry scrublands with outstanding drought resistance.',
+    averageMatureWeightKg: 38,
+    proposedByFarmId: 'FARM-7821',
+    proposedByFarmName: 'Gokul Pure Dairy & Livestock',
+    proposedByUserId: 'user-admin-1',
+    proposedByUserName: 'Ramesh Patel',
+    status: 'approved',
+    adminNotes: 'Verified with ICAR-NBAGR accession registry. High genetic conservation value.',
+    createdAt: '2026-10-15T09:30:00Z',
+    reviewedAt: '2026-10-16T14:10:00Z',
+    reviewedBy: 'Madhu S (System Admin)',
+  },
+];
 
 export const DEFAULT_FARM_CONFIG: FarmConfig = {
   appName: 'Testing',
@@ -28,12 +322,12 @@ export const DEFAULT_FARM_CONFIG: FarmConfig = {
   defaultMilkUnit: 'Litres',
   contactPhone: '+91 98765 43210',
   customVaccines: [
-    'FMD (Foot & Mouth Disease / खुरपका-मुंहपका)',
-    'Anthrax (गलघोंटू)',
-    'Black Quarter (BQ / लंगड़ा बुखार)',
-    'PPR Goat Plague (बकरी प्लेग)',
-    'Brucellosis Abortion Shield (ब्रुसेलोसिस)',
-    'Ranikhet Disease Newcastle (मुर्गी रानीखेत)'
+    'FMD (Foot & Mouth Disease)',
+    'Anthrax',
+    'Black Quarter (BQ)',
+    'PPR Goat Plague',
+    'Brucellosis Abortion Shield',
+    'Ranikhet Disease Newcastle'
   ]
 };
 
@@ -136,9 +430,170 @@ export const DEFAULT_FINANCIAL_RECORDS: FinancialRecord[] = [
   },
 ];
 
+export const INITIAL_FARM_TASKS: FarmTask[] = [
+  {
+    id: 'task-flock-1',
+    farmId: 'FARM-7821',
+    title: 'Autumn Shearing Campaign for Deccani Sheep Flock',
+    description: 'Shear all adult and yearling sheep before cold nights set in. Clean and grade raw wool fleece into wool bags.',
+    species: 'Sheep',
+    category: 'Shearing',
+    priority: 'High',
+    status: 'in_progress',
+    assignedToUserId: 'user-staff-1',
+    assignedToName: 'Suresh Kumar (Farm Helper)',
+    assignedToRole: 'Herdsman',
+    target: {
+      enabled: true,
+      targetValue: 40,
+      currentValue: 26,
+      unit: 'sheep',
+    },
+    dueDate: '2026-10-18',
+    dueTime: '08:30',
+    reminder: {
+      enabled: true,
+      audience: 'all_members',
+      timing: '1_day_before',
+      customNote: 'Prepare shearing clippers, clean oil, and tar antiseptic for skin nicks.',
+      isAcknowledged: false,
+    },
+    createdByUserId: 'user-admin-1',
+    createdByUserName: 'Ramesh Patel (Farm Owner)',
+    createdAt: '2026-10-10T09:00:00Z',
+  },
+  {
+    id: 'task-flock-2',
+    farmId: 'FARM-7821',
+    title: 'Pre-Winter Deworming Drench (Albendazole)',
+    description: 'Oral drenching of all sheep and goats with broad-spectrum dewormer against liver flukes and roundworms.',
+    species: 'Both',
+    category: 'Deworming',
+    priority: 'Urgent',
+    status: 'pending',
+    assignedToUserId: 'user-vet-1',
+    assignedToName: 'Dr. Priya Sharma (Animal Doctor)',
+    assignedToRole: 'Veterinarian',
+    target: {
+      enabled: true,
+      targetValue: 50,
+      currentValue: 15,
+      unit: 'animals',
+    },
+    dueDate: '2026-10-15',
+    dueTime: '10:00',
+    reminder: {
+      enabled: true,
+      audience: 'all_members',
+      timing: 'on_due_date',
+      customNote: 'Administer on empty stomach in morning before letting flock out to pasture.',
+      isAcknowledged: false,
+    },
+    createdByUserId: 'user-admin-1',
+    createdByUserName: 'Ramesh Patel (Farm Owner)',
+    createdAt: '2026-10-11T11:00:00Z',
+  },
+  {
+    id: 'task-flock-3',
+    farmId: 'FARM-7821',
+    title: 'Anti-Tick & Mite Dip Bath for Goats',
+    description: 'Run flock through dipping vat trench with Cypermethrin ectoparasiticide solution to eliminate ticks and lice.',
+    species: 'Goat',
+    category: 'Dipping & Bath',
+    priority: 'Medium',
+    status: 'pending',
+    assignedToUserId: 'user-staff-1',
+    assignedToName: 'Suresh Kumar (Farm Helper)',
+    assignedToRole: 'Herdsman',
+    target: {
+      enabled: true,
+      targetValue: 30,
+      currentValue: 0,
+      unit: 'goats',
+    },
+    dueDate: '2026-10-20',
+    dueTime: '14:00',
+    reminder: {
+      enabled: true,
+      audience: 'admins_only',
+      timing: '2_days_before',
+      customNote: 'Verify dip vat drain plug and test chemical dilution ratio.',
+      isAcknowledged: false,
+    },
+    createdByUserId: 'user-admin-1',
+    createdByUserName: 'Ramesh Patel (Farm Owner)',
+    createdAt: '2026-10-12T07:00:00Z',
+  },
+  {
+    id: 'task-flock-4',
+    farmId: 'FARM-7821',
+    title: 'Growing Kids & Lambs 90-Day Weight Target Audit',
+    description: 'Weigh all 3-month-old Sirohi and Boer kids on digital hanging scale. Record ADG (Average Daily Gain). Target: >= 16 kg.',
+    species: 'Both',
+    category: 'Weight Check',
+    priority: 'Medium',
+    status: 'in_progress',
+    assignedToUserId: 'user-admin-1',
+    assignedToName: 'Ramesh Patel (Farm Owner)',
+    assignedToRole: 'Admin',
+    target: {
+      enabled: true,
+      targetValue: 20,
+      currentValue: 12,
+      unit: 'kids & lambs',
+    },
+    dueDate: '2026-10-16',
+    dueTime: '16:00',
+    reminder: {
+      enabled: true,
+      audience: 'assigned_only',
+      timing: '1_day_before',
+      isAcknowledged: false,
+    },
+    createdByUserId: 'user-admin-1',
+    createdByUserName: 'Ramesh Patel (Farm Owner)',
+    createdAt: '2026-10-08T10:00:00Z',
+  },
+  {
+    id: 'task-flock-5',
+    farmId: 'FARM-7821',
+    title: 'Hoof Trimming Round for Rams and Stud Bucks',
+    description: 'Inspect claws for overgrowth and foot rot; trim neatly with specialized hoof shears to prevent lameness during breeding season.',
+    species: 'Sheep',
+    category: 'Hoof Trimming',
+    priority: 'Low',
+    status: 'completed',
+    assignedToUserId: 'user-staff-1',
+    assignedToName: 'Suresh Kumar (Farm Helper)',
+    assignedToRole: 'Herdsman',
+    target: {
+      enabled: true,
+      targetValue: 10,
+      currentValue: 10,
+      unit: 'rams/bucks',
+    },
+    dueDate: '2026-10-09',
+    dueTime: '11:00',
+    reminder: {
+      enabled: false,
+      audience: 'assigned_only',
+      timing: 'on_due_date',
+      isAcknowledged: true,
+    },
+    createdByUserId: 'user-admin-1',
+    createdByUserName: 'Ramesh Patel (Farm Owner)',
+    createdAt: '2026-10-05T08:00:00Z',
+    completedAt: '2026-10-09T12:30:00Z',
+    completedByUserName: 'Suresh Kumar',
+    completionNotes: 'All 10 stud rams trimmed cleanly. Applied copper sulphate spray to two minor heel scrapes.',
+  },
+];
+
 class FarmDatabase {
   private users: User[] = [];
   private farms: Farm[] = [];
+  private globalBreeds: GlobalBreed[] = [];
+  private breedProposals: BreedProposal[] = [];
   private currentUser: User | null = null;
   private currentFarmId: string | null = null;
   private listeners: Array<() => void> = [];
@@ -163,6 +618,7 @@ class FarmDatabase {
         this.farms = parsed.map(f => ({
           ...f,
           financialRecords: f.financialRecords && f.financialRecords.length > 0 ? f.financialRecords : [...DEFAULT_FINANCIAL_RECORDS],
+          tasks: f.tasks && f.tasks.length > 0 ? f.tasks : (f.id === 'FARM-7821' ? [...INITIAL_FARM_TASKS] : []),
         }));
       } else {
         // Initial setup
@@ -170,6 +626,7 @@ class FarmDatabase {
           ...f,
           config: { ...DEFAULT_FARM_CONFIG },
           financialRecords: [...DEFAULT_FINANCIAL_RECORDS],
+          tasks: f.id === 'FARM-7821' ? [...INITIAL_FARM_TASKS] : [],
         }));
       }
 
@@ -199,6 +656,22 @@ class FarmDatabase {
         };
       });
 
+      // Global Breeds
+      const savedBreeds = localStorage.getItem(STORAGE_GLOBAL_BREEDS_KEY);
+      if (savedBreeds) {
+        this.globalBreeds = JSON.parse(savedBreeds);
+      } else {
+        this.globalBreeds = [...DEFAULT_GLOBAL_BREEDS];
+      }
+
+      // Breed Proposals
+      const savedProposals = localStorage.getItem(STORAGE_BREED_PROPOSALS_KEY);
+      if (savedProposals) {
+        this.breedProposals = JSON.parse(savedProposals);
+      } else {
+        this.breedProposals = [...DEFAULT_BREED_PROPOSALS];
+      }
+
       const savedCurrUser = localStorage.getItem(STORAGE_CURRENT_USER_KEY);
       if (savedCurrUser) {
         this.currentUser = JSON.parse(savedCurrUser);
@@ -212,6 +685,8 @@ class FarmDatabase {
       console.error('Database load error:', e);
       this.users = [...DEFAULT_USERS];
       this.farms = [...INITIAL_FARMS];
+      this.globalBreeds = [...DEFAULT_GLOBAL_BREEDS];
+      this.breedProposals = [...DEFAULT_BREED_PROPOSALS];
     }
   }
 
@@ -219,6 +694,8 @@ class FarmDatabase {
     try {
       localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(this.users));
       localStorage.setItem(STORAGE_FARMS_KEY, JSON.stringify(this.farms));
+      localStorage.setItem(STORAGE_GLOBAL_BREEDS_KEY, JSON.stringify(this.globalBreeds));
+      localStorage.setItem(STORAGE_BREED_PROPOSALS_KEY, JSON.stringify(this.breedProposals));
       if (this.currentUser) {
         localStorage.setItem(STORAGE_CURRENT_USER_KEY, JSON.stringify(this.currentUser));
       } else {
@@ -253,14 +730,19 @@ class FarmDatabase {
     if (!target) return false;
     const cleanId = (target.identifier || '').replace(/\D/g, '');
     const cleanPhone = (target.phone || '').replace(/\D/g, '');
+    const cleanEmail = (target.email || '').toLowerCase().trim();
+    const cleanIdent = (target.identifier || '').toLowerCase().trim();
     return (
       !!target.isSuperAdmin ||
       cleanId === '9999999999' ||
       cleanId.endsWith('9999999999') ||
       cleanPhone === '9999999999' ||
       cleanPhone.endsWith('9999999999') ||
-      target.identifier.toLowerCase() === 'admin@farmtrack.io' ||
-      target.id === 'user-superadmin-1'
+      cleanIdent === 'admin@farmtrack.io' ||
+      cleanIdent === 'madhusav@gmail.com' ||
+      cleanEmail === 'madhusav@gmail.com' ||
+      target.id === 'user-superadmin-1' ||
+      target.id === 'user-superadmin-madhu'
     );
   }
 
@@ -311,6 +793,7 @@ class FarmDatabase {
       return existing;
     }
 
+    const savedLang = typeof window !== 'undefined' ? localStorage.getItem('farmtrack_user_lang_v1') || 'en' : 'en';
     const newUser: User = {
       id: `usr-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       name: name.trim(),
@@ -318,12 +801,20 @@ class FarmDatabase {
       authType,
       phone: authType === 'phone' ? identifier.trim() : undefined,
       email: authType === 'email' ? identifier.trim() : undefined,
+      preferredLanguage: savedLang,
       createdAt: new Date().toISOString()
     };
 
     this.users.push(newUser);
     this.currentUser = newUser;
     this.saveToStorage();
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(`farmtrack_user_lang_${newUser.id}`, savedLang);
+      } catch (e) {
+        console.error(e);
+      }
+    }
     return newUser;
   }
 
@@ -354,11 +845,36 @@ class FarmDatabase {
     }
 
     if (user) {
+      if (typeof window !== 'undefined') {
+        const storedUserLang = localStorage.getItem(`farmtrack_user_lang_${user.id}`);
+        if (storedUserLang && !user.preferredLanguage) {
+          user.preferredLanguage = storedUserLang;
+        }
+      }
       this.currentUser = user;
       this.saveToStorage();
       return user;
     }
     return null;
+  }
+
+  public updateUserLanguage(userId: string, lang: string): void {
+    const user = this.users.find(u => u.id === userId);
+    if (user) {
+      user.preferredLanguage = lang;
+    }
+    if (this.currentUser && this.currentUser.id === userId) {
+      this.currentUser.preferredLanguage = lang;
+    }
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(`farmtrack_user_lang_${userId}`, lang);
+        localStorage.setItem('farmtrack_user_lang_v1', lang);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    this.saveToStorage();
   }
 
   public logoutUser() {
@@ -1089,6 +1605,167 @@ class FarmDatabase {
     return true;
   }
 
+  // ==================== FARM TO-DO TASKS & TARGETS ====================
+
+  public getFarmTasks(farmId: string): FarmTask[] {
+    const farm = this.farms.find(f => f.id === farmId);
+    if (!farm || !farm.tasks) return [];
+    return [...farm.tasks];
+  }
+
+  public getFarmTask(farmId: string, taskId: string): FarmTask | undefined {
+    const farm = this.farms.find(f => f.id === farmId);
+    if (!farm || !farm.tasks) return undefined;
+    return farm.tasks.find(t => t.id === taskId);
+  }
+
+  public addFarmTask(farmId: string, taskData: Omit<FarmTask, 'id' | 'createdAt' | 'farmId'>): FarmTask {
+    if (!this.canUserAccessFarm(farmId)) throw new Error('Tenant Access Denied: Unauthorized operation.');
+    const farm = this.farms.find(f => f.id === farmId);
+    if (!farm) throw new Error(`Farm with ID ${farmId} not found`);
+
+    const newTask: FarmTask = {
+      ...taskData,
+      id: `task-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`,
+      farmId,
+      createdAt: new Date().toISOString(),
+    };
+
+    farm.tasks = [newTask, ...(farm.tasks || [])];
+    this.saveToStorage();
+    return newTask;
+  }
+
+  public updateFarmTask(farmId: string, taskId: string, updates: Partial<FarmTask>): FarmTask {
+    if (!this.canUserAccessFarm(farmId)) throw new Error('Tenant Access Denied: Unauthorized operation.');
+    const farm = this.farms.find(f => f.id === farmId);
+    if (!farm || !farm.tasks) throw new Error('Farm tasks not found');
+
+    const index = farm.tasks.findIndex(t => t.id === taskId);
+    if (index === -1) throw new Error(`Task with ID ${taskId} not found`);
+
+    const existing = farm.tasks[index];
+    const updated: FarmTask = {
+      ...existing,
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+
+    farm.tasks[index] = updated;
+    this.saveToStorage();
+    return updated;
+  }
+
+  public deleteFarmTask(farmId: string, taskId: string): boolean {
+    if (!this.canUserAccessFarm(farmId)) throw new Error('Tenant Access Denied: Unauthorized operation.');
+    const farm = this.farms.find(f => f.id === farmId);
+    if (!farm || !farm.tasks) return false;
+
+    const initialLen = farm.tasks.length;
+    farm.tasks = farm.tasks.filter(t => t.id !== taskId);
+    const deleted = farm.tasks.length < initialLen;
+    if (deleted) {
+      this.saveToStorage();
+    }
+    return deleted;
+  }
+
+  public updateTaskTargetProgress(farmId: string, taskId: string, currentValue: number): FarmTask {
+    const farm = this.farms.find(f => f.id === farmId);
+    if (!farm || !farm.tasks) throw new Error('Farm tasks not found');
+
+    const index = farm.tasks.findIndex(t => t.id === taskId);
+    if (index === -1) throw new Error(`Task with ID ${taskId} not found`);
+
+    const task = farm.tasks[index];
+    if (!task.target) {
+      throw new Error('Task does not have numeric target enabled');
+    }
+
+    const safeVal = Math.max(0, currentValue);
+    const isCompleted = safeVal >= task.target.targetValue;
+
+    const updated: FarmTask = {
+      ...task,
+      target: {
+        ...task.target,
+        currentValue: safeVal,
+      },
+      status: isCompleted ? 'completed' : (safeVal > 0 ? 'in_progress' : task.status),
+      completedAt: isCompleted ? new Date().toISOString() : undefined,
+      updatedAt: new Date().toISOString(),
+    };
+
+    farm.tasks[index] = updated;
+    this.saveToStorage();
+    return updated;
+  }
+
+  public getDueRemindersForUser(farmId: string, user: User): FarmTask[] {
+    const farm = this.farms.find(f => f.id === farmId);
+    if (!farm || !farm.tasks) return [];
+
+    const isAdmin = this.isSuperAdmin(user) || 
+      farm.adminUserId === user.id || 
+      farm.members.some(m => m.userId === user.id && (m.role === 'Admin' || m.role === 'Super Admin' || m.role === 'Support Admin'));
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayMs = new Date(todayStr).getTime();
+
+    return farm.tasks.filter(task => {
+      if (task.status === 'completed' || task.status === 'cancelled') return false;
+      if (!task.reminder || !task.reminder.enabled) return false;
+      if (task.reminder.isAcknowledged) return false;
+
+      // Audience check
+      const aud = task.reminder.audience;
+      let audienceMatches = false;
+      if (aud === 'all_members') {
+        audienceMatches = true;
+      } else if (aud === 'admins_only') {
+        audienceMatches = isAdmin;
+      } else if (aud === 'assigned_only') {
+        audienceMatches = (task.assignedToUserId === user.id) || 
+          (Boolean(task.assignedToRole) && farm.members.some(m => m.userId === user.id && m.role === task.assignedToRole)) ||
+          isAdmin;
+      }
+
+      if (!audienceMatches) return false;
+
+      // Date check
+      const dueMs = new Date(task.dueDate).getTime();
+      const diffDays = Math.round((dueMs - todayMs) / (1000 * 60 * 60 * 24));
+
+      // Overdue tasks are always active reminders!
+      if (diffDays <= 0) return true;
+
+      // Timing rule
+      if (task.reminder.timing === 'on_due_date') {
+        return diffDays === 0;
+      } else if (task.reminder.timing === '1_day_before') {
+        return diffDays <= 1;
+      } else if (task.reminder.timing === '2_days_before') {
+        return diffDays <= 2;
+      } else if (task.reminder.timing === '1_week_before') {
+        return diffDays <= 7;
+      } else if (task.reminder.timing === 'custom' && task.reminder.reminderDate) {
+        return new Date(task.reminder.reminderDate).getTime() <= (todayMs + 24 * 60 * 60 * 1000);
+      }
+
+      return false;
+    });
+  }
+
+  public acknowledgeReminder(farmId: string, taskId: string): void {
+    const farm = this.farms.find(f => f.id === farmId);
+    if (!farm || !farm.tasks) return;
+    const task = farm.tasks.find(t => t.id === taskId);
+    if (task && task.reminder) {
+      task.reminder.isAcknowledged = true;
+      this.saveToStorage();
+    }
+  }
+
   // ==================== MYSQL DATABASE EXPORT ====================
 
   /**
@@ -1191,6 +1868,19 @@ class FarmDatabase {
           );
         }
       }
+
+      // Farm Tasks & Reminders
+      if (f.tasks) {
+        lines.push('-- Table: farm_tasks');
+        for (const t of f.tasks) {
+          lines.push(
+            `INSERT INTO \`farm_tasks\` (\`id\`, \`farm_id\`, \`title\`, \`description\`, \`species\`, \`category\`, \`priority\`, \`status\`, \`assigned_to_user_id\`, \`assigned_to_name\`, \`due_date\`, \`target_value\`, \`current_value\`, \`target_unit\`, \`reminder_audience\`, \`reminder_timing\`, \`created_at\`) VALUES ` +
+            `(${this.sqlStr(t.id)}, ${this.sqlStr(f.id)}, ${this.sqlStr(t.title)}, ${this.sqlStr(t.description || '')}, ${this.sqlStr(t.species)}, ${this.sqlStr(t.category)}, ${this.sqlStr(t.priority)}, ${this.sqlStr(t.status)}, ` +
+            `${this.sqlStr(t.assignedToUserId || '')}, ${this.sqlStr(t.assignedToName || '')}, ${this.sqlStr(t.dueDate)}, ${t.target?.targetValue || 0}, ${t.target?.currentValue || 0}, ${this.sqlStr(t.target?.unit || '')}, ` +
+            `${this.sqlStr(t.reminder.audience)}, ${this.sqlStr(t.reminder.timing)}, ${this.sqlStr(t.createdAt)});`
+          );
+        }
+      }
     }
 
     lines.push('\nSET FOREIGN_KEY_CHECKS = 1;');
@@ -1202,6 +1892,167 @@ class FarmDatabase {
     if (val === undefined || val === null) return 'NULL';
     const s = String(val).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     return `'${s}'`;
+  }
+
+  // ==================== GLOBAL BREEDS & PROPOSALS ====================
+
+  public getGlobalBreeds(species?: Species): GlobalBreed[] {
+    if (!species) return [...this.globalBreeds];
+    return this.globalBreeds.filter(b => b.species.toLowerCase() === species.toLowerCase());
+  }
+
+  public getBreedNames(species: Species): string[] {
+    const matched = this.globalBreeds
+      .filter(b => b.species.toLowerCase() === species.toLowerCase())
+      .map(b => b.name);
+    return Array.from(new Set(matched));
+  }
+
+  public getBreedProposals(farmId?: string): BreedProposal[] {
+    if (!farmId) return [...this.breedProposals];
+    return this.breedProposals.filter(p => p.proposedByFarmId === farmId);
+  }
+
+  public getPendingBreedProposalsCount(): number {
+    return this.breedProposals.filter(p => p.status === 'pending').length;
+  }
+
+  public submitBreedProposal(data: {
+    species: Species;
+    breedName: string;
+    originRegion?: string;
+    primaryPurpose?: BreedProposal['primaryPurpose'];
+    characteristics?: string;
+    averageMatureWeightKg?: number;
+    proposedByFarmId: string;
+    proposedByFarmName: string;
+    proposedByUserId: string;
+    proposedByUserName: string;
+  }): BreedProposal {
+    const newProposal: BreedProposal = {
+      id: `prop-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`,
+      species: data.species,
+      breedName: data.breedName.trim(),
+      originRegion: data.originRegion?.trim(),
+      primaryPurpose: data.primaryPurpose,
+      characteristics: data.characteristics?.trim(),
+      averageMatureWeightKg: data.averageMatureWeightKg,
+      proposedByFarmId: data.proposedByFarmId,
+      proposedByFarmName: data.proposedByFarmName,
+      proposedByUserId: data.proposedByUserId,
+      proposedByUserName: data.proposedByUserName,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    };
+
+    this.breedProposals = [newProposal, ...this.breedProposals];
+    this.saveToStorage();
+    return newProposal;
+  }
+
+  public approveBreedProposal(
+    proposalId: string, 
+    reviewerUser: User, 
+    overrides?: { breedName?: string; characteristics?: string; adminNotes?: string }
+  ): { proposal: BreedProposal; breed: GlobalBreed } {
+    const propIndex = this.breedProposals.findIndex(p => p.id === proposalId);
+    if (propIndex === -1) {
+      throw new Error(`Proposal with ID ${proposalId} not found`);
+    }
+
+    const proposal = this.breedProposals[propIndex];
+    const finalBreedName = (overrides?.breedName || proposal.breedName).trim();
+    const finalCharacteristics = (overrides?.characteristics || proposal.characteristics || '').trim();
+
+    // 1. Create or update in Global Breeds
+    const existingBreed = this.globalBreeds.find(
+      b => b.species.toLowerCase() === proposal.species.toLowerCase() &&
+           b.name.toLowerCase() === finalBreedName.toLowerCase()
+    );
+
+    let createdOrUpdatedBreed: GlobalBreed;
+    if (existingBreed) {
+      existingBreed.characteristics = finalCharacteristics || existingBreed.characteristics;
+      existingBreed.originRegion = proposal.originRegion || existingBreed.originRegion;
+      existingBreed.primaryPurpose = proposal.primaryPurpose || existingBreed.primaryPurpose;
+      createdOrUpdatedBreed = existingBreed;
+    } else {
+      createdOrUpdatedBreed = {
+        id: `breed-${proposal.species.toLowerCase()}-${Date.now()}`,
+        species: proposal.species,
+        name: finalBreedName,
+        originRegion: proposal.originRegion,
+        primaryPurpose: proposal.primaryPurpose,
+        characteristics: finalCharacteristics,
+        averageMatureWeightKg: proposal.averageMatureWeightKg,
+        isSystemDefault: false,
+        addedFromProposalId: proposal.id,
+        createdAt: new Date().toISOString(),
+      };
+      this.globalBreeds.push(createdOrUpdatedBreed);
+    }
+
+    // 2. Mark proposal as approved
+    const updatedProposal: BreedProposal = {
+      ...proposal,
+      breedName: finalBreedName,
+      characteristics: finalCharacteristics,
+      status: 'approved',
+      adminNotes: overrides?.adminNotes || 'Approved and published to universal flock breed registry.',
+      reviewedAt: new Date().toISOString(),
+      reviewedBy: reviewerUser.name || 'System Admin',
+    };
+
+    this.breedProposals[propIndex] = updatedProposal;
+    this.saveToStorage();
+
+    return { proposal: updatedProposal, breed: createdOrUpdatedBreed };
+  }
+
+  public rejectBreedProposal(
+    proposalId: string, 
+    reviewerUser: User, 
+    reason: string
+  ): BreedProposal {
+    const propIndex = this.breedProposals.findIndex(p => p.id === proposalId);
+    if (propIndex === -1) {
+      throw new Error(`Proposal with ID ${proposalId} not found`);
+    }
+
+    const proposal = this.breedProposals[propIndex];
+    const updatedProposal: BreedProposal = {
+      ...proposal,
+      status: 'rejected',
+      rejectionReason: reason.trim() || 'Declined during system admin verification.',
+      reviewedAt: new Date().toISOString(),
+      reviewedBy: reviewerUser.name || 'System Admin',
+    };
+
+    this.breedProposals[propIndex] = updatedProposal;
+    this.saveToStorage();
+    return updatedProposal;
+  }
+
+  public addGlobalBreedDirectly(data: Omit<GlobalBreed, 'id' | 'createdAt'>): GlobalBreed {
+    const newBreed: GlobalBreed = {
+      ...data,
+      id: `breed-${data.species.toLowerCase()}-${Date.now()}`,
+      name: data.name.trim(),
+      createdAt: new Date().toISOString(),
+    };
+    this.globalBreeds.push(newBreed);
+    this.saveToStorage();
+    return newBreed;
+  }
+
+  public deleteGlobalBreed(breedId: string): boolean {
+    const initialLen = this.globalBreeds.length;
+    this.globalBreeds = this.globalBreeds.filter(b => b.id !== breedId);
+    const deleted = this.globalBreeds.length < initialLen;
+    if (deleted) {
+      this.saveToStorage();
+    }
+    return deleted;
   }
 
   // ==================== RESET / CLEAR ====================
@@ -1216,8 +2067,11 @@ class FarmDatabase {
     this.users = [...DEFAULT_USERS];
     this.farms = INITIAL_FARMS.map(f => ({
       ...f,
-      config: { ...DEFAULT_FARM_CONFIG }
+      config: { ...DEFAULT_FARM_CONFIG },
+      tasks: f.id === 'FARM-7821' ? [...INITIAL_FARM_TASKS] : [],
     }));
+    this.globalBreeds = [...DEFAULT_GLOBAL_BREEDS];
+    this.breedProposals = [...DEFAULT_BREED_PROPOSALS];
     this.currentFarmId = this.farms[0]?.id || null;
     this.saveToStorage();
   }

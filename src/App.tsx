@@ -12,6 +12,7 @@ import {
   VaccineAlert,
   isVaccineManager,
   FinancialRecord,
+  FarmTask,
 } from './types';
 import { db } from './services/db';
 import { LandingPage } from './components/LandingPage';
@@ -30,8 +31,13 @@ import { VaccineAlertNotificationModal } from './components/VaccineAlertNotifica
 import { ReportsView } from './components/ReportsView';
 import { FinancialLedgerModal } from './components/FinancialLedgerModal';
 import { OfflineIndicator } from './components/OfflineIndicator';
+import { SystemAdminDashboardModal } from './components/SystemAdminDashboardModal';
+import { FarmTasksModal } from './components/FarmTasksModal';
+import { DEFAULT_USERS } from './data/initialData';
+import { useLanguage } from './i18n/LanguageContext';
 
 export function App() {
+  const { syncUserLanguage, setLang } = useLanguage();
   // Database reactive states
   const [users, setUsers] = useState<User[]>(() => db.getUsers());
   const [farms, setFarms] = useState<Farm[]>(() => db.getFarms());
@@ -49,9 +55,12 @@ export function App() {
   const [bulkModalSpecies, setBulkModalSpecies] = useState<Species | undefined>(undefined);
   const [showSpeciesModal, setShowSpeciesModal] = useState(false);
   const [showVaccineAlertsModal, setShowVaccineAlertsModal] = useState(false);
+  const [showTasksModal, setShowTasksModal] = useState(false);
+  const [tasksModalFilter, setTasksModalFilter] = useState<'all' | 'sheep' | 'goat' | 'targets' | 'reminders' | 'my_tasks' | 'completed'>('all');
   const [showLedgerModal, setShowLedgerModal] = useState(false);
+  const [showSystemAdminModal, setShowSystemAdminModal] = useState(false);
   const [selectedAnimal, setSelectedAnimal] = useState<Animal | null>(null);
-  const [adminModalTab, setAdminModalTab] = useState<'team' | 'vaccines' | 'farm' | 'database'>('team');
+  const [adminModalTab, setAdminModalTab] = useState<'team' | 'vaccines' | 'farm' | 'breeds' | 'database'>('team');
 
   // Configured Application Name (Default: Testing)
   const appName = currentFarm?.config?.appName || db.getAppName() || 'Testing';
@@ -89,12 +98,15 @@ export function App() {
     currentFarm.members.some(m => m.userId === currentUser.id && m.status === 'active')
   );
 
-  // Active vaccine due notifications
+  // Active vaccine due notifications & sheep/goat tasks
   const alerts: VaccineAlert[] = currentFarm ? db.getVaccineAlerts(currentFarm.id) : [];
+  const farmTasks: FarmTask[] = currentFarm ? db.getFarmTasks(currentFarm.id) : [];
+  const dueReminders: FarmTask[] = (currentFarm && currentUser) ? db.getDueRemindersForUser(currentFarm.id, currentUser) : [];
 
   // When user logs in
   const handleLogin = (user: User) => {
     db.setCurrentUser(user);
+    syncUserLanguage(user.preferredLanguage, user.id);
     if (db.isSuperAdmin(user)) {
       const allFarms = db.getAllTenantsForSuperAdmin();
       if (allFarms.length > 0) {
@@ -119,12 +131,14 @@ export function App() {
   };
 
   const handleRegister = (newUser: User) => {
-    db.registerUser(newUser.name, newUser.identifier, newUser.authType);
+    const registered = db.registerUser(newUser.name, newUser.identifier, newUser.authType);
+    syncUserLanguage(registered.preferredLanguage, registered.id);
     setShowFarmSelectionModal(true);
   };
 
   const handleLogout = () => {
     db.logoutUser();
+    setLang('en');
     setSelectedAnimal(null);
     setShowFarmSelectionModal(false);
     setShowTeamModal(false);
@@ -320,6 +334,36 @@ export function App() {
     }
   };
 
+  const handleAddTask = (taskData: Omit<FarmTask, 'id' | 'createdAt' | 'farmId'>) => {
+    if (!currentFarm) return;
+    db.addFarmTask(currentFarm.id, taskData);
+  };
+
+  const handleUpdateTask = (taskId: string, updates: Partial<FarmTask>) => {
+    if (!currentFarm) return;
+    db.updateFarmTask(currentFarm.id, taskId, updates);
+  };
+
+  const handleDeleteTask = (taskId: string) => {
+    if (!currentFarm) return;
+    db.deleteFarmTask(currentFarm.id, taskId);
+  };
+
+  const handleUpdateTargetProgress = (taskId: string, currentValue: number) => {
+    if (!currentFarm) return;
+    db.updateTaskTargetProgress(currentFarm.id, taskId, currentValue);
+  };
+
+  const handleAcknowledgeReminder = (taskId: string) => {
+    if (!currentFarm) return;
+    db.acknowledgeReminder(currentFarm.id, taskId);
+  };
+
+  const openTasksModal = (filter: 'all' | 'sheep' | 'goat' | 'targets' | 'reminders' | 'my_tasks' | 'completed' = 'all') => {
+    setTasksModalFilter(filter);
+    setShowTasksModal(true);
+  };
+
   const handleResetStarterData = () => {
     db.resetToStarterData();
   };
@@ -388,8 +432,13 @@ export function App() {
         }}
         onOpenSpeciesModal={() => setShowSpeciesModal(true)}
         onOpenVaccineAlertsModal={() => setShowVaccineAlertsModal(true)}
+        onOpenTasksModal={openTasksModal}
         onOpenLedger={() => setShowLedgerModal(true)}
+        onOpenSystemAdmin={() => setShowSystemAdminModal(true)}
         vaccineAlertsCount={alerts.length}
+        tasksCount={farmTasks.filter(t => t.status !== 'completed').length}
+        dueRemindersCount={dueReminders.length}
+        pendingBreedProposalsCount={db.getPendingBreedProposalsCount()}
         onLogout={handleLogout}
       />
 
@@ -409,6 +458,7 @@ export function App() {
             onDeleteAnimal={handleDeleteAnimal}
             onBatchDeleteAnimals={handleBatchDeleteAnimals}
             onOpenVaccineAlerts={() => setShowVaccineAlertsModal(true)}
+            onOpenTasksModal={openTasksModal}
             onUpdateAnimal={handleUpdateAnimal}
             onBulkAddVaccine={handleBulkAddVaccine}
           />
@@ -553,6 +603,40 @@ export function App() {
           onUpdateFarmConfig={handleUpdateFarmConfig}
           onResetStarterData={handleResetStarterData}
           onClearFarmData={handleClearFarmData}
+          onOpenSystemAdmin={() => {
+            setShowTeamModal(false);
+            setShowSystemAdminModal(true);
+          }}
+        />
+      )}
+
+      {/* Global System Admin Dashboard (Breed Approval & Universal Catalog Authority) */}
+      {showSystemAdminModal && currentUser && (
+        <SystemAdminDashboardModal
+          currentUser={currentUser}
+          onClose={() => setShowSystemAdminModal(false)}
+          onSwitchToSystemAdmin={() => {
+            const adminUser = users.find(u => u.identifier.toLowerCase() === 'madhusav@gmail.com') ||
+              DEFAULT_USERS.find(u => u.identifier.toLowerCase() === 'madhusav@gmail.com') ||
+              DEFAULT_USERS[0];
+            db.setCurrentUser(adminUser);
+            setCurrentUser(adminUser);
+          }}
+        />
+      )}
+
+      {/* Sheep & Goat Farm Tasks, Targets & Reminders Modal */}
+      {showTasksModal && currentFarm && currentUser && (
+        <FarmTasksModal
+          farm={currentFarm}
+          currentUser={currentUser}
+          initialFilter={tasksModalFilter}
+          onClose={() => setShowTasksModal(false)}
+          onAddTask={handleAddTask}
+          onUpdateTask={handleUpdateTask}
+          onDeleteTask={handleDeleteTask}
+          onUpdateTargetProgress={handleUpdateTargetProgress}
+          onAcknowledgeReminder={handleAcknowledgeReminder}
         />
       )}
 

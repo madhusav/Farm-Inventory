@@ -37,6 +37,39 @@ export function isVaccineManager(role?: UserRole | null, isAdmin?: boolean): boo
   return role === 'Super Admin' || role === 'Admin' || role === 'Support Admin';
 }
 
+export interface BreedProposal {
+  id: string;
+  species: Species; // 'Goat' | 'Sheep'
+  breedName: string;
+  originRegion?: string;
+  primaryPurpose?: 'Meat' | 'Milk' | 'Dual Purpose (Meat & Milk)' | 'Wool & Fiber' | 'Draft / Multi-purpose';
+  characteristics?: string;
+  averageMatureWeightKg?: number;
+  proposedByFarmId: string;
+  proposedByFarmName: string;
+  proposedByUserId: string;
+  proposedByUserName: string;
+  status: 'pending' | 'approved' | 'rejected';
+  rejectionReason?: string;
+  adminNotes?: string;
+  createdAt: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
+}
+
+export interface GlobalBreed {
+  id: string;
+  species: Species;
+  name: string;
+  originRegion?: string;
+  primaryPurpose?: string;
+  characteristics?: string;
+  averageMatureWeightKg?: number;
+  isSystemDefault?: boolean;
+  addedFromProposalId?: string;
+  createdAt: string;
+}
+
 export interface FarmConfig {
   appName?: string; // Configurable application name (default: 'Testing')
   vaccineAlertDaysThreshold: number; // e.g. 7 days before due date
@@ -72,6 +105,7 @@ export interface User {
   phone?: string;
   email?: string;
   avatar?: string;
+  preferredLanguage?: string; // persisted user language preference ('en', 'hi', etc.)
   isSuperAdmin?: boolean;
   createdAt: string;
 }
@@ -212,6 +246,72 @@ export interface FinancialRecord {
   createdAt: string;
 }
 
+export type TaskCategory = 
+  | 'Shearing' 
+  | 'Deworming' 
+  | 'Hoof Trimming' 
+  | 'Vaccination' 
+  | 'Dipping & Bath' 
+  | 'Weight Check' 
+  | 'Breeding & Mating' 
+  | 'Feeding & Fodder' 
+  | 'Pen & Shed Care' 
+  | 'General';
+
+export type TaskPriority = 'Low' | 'Medium' | 'High' | 'Urgent';
+
+export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
+
+export type TaskReminderAudience = 'all_members' | 'admins_only' | 'assigned_only';
+
+export type TaskReminderTiming = 
+  | 'on_due_date' 
+  | '1_day_before' 
+  | '2_days_before' 
+  | '1_week_before' 
+  | 'custom';
+
+export interface FarmTaskTarget {
+  enabled: boolean;
+  targetValue: number;
+  currentValue: number;
+  unit: string; // e.g. 'sheep', 'goats', 'animals', 'kg wool', 'kg feed', 'pens', 'doses'
+}
+
+export interface FarmTaskReminder {
+  enabled: boolean;
+  audience: TaskReminderAudience;
+  timing: TaskReminderTiming;
+  reminderDate?: string;
+  customNote?: string;
+  isAcknowledged?: boolean;
+}
+
+export interface FarmTask {
+  id: string;
+  farmId: string;
+  title: string;
+  description?: string;
+  species: 'Sheep' | 'Goat' | 'Both' | 'General';
+  category: TaskCategory;
+  priority: TaskPriority;
+  status: TaskStatus;
+  assignedToUserId?: string;
+  assignedToName?: string;
+  assignedToRole?: UserRole | 'All Members';
+  target?: FarmTaskTarget;
+  dueDate: string; // YYYY-MM-DD
+  dueTime?: string; // e.g. '09:00'
+  reminder: FarmTaskReminder;
+  createdByUserId: string;
+  createdByUserName: string;
+  createdAt: string;
+  updatedAt?: string;
+  completedAt?: string;
+  completedByUserName?: string;
+  completionNotes?: string;
+}
+
 export interface Farm {
   id: string; // unique farm ID (e.g. FARM-7821)
   name: string;
@@ -228,6 +328,8 @@ export interface Farm {
   healthRecords: HealthRecord[];
   milkLogs?: MilkYieldLog[];
   financialRecords?: FinancialRecord[];
+  tasks?: FarmTask[];
   config?: FarmConfig;
   createdAt: string;
 }
+

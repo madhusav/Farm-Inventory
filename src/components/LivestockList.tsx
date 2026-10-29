@@ -19,8 +19,10 @@ import {
   X,
   Syringe,
   Check,
-  AlertTriangle
+  AlertTriangle,
+  Target
 } from 'lucide-react';
+import { FarmTasksBanner } from './FarmTasksBanner';
 
 interface LivestockListProps {
   farm: Farm;
@@ -32,6 +34,7 @@ interface LivestockListProps {
   onDeleteAnimal: (animalId: string) => void;
   onBatchDeleteAnimals?: (animalIds: string[]) => void;
   onOpenVaccineAlerts?: () => void;
+  onOpenTasksModal?: (filter?: any) => void;
   onUpdateAnimal?: (animalId: string, updates: Partial<Animal>) => void;
   onBulkAddVaccine?: (animalIds: string[], vacData: Omit<VaccinationRecord, 'id' | 'animalId'>) => void;
 }
@@ -69,6 +72,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({
   onDeleteAnimal,
   onBatchDeleteAnimals,
   onOpenVaccineAlerts,
+  onOpenTasksModal,
   onUpdateAnimal,
   onBulkAddVaccine,
 }) => {
@@ -283,14 +287,14 @@ export const LivestockList: React.FC<LivestockListProps> = ({
           </div>
         </div>
 
-        {/* Action Grid (Responsive on Mobile & Tablet: 2x2 grid on mobile, 4 columns on desktop) */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {/* Action Grid (Responsive on Mobile & Tablet: 2 or 3 or 5 columns on desktop) */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
           <button
             onClick={onOpenAddModal}
             className="w-full min-h-[44px] px-2.5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-98 transition-all"
           >
             <Plus className="w-4 h-4 shrink-0" />
-            <span>+ Add Animal</span>
+            <span>{t('addAnimal', '+ Add Animal')}</span>
           </button>
 
           <button
@@ -298,7 +302,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({
             className="w-full min-h-[44px] px-2.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-stone-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-98 transition-all"
           >
             <PackagePlus className="w-4 h-4 shrink-0" />
-            <span>📦 Bulk Add</span>
+            <span>{t('addBulk', '📦 Bulk Add')}</span>
           </button>
 
           <button
@@ -312,18 +316,36 @@ export const LivestockList: React.FC<LivestockListProps> = ({
             title="Bulk vaccinate multiple animals"
           >
             <Syringe className="w-4 h-4 shrink-0" />
-            <span>💉 Bulk Vaccine</span>
+            <span>💉 {t('bulkVaccine', 'Bulk Vaccine')}</span>
           </button>
+
+          {onOpenTasksModal && (
+            <button
+              onClick={() => onOpenTasksModal('all')}
+              className="w-full min-h-[44px] px-2.5 py-2 rounded-xl bg-purple-800 hover:bg-purple-900 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-98 transition-all"
+              title="Sheep & Goat Shearing, Deworming, Dipping & Weight Targets"
+            >
+              <Target className="w-4 h-4 shrink-0" />
+              <span>🎯 {t('tasksAndTargets', 'Tasks & Targets')}</span>
+            </button>
+          )}
 
           <button
             onClick={onOpenSpeciesModal}
-            className="w-full min-h-[44px] px-2.5 py-2 rounded-xl border border-stone-300 bg-white hover:bg-stone-100 text-stone-700 font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-98 transition-all"
+            className="w-full min-h-[44px] px-2.5 py-2 rounded-xl border border-stone-300 bg-white hover:bg-stone-100 text-stone-700 font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-98 transition-all col-span-2 sm:col-span-1"
           >
             <Settings className="w-4 h-4 shrink-0 text-stone-600" />
-            <span>⚙️ Farm Setup</span>
+            <span>⚙️ {t('farmSetup', 'Farm Setup')}</span>
           </button>
         </div>
       </div>
+
+      {/* Flock Tasks & Target Reminders Banner */}
+      <FarmTasksBanner
+        farm={farm}
+        currentUser={currentUser}
+        onOpenTasksModal={onOpenTasksModal || (() => {})}
+      />
 
       {/* Vaccine Nearing Alert Notification Banner */}
       {alerts.length > 0 && (
@@ -336,7 +358,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-black text-amber-950">
-                  Vaccine Due ({alerts.length} Animals)
+                  {t('vaccineAlertsTitle', 'Vaccine Due')} ({alerts.length})
                 </span>
                 <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-red-600 text-white">
                   Action
@@ -349,7 +371,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({
           </div>
 
           <span className="px-2.5 py-1.5 rounded-xl bg-amber-800 text-white text-[11px] font-bold shrink-0">
-            View
+            {t('viewDiary', 'View')}
           </span>
         </div>
       )}
@@ -366,7 +388,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({
                 : 'bg-white border border-stone-200 text-stone-700 hover:bg-stone-50'
             }`}
           >
-            🐾 Whole Flock ({farm.animals.length})
+            🐾 {t('wholeFlock', 'Whole Flock')} ({farm.animals.length})
           </button>
 
           {activeFlockSpecies.map(sp => {
@@ -382,7 +404,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({
                     : 'bg-white border border-stone-200 text-stone-700 hover:bg-stone-50'
                 }`}
               >
-                {getSpeciesEmoji(sp)} {sp === 'Goat' ? 'Goats' : 'Sheep'} ({count})
+                {getSpeciesEmoji(sp)} {sp === 'Goat' ? t('goats', 'Goats') : t('sheep', 'Sheep')} ({count})
               </button>
             );
           })}
@@ -396,7 +418,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search tag number, name, or breed..."
+              placeholder={t('searchPlaceholder', 'Search tag number, name, or breed...')}
               className="w-full min-h-[44px] pl-9 pr-3 py-2 rounded-xl border border-stone-300 bg-white text-sm sm:text-xs text-stone-900 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-700"
             />
           </div>
@@ -407,13 +429,13 @@ export const LivestockList: React.FC<LivestockListProps> = ({
               onChange={(e) => setSelectedStatusFilter(e.target.value)}
               className="w-full min-h-[44px] px-3 py-2 rounded-xl border border-stone-300 bg-white text-sm sm:text-xs font-bold text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-700 cursor-pointer"
             >
-              <option value="All">Filter: Whole Flock (All)</option>
-              <option value="Healthy">🟢 Healthy & Fit</option>
-              <option value="VaccineDue">💉 Vaccine Due</option>
-              <option value="BreedingMale">👑 Stud Bucks & Rams (बकरा/मेढ़ा)</option>
-              <option value="YoungKids">🐣 Kids & Lambs (मेमने/बच्चे)</option>
-              <option value="Pregnant">🤰 Pregnant Care</option>
-              <option value="NeedsCare">💊 Needs Medicine / Watch</option>
+              <option value="All">{t('filterAll', 'Filter: Whole Flock (All)')}</option>
+              <option value="Healthy">🟢 {t('healthy', 'Healthy & Fit')}</option>
+              <option value="VaccineDue">💉 {t('vaccineDue', 'Vaccine Due')}</option>
+              <option value="BreedingMale">👑 {t('studBucksRams', 'Stud Bucks & Rams')}</option>
+              <option value="YoungKids">🐣 {t('kidsLambs', 'Kids & Lambs')}</option>
+              <option value="Pregnant">🤰 {t('pregnant', 'Pregnant Care')}</option>
+              <option value="NeedsCare">💊 {t('needsCare', 'Needs Medicine')}</option>
             </select>
           </div>
         </div>
@@ -632,7 +654,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({
                     }}
                     className="flex-1 min-h-[40px] py-2 px-3 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-black flex items-center justify-center gap-1 shadow-2xs cursor-pointer active:scale-98 transition-all"
                   >
-                    <span>View Diary</span>
+                    <span>{t('viewDiary', 'View Diary')}</span>
                     <ChevronRight className="w-4 h-4 shrink-0" />
                   </button>
 
@@ -645,7 +667,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({
                           onClick={(e) => handleConfirmDelete(e, animal.id)}
                           className="min-h-[40px] px-2.5 py-2 rounded-xl bg-red-700 text-white text-xs font-black cursor-pointer"
                         >
-                          Delete
+                          {t('deleteAnimal', 'Delete')}
                         </button>
                         <button
                           type="button"
@@ -655,7 +677,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({
                           }}
                           className="min-h-[40px] px-2.5 py-2 rounded-xl bg-stone-200 text-stone-700 text-xs font-bold cursor-pointer"
                         >
-                          Cancel
+                          {t('cancel', 'Cancel')}
                         </button>
                       </div>
                     ) : (
@@ -663,7 +685,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({
                         type="button"
                         onClick={(e) => handleDeleteClick(e, animal)}
                         className="min-h-[40px] w-10 flex items-center justify-center rounded-xl border border-stone-200 hover:bg-red-50 text-stone-400 hover:text-red-700 transition-colors shrink-0 cursor-pointer"
-                        title="Delete Animal"
+                        title={t('deleteAnimal', 'Delete Animal')}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -692,7 +714,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({
                 onClick={handleClearSelection}
                 className="text-[10px] text-stone-400 hover:text-white cursor-pointer underline leading-none"
               >
-                Deselect
+                {t('clear', 'Clear')}
               </button>
             </div>
           </div>
@@ -707,10 +729,10 @@ export const LivestockList: React.FC<LivestockListProps> = ({
                   ? 'bg-rose-900/80 hover:bg-rose-800 text-rose-100 border border-rose-700/60'
                   : 'bg-stone-800 text-stone-400 border border-stone-700 cursor-not-allowed opacity-60'
               }`}
-              title={isAdmin ? 'Batch Delete Selected Animals' : 'Only Farm Boss can delete animals'}
+              title={isAdmin ? 'Batch Delete Selected Animals' : t('onlyBossCanDelete', 'Only Farm Boss can delete animals')}
             >
               <Trash2 className="w-3.5 h-3.5 text-rose-300" />
-              <span><span className="hidden xs:inline">Batch </span>Delete</span>
+              <span>{t('batchDelete', 'Batch Delete')}</span>
             </button>
 
             {/* Batch Vaccination Button */}
@@ -720,7 +742,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({
               className="px-3 sm:px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black flex items-center gap-1.5 shadow-md cursor-pointer active:scale-95"
             >
               <Syringe className="w-3.5 h-3.5" />
-              <span><span className="hidden xs:inline">Batch </span>Vaccinate</span>
+              <span>{t('batchVaccinate', 'Batch Vaccinate')}</span>
             </button>
           </div>
         </div>

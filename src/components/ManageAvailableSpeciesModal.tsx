@@ -19,15 +19,15 @@ interface PredefinedOption {
 }
 
 const PHASE1_ANIMALS: PredefinedOption[] = [
-  { id: 'Goat', name: 'Goat', icon: '🐐', hindi: 'बकरी (Capra)', desc: 'Sirohi, Jamnapari, Barbari, Boer, Black Bengal meat & milk does/bucks' },
-  { id: 'Sheep', name: 'Sheep', icon: '🐑', hindi: 'भेड़ (Ovis)', desc: 'Deccani, Nellore, Bellary, Mandya, Merino wool & mutton ewes/rams' },
+  { id: 'Goat', name: 'Goat', icon: '🐐', hindi: 'बकरी', desc: 'Sirohi, Jamnapari, Barbari, Boer, Black Bengal meat & milk does/bucks' },
+  { id: 'Sheep', name: 'Sheep', icon: '🐑', hindi: 'भेड़', desc: 'Deccani, Nellore, Bellary, Mandya, Merino wool & mutton ewes/rams' },
 ];
 
 const FUTURE_PHASE_ANIMALS: PredefinedOption[] = [
-  { id: 'Cow', name: 'Dairy Cattle (Cow)', icon: '🐄', hindi: 'गाय (Cattle)', desc: 'Gir, Sahiwal, Jersey dairy cattle (Phase 2)' },
-  { id: 'Buffalo', name: 'Dairy Buffalo', icon: '🐃', hindi: 'भैंस (Buffaloes)', desc: 'Murrah, Mehsana high-fat milk buffaloes (Phase 2)' },
-  { id: 'Chicken', name: 'Poultry (Chicken)', icon: '🐔', hindi: 'मुर्गी (Poultry)', desc: 'Kadaknath, Aseel, BV380 egg layers & broilers (Phase 2)' },
-  { id: 'Duck', name: 'Duck & Waterfowl', icon: '🦆', hindi: 'बतख (Ducks)', desc: 'Khaki Campbell, White Pekin water birds (Phase 2)' },
+  { id: 'Cow', name: 'Dairy Cattle (Cow)', icon: '🐄', hindi: 'गाय', desc: 'Gir, Sahiwal, Jersey dairy cattle (Phase 2)' },
+  { id: 'Buffalo', name: 'Dairy Buffalo', icon: '🐃', hindi: 'भैंस', desc: 'Murrah, Mehsana high-fat milk buffaloes (Phase 2)' },
+  { id: 'Chicken', name: 'Poultry (Chicken)', icon: '🐔', hindi: 'मुर्गी', desc: 'Kadaknath, Aseel, BV380 egg layers & broilers (Phase 2)' },
+  { id: 'Duck', name: 'Duck & Waterfowl', icon: '🦆', hindi: 'बतख', desc: 'Khaki Campbell, White Pekin water birds (Phase 2)' },
 ];
 
 export const ManageAvailableSpeciesModal: React.FC<ManageAvailableSpeciesModalProps> = ({
@@ -36,7 +36,7 @@ export const ManageAvailableSpeciesModal: React.FC<ManageAvailableSpeciesModalPr
   onClose,
   onSaveAvailableSpecies,
 }) => {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const isAdmin = farm.adminUserId === currentUser.id;
 
   const [selectedSpecies, setSelectedSpecies] = useState<Species[]>(
@@ -153,8 +153,7 @@ export const ManageAvailableSpeciesModal: React.FC<ManageAvailableSpeciesModalPr
                       <span className="text-3xl shrink-0 mt-0.5">{item.icon}</span>
                       <div>
                         <div className="text-xs font-black text-stone-900 flex items-center gap-1.5">
-                          <span>{item.name}</span>
-                          <span className="text-[11px] font-medium text-stone-500">({item.hindi})</span>
+                          <span>{lang === 'hi' ? item.hindi : item.name}</span>
                         </div>
                         <p className="text-[11px] text-stone-500 mt-0.5 leading-snug">
                           {item.desc}

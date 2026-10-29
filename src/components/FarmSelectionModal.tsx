@@ -16,6 +16,7 @@ import {
   Users,
   Check
 } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface FarmSelectionModalProps {
   currentUser: User;
@@ -34,6 +35,7 @@ export const FarmSelectionModal: React.FC<FarmSelectionModalProps> = ({
   onRequestJoinFarm,
   onLogout,
 }) => {
+  const { t, localeText } = useLanguage();
   const isSuperAdmin = db.isSuperAdmin(currentUser);
 
   // Farms where current user is already an active member or admin (or all if Super Admin)
@@ -297,7 +299,15 @@ export const FarmSelectionModal: React.FC<FarmSelectionModalProps> = ({
                 <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 text-amber-950 space-y-1">
                   <div className="flex items-center gap-2 font-black text-xs text-amber-900">
                     <span className="text-base">👑</span>
-                    <span>You will be the Farm Boss (Admin / मालिक)</span>
+                    <span>{localeText({
+                      en: 'You will be the Farm Boss (Admin)',
+                      hi: 'आप फार्म के मालिक (Boss) होंगे',
+                      kn: 'ನೀವು ಫಾರ್ಮ್ ಮಾಲೀಕರಾಗುವಿರಿ (Boss)',
+                      te: 'మీరు ఫార్మ్ యజమాని అవుతారు (Boss)',
+                      ta: 'நீங்கள் பண்ணை உரிமையாளராக இருப்பீர்கள் (Boss)',
+                      ml: 'നിങ്ങൾ ഫാം ഉടമയാകും (Boss)',
+                      mr: 'तुम्ही फार्मचे मालक (Boss) व्हाल'
+                    })}</span>
                   </div>
                   <p className="text-xs text-amber-900 leading-relaxed font-medium">
                     As the Farm Boss, you have complete authority to manage sheep & goats, record vaccinations, invite & approve workers, and track the financial ledger.
@@ -307,7 +317,15 @@ export const FarmSelectionModal: React.FC<FarmSelectionModalProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
                     <label className="block text-xs font-black text-stone-700 mb-1">
-                      Farm Name (फ़ार्म का नाम)
+                      {localeText({
+                        en: 'Farm Name',
+                        hi: 'फ़ार्म का नाम',
+                        kn: 'ಫಾರ್ಮ್ ಹೆಸರು',
+                        te: 'ఫార్మ్ పేరు',
+                        ta: 'பண்ணை பெயர்',
+                        ml: 'ഫാം പേര്',
+                        mr: 'फार्मचे नाव'
+                      })}
                     </label>
                     <input
                       type="text"
@@ -321,7 +339,7 @@ export const FarmSelectionModal: React.FC<FarmSelectionModalProps> = ({
 
                   <div>
                     <label className="block text-xs font-black text-stone-700 mb-1">
-                      Unique Farm Code (यूनिक कोड)
+                      {t('farmCode', 'Unique Farm Code')}
                     </label>
                     <input
                       type="text"
@@ -337,7 +355,15 @@ export const FarmSelectionModal: React.FC<FarmSelectionModalProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
                     <label className="block text-xs font-black text-stone-700 mb-1">
-                      Village, District or State (स्थान)
+                      {localeText({
+                        en: 'Village, District or State',
+                        hi: 'स्थान (गाँव, जिला या राज्य)',
+                        kn: 'ಸ್ಥಳ (ಗ್ರಾಮ, ಜಿಲ್ಲೆ ಅಥವಾ ರಾಜ್ಯ)',
+                        te: 'స్థలం (గ్రామం, జిల్లా లేదా రాష్ట్రం)',
+                        ta: 'இடம் (கிராமம், மாவட்டம் அல்லது மாநிலம்)',
+                        ml: 'സ്ഥലം (ഗ്രാമം, ജില്ല അല്ലെങ്കിൽ സംസ്ഥാനം)',
+                        mr: 'ठिकाण (गाव, जिल्हा किंवा राज्य)'
+                      })}
                     </label>
                     <input
                       type="text"
@@ -350,7 +376,15 @@ export const FarmSelectionModal: React.FC<FarmSelectionModalProps> = ({
 
                   <div>
                     <label className="block text-xs font-black text-stone-700 mb-1">
-                      Land Size in Acres (जमीन / एकड़)
+                      {localeText({
+                        en: 'Land Size in Acres',
+                        hi: 'ज़मीन (एकड़ में)',
+                        kn: 'ಭೂಮಿ (ಎಕರೆಗಳಲ್ಲಿ)',
+                        te: 'భూమి (ఎకరాలలో)',
+                        ta: 'நிலம் (ஏக்கரில்)',
+                        ml: 'സ്ഥലം (ഏക്കറിൽ)',
+                        mr: 'जमीन (एकरमध्ये)'
+                      })}
                     </label>
                     <input
                       type="number"
@@ -376,7 +410,7 @@ export const FarmSelectionModal: React.FC<FarmSelectionModalProps> = ({
                   <div className="flex flex-wrap gap-2 mb-2">
                     {(['Goat', 'Sheep'] as Species[]).map(s => {
                       const isSelected = newSpecies.includes(s);
-                      const icon = s === 'Goat' ? '🐐 Goats (बकरी)' : '🐑 Sheep (भेड़)';
+                      const icon = s === 'Goat' ? ('🐐 ' + t('goats', 'Goats')) : ('🐑 ' + t('sheep', 'Sheep'));
                       return (
                         <button
                           key={s}
@@ -423,7 +457,15 @@ export const FarmSelectionModal: React.FC<FarmSelectionModalProps> = ({
                   className="w-full min-h-[48px] py-3.5 px-4 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-black text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
                 >
                   <Crown className="w-5 h-5 text-amber-300" />
-                  <span>Create Farm & Become Boss (मालिक बनें)</span>
+                  <span>{localeText({
+                    en: 'Create Farm & Become Boss',
+                    hi: 'फार्म बनाएं व मालिक बनें',
+                    kn: 'ಫಾರ್ಮ್ ರಚಿಸಿ & ಮಾಲೀಕರಾಗಿ',
+                    te: 'ఫార్మ్ సృష్టించి & యజమాని అవ్వండి',
+                    ta: 'பண்ணை உருவாக்கி & உரிமையாளராகுங்கள்',
+                    ml: 'ഫാം നിർമ്മിച്ച് ഉടമയാവുക',
+                    mr: 'फार्म तयार करा आणि मालक व्हा'
+                  })}</span>
                 </button>
               </form>
             )}

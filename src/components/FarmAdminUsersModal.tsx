@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Farm, User, UserRole, FarmConfig, isVaccineManager } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Farm, User, UserRole, FarmConfig, isVaccineManager, BreedProposal, GlobalBreed, Species } from '../types';
 import { useLanguage } from '../i18n/LanguageContext';
 import { db, DEFAULT_FARM_CONFIG } from '../services/db';
 import { 
@@ -23,13 +23,16 @@ import {
   Milk,
   CheckCircle2,
   MapPin,
-  Navigation
+  Navigation,
+  FileText,
+  ShieldCheck,
+  Plus
 } from 'lucide-react';
 
 interface FarmAdminUsersModalProps {
   farm: Farm;
   currentUser: User;
-  initialTab?: 'team' | 'vaccines' | 'farm' | 'database';
+  initialTab?: 'team' | 'vaccines' | 'farm' | 'breeds' | 'database';
   onClose: () => void;
   onApproveRequest: (requestId: string, assignedRole: UserRole) => void;
   onRejectRequest: (requestId: string) => void;
@@ -40,6 +43,7 @@ interface FarmAdminUsersModalProps {
   onUpdateFarmProfile?: (profileUpdates: Partial<Farm>) => void;
   onResetStarterData?: () => void;
   onClearFarmData?: () => void;
+  onOpenSystemAdmin?: () => void;
 }
 
 export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
@@ -56,15 +60,16 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
   onUpdateFarmProfile,
   onResetStarterData,
   onClearFarmData,
+  onOpenSystemAdmin,
 }) => {
-  const { t } = useLanguage();
-  const isSuperAdmin = currentUser.isSuperAdmin || currentUser.identifier.toLowerCase() === 'admin@farmtrack.io';
+  const { t, lang, localeText } = useLanguage();
+  const isSuperAdmin = db.isSuperAdmin(currentUser);
   const isAdmin = farm.adminUserId === currentUser.id;
   const currentMember = farm.members.find(m => m.userId === currentUser.id);
   const isSupportAdmin = currentMember?.role === 'Support Admin';
   const hasAdminRights = isAdmin || isSupportAdmin || isSuperAdmin;
 
-  const [activeTab, setActiveTab] = useState<'team' | 'vaccines' | 'farm' | 'database'>(initialTab || 'team');
+  const [activeTab, setActiveTab] = useState<'team' | 'vaccines' | 'farm' | 'breeds' | 'database'>(initialTab || 'team');
 
   // Direct user addition form
   const [newUserName, setNewUserName] = useState('');
@@ -97,7 +102,62 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
   const [showSqlPreview, setShowSqlPreview] = useState(false);
   const [sqlDumpContent, setSqlDumpContent] = useState('');
 
+  // Breed Proposals State
+  const [farmProposals, setFarmProposals] = useState<BreedProposal[]>(() => db.getBreedProposals(farm.id));
+  const [globalBreeds, setGlobalBreeds] = useState<GlobalBreed[]>(() => db.getGlobalBreeds());
+  const [propSpecies, setPropSpecies] = useState<Species>('Goat');
+  const [propBreedName, setPropBreedName] = useState('');
+  const [propOrigin, setPropOrigin] = useState('');
+  const [propPurpose, setPropPurpose] = useState<BreedProposal['primaryPurpose']>('Meat');
+  const [propWeight, setPropWeight] = useState('38');
+  const [propTraits, setPropTraits] = useState('');
+  const [propNotice, setPropNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  useEffect(() => {
+    const unsub = db.subscribe(() => {
+      setFarmProposals(db.getBreedProposals(farm.id));
+      setGlobalBreeds(db.getGlobalBreeds());
+    });
+    return () => unsub();
+  }, [farm.id]);
+
+  const handleBreedProposalSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!propBreedName.trim()) {
+      setPropNotice({ type: 'error', message: 'Please provide the breed name' });
+      return;
+    }
+
+    try {
+      const created = db.submitBreedProposal({
+        species: propSpecies,
+        breedName: propBreedName.trim(),
+        originRegion: propOrigin.trim() || undefined,
+        primaryPurpose: propPurpose,
+        characteristics: propTraits.trim() || undefined,
+        averageMatureWeightKg: parseFloat(propWeight) || undefined,
+        proposedByFarmId: farm.id,
+        proposedByFarmName: farm.name,
+        proposedByUserId: currentUser.id,
+        proposedByUserName: currentUser.name,
+      });
+
+      setPropBreedName('');
+      setPropOrigin('');
+      setPropTraits('');
+      setPropNotice({ 
+        type: 'success', 
+        message: `✓ Proposal for "${created.breedName}" submitted successfully! It is now pending review by the System Admin.` 
+      });
+      setTimeout(() => setPropNotice(null), 5000);
+    } catch (err: any) {
+      setPropNotice({ type: 'error', message: err.message || 'Error submitting proposal' });
+    }
+  };
+
   const pendingRequests = farm.joinRequests.filter(r => r.status === 'pending');
+  const farmPendingBreedProposals = farmProposals.filter(p => p.status === 'pending');
+  const totalPendingProposalsInSystem = db.getPendingBreedProposalsCount();
 
   const handleAddSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -257,30 +317,50 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
         </div>
 
         {/* Tab Bar - Clean horizontal scroll on mobile */}
-        <div className="px-2.5 sm:px-6 bg-stone-50 border-b border-stone-200 flex items-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar">
-          {[
-            { id: 'team', label: '👥 Team & Approvals', badge: pendingRequests.length },
-            { id: 'vaccines', label: '💉 Vaccine Policies' },
-            { id: 'farm', label: '🏡 Farm, Location & App Name' },
-            { id: 'database', label: '🗄️ Database & Export' },
-          ].map(tab => (
+        <div className="px-2.5 sm:px-6 bg-stone-50 border-b border-stone-200 flex items-center justify-between gap-1 sm:gap-2 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-1 sm:gap-2">
+            {[
+              { id: 'team', label: '👥 Team & Approvals', badge: pendingRequests.length },
+              { id: 'breeds', label: '📋 Breed Proposals', badge: farmPendingBreedProposals.length },
+              { id: 'vaccines', label: '💉 Vaccine Policies' },
+              { id: 'farm', label: '🏡 Farm, Location & App Name' },
+              { id: 'database', label: '🗄️ Database & Export' },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs font-bold transition-all border-b-2 flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                  activeTab === tab.id
+                    ? 'border-emerald-800 text-emerald-950 bg-white'
+                    : 'border-transparent text-stone-600 hover:text-stone-900'
+                }`}
+              >
+                <span>{tab.label}</span>
+                {tab.badge && tab.badge > 0 ? (
+                  <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-white text-[10px] font-black">
+                    {tab.badge}
+                  </span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+
+          {onOpenSystemAdmin && (
             <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`px-3 sm:px-4 py-2.5 sm:py-3 text-xs font-bold transition-all border-b-2 flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
-                activeTab === tab.id
-                  ? 'border-emerald-800 text-emerald-950 bg-white'
-                  : 'border-transparent text-stone-600 hover:text-stone-900'
-              }`}
+              type="button"
+              onClick={onOpenSystemAdmin}
+              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 my-1 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-950 text-xs font-black shrink-0 transition-colors cursor-pointer border border-purple-200"
+              title="Open System Admin Dashboard to approve or reject pending breed proposals"
             >
-              <span>{tab.label}</span>
-              {tab.badge && tab.badge > 0 ? (
-                <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-white text-[10px] font-black">
-                  {tab.badge}
+              <ShieldCheck className="w-3.5 h-3.5 text-purple-700" />
+              <span>System Admin View</span>
+              {totalPendingProposalsInSystem > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-purple-700 text-white text-[10px] font-black">
+                  {totalPendingProposalsInSystem}
                 </span>
-              ) : null}
+              )}
             </button>
-          ))}
+          )}
         </div>
 
         {/* Content Body */}
@@ -385,7 +465,15 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
                   <div className="flex items-center gap-2">
                     <UserPlus className="w-4 h-4 text-emerald-800" />
                     <h3 className="text-sm font-black text-stone-900">
-                      Add a Helper Directly (बिना इंतज़ार नया साथी जोड़ें)
+                      {localeText({
+                        en: 'Add a Helper Directly',
+                        hi: 'बिना इंतज़ार नया साथी जोड़ें',
+                        kn: 'ನೇರವಾಗಿ ಸಹಾಯಕನನ್ನು ಸೇರಿಸಿ',
+                        te: 'సహాయకుడిని నేరుగా జోడించండి',
+                        ta: 'நேரடியாக உதவியாளரைச் சேர்க்கவும்',
+                        ml: 'സഹായിയെ നേരിട്ട് ചേർക്കുക',
+                        mr: 'थेट नवीन मदतनीस जोडा',
+                      })}
                     </h3>
                   </div>
 
@@ -405,7 +493,15 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div>
                         <label className="block text-xs font-bold text-stone-700 mb-1">
-                          Helper's Name (साथी का नाम)
+                          {localeText({
+                            en: "Helper's Name",
+                            hi: 'साथी का नाम',
+                            kn: 'ಸಹಾಯಕರ ಹೆಸರು',
+                            te: 'సహాయకుడి పేరు',
+                            ta: 'உதவியாளர் பெயர்',
+                            ml: 'സഹായിയുടെ പേര്',
+                            mr: 'सहकाऱ्याचे नाव',
+                          })}
                         </label>
                         <input
                           type="text"
@@ -433,17 +529,49 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
 
                       <div>
                         <label className="block text-xs font-bold text-stone-700 mb-1">
-                          Role & Permissions (भूमिका)
+                          {localeText({
+                            en: 'Role & Permissions',
+                            hi: 'भूमिका व अनुमति',
+                            kn: 'ಪಾತ್ರ ಮತ್ತು ಅನುಮತಿಗಳು',
+                            te: 'పాత్ర మరియు అనుమతులు',
+                            ta: 'பொறுப்பு & அனுமதிகள்',
+                            ml: 'സ്ഥാനവും അനുമതികളും',
+                            mr: 'भूमिका व परवानग्या',
+                          })}
                         </label>
                         <select
                           value={newUserRole}
                           onChange={(e) => setNewUserRole(e.target.value as UserRole)}
                           className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs bg-white font-bold"
                         >
-                          <option value="Herdsman">Herdsman (गौपालक / Helper)</option>
+                          <option value="Herdsman">{localeText({
+                            en: 'Herdsman (Helper)',
+                            hi: 'गौपालक (Herdsman)',
+                            kn: 'ಪಾಲಕ (Herdsman)',
+                            te: 'కాపరి (Herdsman)',
+                            ta: 'பண்ணையாளர் (Herdsman)',
+                            ml: 'പാലകൻ (Herdsman)',
+                            mr: 'पशुपालक (Herdsman)',
+                          })}</option>
                           <option value="Support Admin">Support Admin (Can manage Vaccines & Settings)</option>
-                          <option value="Veterinarian">Veterinarian (पशु चिकित्सक / Doctor)</option>
-                          <option value="Field Staff">Field Staff (कार्यकर्ता)</option>
+                          <option value="Veterinarian">{localeText({
+                            en: 'Veterinarian (Doctor)',
+                            hi: 'पशु चिकित्सक (Doctor)',
+                            kn: 'ಪಶುವೈದ್ಯ (Doctor)',
+                            te: 'పశువైద్యుడు (Doctor)',
+                            ta: 'கால்நடை மருத்துவர் (Doctor)',
+                            ml: 'മൃഗഡോക്ടർ (Doctor)',
+                            mr: 'पशुवैद्यकीय डॉक्टर (Doctor)',
+                          })}</option>
+                          <option value="Field Staff">{localeText({
+                            en: 'Field Staff',
+                            hi: 'कार्यकर्ता',
+                            kn: 'ಕ್ಷೇತ್ರ ಸಿಬ್ಬಂದಿ',
+                            te: 'ఫీల్డ్ స్టాఫ్',
+                            ta: 'களப் பணியாளர்',
+                            ml: 'ഫീൽഡ് സ്റ്റാഫ്',
+                            mr: 'क्षेत्रीय कर्मचारी',
+                          })}</option>
                         </select>
                       </div>
                     </div>
@@ -545,6 +673,407 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
             </div>
           )}
 
+          {/* TAB: BREED PROPOSALS & UNIVERSAL CATALOG REGISTRY */}
+          {activeTab === 'breeds' && (
+            <div className="space-y-6">
+              
+              {/* Informational Guidance Banner */}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-50 to-amber-50 border border-purple-200 text-xs text-purple-950 space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">📋</span>
+                    <div>
+                      <div className="font-black text-purple-950 flex items-center gap-1.5 text-sm">
+                        <span>Propose New Goat & Sheep Breeds to Universal Catalog</span>
+                        <span className="text-[10px] font-black bg-purple-200 text-purple-900 px-2 py-0.5 rounded-full">
+                          Community Registry
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-purple-900 font-medium mt-0.5">
+                        Have indigenous, regional, or crossbreed sheep and goats not in the standard list? Submit your breed proposal here.
+                      </p>
+                    </div>
+                  </div>
+
+                  {onOpenSystemAdmin && (
+                    <button
+                      type="button"
+                      onClick={onOpenSystemAdmin}
+                      className="px-3.5 py-1.5 rounded-xl bg-purple-900 hover:bg-black text-white text-xs font-black flex items-center gap-1.5 cursor-pointer shadow-xs shrink-0 self-start sm:self-auto transition-transform active:scale-95"
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5 text-purple-300" />
+                      <span>System Admin Review Dashboard</span>
+                      {totalPendingProposalsInSystem > 0 && (
+                        <span className="px-1.5 py-0.2 rounded-full bg-amber-400 text-stone-950 text-[10px] font-black">
+                          {totalPendingProposalsInSystem}
+                        </span>
+                      )}
+                    </button>
+                  )}
+                </div>
+
+                <div className="text-[11px] text-purple-900/80 leading-relaxed pt-1 border-t border-purple-200/60">
+                  💡 <strong>How it works:</strong> Once submitted by a farm admin, proposals enter <em>Pending</em> status. The System Admin (<strong>madhusav@gmail.com</strong>) validates the proposal against the ICAR-NBAGR accession registry and approves or rejects it. Once approved, the breed is immediately available to <strong>all farms</strong> in the app when adding animals!
+                </div>
+              </div>
+
+              {/* Submission Notice Toast */}
+              {propNotice && (
+                <div className={`p-3 rounded-xl text-xs font-bold flex items-center gap-2 animate-in fade-in duration-200 ${
+                  propNotice.type === 'success' 
+                    ? 'bg-emerald-100 text-emerald-950 border border-emerald-300' 
+                    : 'bg-red-100 text-red-950 border border-red-300'
+                }`}>
+                  {propNotice.type === 'success' ? <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" /> : <AlertTriangle className="w-4 h-4 text-red-700 shrink-0" />}
+                  <span>{propNotice.message}</span>
+                </div>
+              )}
+
+              {/* 1. SUBMIT PROPOSAL FORM */}
+              <div className="p-5 rounded-2xl border border-stone-200 bg-white space-y-4 shadow-2xs">
+                <div className="flex items-center gap-2">
+                  <Plus className="w-4 h-4 text-purple-800" />
+                  <h3 className="text-sm font-black text-stone-900">
+                    {localeText({
+                      en: 'Submit New Breed Proposal',
+                      hi: 'नई नस्ल का प्रस्ताव भेजें',
+                      kn: 'ಹೊಸ ತಳಿಯ ಪ್ರಸ್ತಾವನೆ ಸಲ್ಲಿಸಿ',
+                      te: 'కొత్త జాతి ప్రతిపాదనను పంపండి',
+                      ta: 'புதிய இன முன்மொழிவை சமர்ப்பிக்கவும்',
+                      ml: 'പുതിയ ഇനം നിർദ്ദേശം സമർപ്പിക്കുക',
+                      mr: 'नवीन जातीचा प्रस्ताव पाठवा',
+                    })}
+                  </h3>
+                </div>
+
+                <form onSubmit={handleBreedProposalSubmit} className="space-y-3.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-stone-700 mb-1">
+                        {localeText({
+                          en: 'Species *',
+                          hi: 'पशु प्रकार *',
+                          kn: 'ಪ್ರಾಣಿ ವಿಧ *',
+                          te: 'జంతు రకం *',
+                          ta: 'இன வகை *',
+                          ml: 'ജീവി വർഗ്ഗം *',
+                          mr: 'जनावर प्रकार *',
+                        })}
+                      </label>
+                      <select
+                        value={propSpecies}
+                        onChange={(e) => setPropSpecies(e.target.value as Species)}
+                        className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-bold bg-white"
+                      >
+                        <option value="Goat">{localeText({
+                          en: '🐐 Goat',
+                          hi: '🐐 बकरी',
+                          kn: '🐐 ಮೇಕೆ',
+                          te: '🐐 మేక',
+                          ta: '🐐 ஆடு',
+                          ml: '🐐 ആട്',
+                          mr: '🐐 शेळी',
+                        })}</option>
+                        <option value="Sheep">{localeText({
+                          en: '🐑 Sheep',
+                          hi: '🐑 भेड़',
+                          kn: '🐑 ಕುರಿ',
+                          te: '🐑 గొర్రె',
+                          ta: '🐑 செம்மறியாடு',
+                          ml: '🐑 ചെമ്മരിയാട്',
+                          mr: '🐑 मेंढी',
+                        })}</option>
+                      </select>
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-bold text-stone-700 mb-1">
+                        {localeText({
+                          en: 'Proposed Breed Name *',
+                          hi: 'नस्ल का नाम *',
+                          kn: 'ತಳಿಯ ಹೆಸರು *',
+                          te: 'జాతి పేరు *',
+                          ta: 'இனப் பெயர் *',
+                          ml: 'ഇനത്തിന്റെ പേര് *',
+                          mr: 'जातीचे नाव *',
+                        })}
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={propBreedName}
+                        onChange={(e) => setPropBreedName(e.target.value)}
+                        placeholder="e.g. Attappady Black / Dumba Fat-Tailed / Patanwadi"
+                        className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-stone-700 mb-1">
+                        {localeText({
+                          en: 'Native Region / State',
+                          hi: 'मूल क्षेत्र / राज्य',
+                          kn: 'ಮೂಲ ಪ್ರದೇಶ / ರಾಜ್ಯ',
+                          te: 'స్థానిక ప్రాంతం / రాష్ట్రం',
+                          ta: 'பூர்வீக பகுதி / மாநிலம்',
+                          ml: 'സ്വദേശ പ്രദേശം / സംസ്ഥാനം',
+                          mr: 'मूळ प्रदेश / राज्य',
+                        })}
+                      </label>
+                      <input
+                        type="text"
+                        value={propOrigin}
+                        onChange={(e) => setPropOrigin(e.target.value)}
+                        placeholder="e.g. Palakkad, Kerala / Rajasthan"
+                        className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-medium"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-stone-700 mb-1">
+                        {localeText({
+                          en: 'Primary Purpose',
+                          hi: 'मुख्य उपयोग',
+                          kn: 'ಮುಖ್ಯ ಉದ್ದೇಶ',
+                          te: 'ప్రధాన ప్రయోజనం',
+                          ta: 'முக்கிய பயன்பாடு',
+                          ml: 'പ്രധാന ഉപയോഗം',
+                          mr: 'मुख्य उपयोग',
+                        })}
+                      </label>
+                      <select
+                        value={propPurpose}
+                        onChange={(e) => setPropPurpose(e.target.value as any)}
+                        className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-bold bg-white"
+                      >
+                        <option value="Meat">{localeText({
+                          en: 'Meat',
+                          hi: 'मांस उत्पादन',
+                          kn: 'ಮಾಂಸ',
+                          te: 'మాంసం',
+                          ta: 'இறைச்சி',
+                          ml: 'മാംസം',
+                          mr: 'मांस उत्पादन',
+                        })}</option>
+                        <option value="Milk">{localeText({
+                          en: 'Milk',
+                          hi: 'दुग्ध उत्पादन',
+                          kn: 'ಹಾಲು',
+                          te: 'పాలు',
+                          ta: 'பால்',
+                          ml: 'പാൽ',
+                          mr: 'दूध उत्पादन',
+                        })}</option>
+                        <option value="Dual Purpose (Meat & Milk)">{localeText({
+                          en: 'Dual Purpose (Meat & Milk)',
+                          hi: 'मांस व दूध',
+                          kn: 'ದ್ವಿಗುಣ ಉದ್ದೇಶ (ಮಾಂಸ & ಹಾಲು)',
+                          te: 'ద్విముఖ ప్రయోజనం (మాంసం & పాలు)',
+                          ta: 'இருநோக்கு பயன்பாடு (பால் & இறைச்சி)',
+                          ml: 'ഇരട്ട ഉദ്ദേശ്യം (പാൽ & മാംസം)',
+                          mr: 'दुहेरी वापर (मांस व दूध)',
+                        })}</option>
+                        <option value="Wool & Fiber">{localeText({
+                          en: 'Wool & Fiber',
+                          hi: 'ऊन व रेशा',
+                          kn: 'ಉಣ್ಣೆ ಮತ್ತು ನಾರು',
+                          te: 'ఉన్ని మరియు పీచు',
+                          ta: 'கம்பளி & இழை',
+                          ml: 'കമ്പിളി',
+                          mr: 'लोकर व तंतू',
+                        })}</option>
+                        <option value="Draft / Multi-purpose">Draft / Multi-purpose</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-stone-700 mb-1">
+                        Avg Adult Weight (kg)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.5"
+                        value={propWeight}
+                        onChange={(e) => setPropWeight(e.target.value)}
+                        placeholder="e.g. 40"
+                        className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-mono font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-stone-700 mb-1">
+                      {localeText({
+                        en: 'Key Characteristics & Physical Traits',
+                        hi: 'शारीरिक पहचान, कान, रंग व रोग प्रतिरोधक क्षमता',
+                        kn: 'ಪ್ರಮುಖ ಲಕ್ಷಣಗಳು ಮತ್ತು ದೈಹಿಕ ಗುಣಗಳು',
+                        te: 'ముఖ్య లక్షణాలు మరియు శరీర గుణాలు',
+                        ta: 'முக்கிய குணாதிசயங்கள் மற்றும் உடல் பண்புகள்',
+                        ml: 'പ്രധാന സവിശേഷതകൾ',
+                        mr: 'शारीरिक वैशिष्ट्ये, कान, रंग व रोगप्रतिकारक्षमता',
+                      })}
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={propTraits}
+                      onChange={(e) => setPropTraits(e.target.value)}
+                      placeholder="e.g. Jet black glossy coat, bronze-colored eyes, curved horns, superior heat and tick resistance in humid regions..."
+                      className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-medium"
+                    />
+                  </div>
+
+                  <div className="flex justify-end pt-1">
+                    <button
+                      type="submit"
+                      className="px-5 py-2.5 rounded-xl bg-purple-900 hover:bg-black text-white text-xs font-black flex items-center gap-1.5 shadow-sm cursor-pointer transition-all active:scale-98"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Submit Breed Proposal to System Admin</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* 2. PENDING & PROPOSED BREEDS FOR THIS FARM */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-black text-stone-900 flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-purple-700" />
+                    <span>Your Farm's Breed Proposals ({farmProposals.length})</span>
+                  </h3>
+                  <span className="text-[11px] text-stone-500 font-bold">
+                    {farmPendingBreedProposals.length} awaiting decision
+                  </span>
+                </div>
+
+                {farmProposals.length === 0 ? (
+                  <div className="p-6 rounded-2xl border border-dashed border-stone-300 text-center text-xs text-stone-500 bg-stone-50/50">
+                    No breed proposals submitted by this farm yet. Use the form above to suggest rare or indigenous breeds!
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {farmProposals.map(prop => (
+                      <div
+                        key={prop.id}
+                        className={`p-4 rounded-2xl border transition-all ${
+                          prop.status === 'pending'
+                            ? 'border-amber-300 bg-amber-50/40 shadow-xs'
+                            : prop.status === 'approved'
+                            ? 'border-emerald-300 bg-emerald-50/30'
+                            : 'border-red-200 bg-red-50/20'
+                        }`}
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5">
+                          <div className="space-y-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`px-2 py-0.5 rounded-md text-[10px] font-black ${
+                                prop.species === 'Goat' ? 'bg-amber-100 text-amber-950' : 'bg-sky-100 text-sky-950'
+                              }`}>
+                                {prop.species === 'Goat' ? '🐐 Goat' : '🐑 Sheep'}
+                              </span>
+
+                              <span className="font-extrabold text-stone-900 text-sm">
+                                {prop.breedName}
+                              </span>
+
+                              {/* Status Badge */}
+                              {prop.status === 'pending' && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full">
+                                  <Clock className="w-2.5 h-2.5" />
+                                  <span>Pending System Admin Review</span>
+                                </span>
+                              )}
+
+                              {prop.status === 'approved' && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-black bg-emerald-100 text-emerald-950 border border-emerald-300 px-2 py-0.5 rounded-full">
+                                  <Check className="w-2.5 h-2.5 text-emerald-700" />
+                                  <span>Approved & Live in Universal Catalog</span>
+                                </span>
+                              )}
+
+                              {prop.status === 'rejected' && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-black bg-red-100 text-red-950 border border-red-300 px-2 py-0.5 rounded-full">
+                                  <X className="w-2.5 h-2.5 text-red-700" />
+                                  <span>Declined</span>
+                                </span>
+                              )}
+                            </div>
+
+                            {prop.originRegion && (
+                              <div className="text-xs text-stone-600 font-medium">
+                                📍 Native Tract: <strong>{prop.originRegion}</strong> · {prop.primaryPurpose} {prop.averageMatureWeightKg ? `· ~${prop.averageMatureWeightKg} kg` : ''}
+                              </div>
+                            )}
+
+                            {prop.characteristics && (
+                              <p className="text-xs text-stone-600 italic bg-white/70 p-2 rounded-xl border border-stone-200/60 mt-1">
+                                "{prop.characteristics}"
+                              </p>
+                            )}
+
+                            {prop.adminNotes && (
+                              <div className="text-[11px] text-emerald-900 bg-emerald-100/60 p-2 rounded-xl border border-emerald-200 font-medium mt-1">
+                                💬 <strong>Admin Note:</strong> {prop.adminNotes}
+                              </div>
+                            )}
+
+                            {prop.rejectionReason && (
+                              <div className="text-[11px] text-red-900 bg-red-100/60 p-2 rounded-xl border border-red-200 font-medium mt-1">
+                                ⚠️ <strong>Reason for decline:</strong> {prop.rejectionReason}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="text-[10px] text-stone-400 font-medium shrink-0 text-left sm:text-right">
+                            <div>Submitted: {new Date(prop.createdAt).toLocaleDateString()}</div>
+                            {prop.reviewedAt && (
+                              <div>Reviewed: {new Date(prop.reviewedAt).toLocaleDateString()} by {prop.reviewedBy}</div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 3. CURRENT UNIVERSAL BREEDS PREVIEW */}
+              <div className="p-4 rounded-2xl border border-stone-200 bg-stone-50 space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black text-stone-800 uppercase tracking-wider">
+                    Universal Breed Catalog Quick Reference ({globalBreeds.length})
+                  </h4>
+                  <span className="text-[11px] text-stone-500 font-medium">
+                    Already available on all animal forms
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {globalBreeds.map(b => (
+                    <span
+                      key={b.id}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold border ${
+                        b.species === 'Goat'
+                          ? 'bg-amber-50/80 border-amber-200 text-amber-950'
+                          : 'bg-sky-50/80 border-sky-200 text-sky-950'
+                      }`}
+                    >
+                      <span>{b.species === 'Goat' ? '🐐' : '🐑'}</span>
+                      <span>{b.name}</span>
+                      {!b.isSystemDefault && (
+                        <span className="text-[9px] bg-emerald-700 text-white px-1 rounded-full font-black">
+                          New
+                        </span>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          )}
+
           {/* TAB 2: VACCINE POLICIES & NOTIFICATION CONFIGURATION */}
           {activeTab === 'vaccines' && (
             <div className="space-y-6">
@@ -568,7 +1097,15 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
               {/* Reminder Threshold Setting */}
               <div className="p-5 rounded-2xl border border-stone-200 bg-white space-y-4">
                 <h3 className="text-sm font-black text-stone-900">
-                  Vaccination Due Alert Window (टीकाकरण चेतावनी समय)
+                  {localeText({
+                    en: 'Vaccination Due Alert Window',
+                    hi: 'टीकाकरण चेतावनी समय',
+                    kn: 'ಲಸಿಕೆ ಎಚ್ಚರಿಕೆ ಸಮಯ',
+                    te: 'టీకా హెచ్చరిక సమయం',
+                    ta: 'தடுப்பூசி எச்சரிக்கை காலம்',
+                    ml: 'കുത്തിവയ്പ്പ് മുന്നറിയിപ്പ് സമയം',
+                    mr: 'लसीकरण चेतावणी कालावधी',
+                  })}
                 </h3>
                 <p className="text-xs text-stone-600">
                   How many days before a vaccine is due should the system show notifications to workers on the farm dashboard?
@@ -606,7 +1143,15 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
               {/* Custom Vaccine Catalog */}
               <div className="p-5 rounded-2xl border border-stone-200 bg-white space-y-4">
                 <h3 className="text-sm font-black text-stone-900">
-                  Farm Vaccine Catalog (मानक टीके)
+                  {localeText({
+                    en: 'Farm Vaccine Catalog',
+                    hi: 'मानक टीके',
+                    kn: 'ಫಾರ್ಮ್ ಲಸಿಕೆ ಪಟ್ಟಿ',
+                    te: 'ఫారం టీకా జాబితా',
+                    ta: 'பண்ணை தடுப்பூசி பட்டியல்',
+                    ml: 'ഫാം വാക്സിൻ പട്ടിക',
+                    mr: 'फार्म लस सूची',
+                  })}
                 </h3>
                 <p className="text-xs text-stone-600">
                   Admin can configure custom vaccines commonly used in this locality.
@@ -669,7 +1214,15 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
                       <span className="text-xl">🏷️</span>
                       <div>
                         <h3 className="text-sm font-black text-stone-900">
-                          Application Name (एप्लीकेशन का नाम)
+                          {localeText({
+                            en: 'Application Name',
+                            hi: 'एप्लीकेशन का नाम',
+                            kn: 'ಅಪ್ಲಿಕೇಶನ್ ಹೆಸರು',
+                            te: 'అప్లికేషన్ పేరు',
+                            ta: 'பயன்பாட்டின் பெயர்',
+                            ml: 'ആപ്ലിക്കേഷൻ പേര്',
+                            mr: 'अ‍ॅपचे नाव',
+                          })}
                         </h3>
                         <p className="text-[11px] text-stone-600 font-medium">
                           Configurable app brand displayed in the top navbar, header, and system reports.
@@ -709,7 +1262,15 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
                       <div>
                         <h3 className="text-sm font-black text-stone-900 flex items-center gap-1.5">
                           <MapPin className="w-4 h-4 text-amber-700" />
-                          <span>Farm Weather Location (मौसम स्थान सेटिंग)</span>
+                          <span>{localeText({
+                            en: 'Farm Weather Location',
+                            hi: 'मौसम स्थान सेटिंग',
+                            kn: 'ಹವಾಮಾನ ಸ್ಥಳ ಸೆಟ್ಟಿಂಗ್',
+                            te: 'వాతావరణ స్థానం సెట్టింగ్',
+                            ta: 'வானிலை இருப்பிட அமைப்பு',
+                            ml: 'കാലാവസ്ഥാ സ്ഥലം ക്രമീകരണം',
+                            mr: 'हवामान ठिकाण सेटिंग',
+                          })}</span>
                         </h3>
                         <p className="text-xs text-stone-600">
                           Set the city/district of your farm. The live temperature widget in the corner shows live weather for this location.
@@ -753,7 +1314,15 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
                   {/* Quick Preset Farming Districts */}
                   <div className="space-y-1.5">
                     <span className="text-[11px] font-bold text-stone-500 block">
-                      Quick Select Farming Hubs (क्विक जिला चयन):
+                      {localeText({
+                        en: 'Quick Select Farming Hubs:',
+                        hi: 'क्विक जिला चयन:',
+                        kn: 'ತ್ವರಿತ ಜಿಲ್ಲಾ ಆಯ್ಕೆ:',
+                        te: 'త్వరిత జిల్లా ఎంపిక:',
+                        ta: 'விரைவு மாவட்ட தேர்வு:',
+                        ml: 'പെട്ടെന്ന് ജില്ല തിരഞ്ഞെടുക്കുക:',
+                        mr: 'झटपट जिल्हा निवडा:',
+                      })}
                     </span>
                     <div className="flex flex-wrap gap-1.5">
                       {[
@@ -796,7 +1365,15 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-stone-700 mb-1">
-                        Farm Name (फार्म का नाम)
+                        {localeText({
+                          en: 'Farm Name',
+                          hi: 'फार्म का नाम',
+                          kn: 'ಫಾರ್ಮ್ ಹೆಸರು',
+                          te: 'ఫారం పేరు',
+                          ta: 'பண்ணை பெயர்',
+                          ml: 'ഫാം പേര്',
+                          mr: 'फार्मचे नाव',
+                        })}
                       </label>
                       <input
                         type="text"
@@ -809,7 +1386,15 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
 
                     <div>
                       <label className="block text-xs font-bold text-stone-700 mb-1">
-                        Total Acreage (कुल ज़मीन एकड़)
+                        {localeText({
+                          en: 'Total Acreage (Acres)',
+                          hi: 'कुल ज़मीन (एकड़)',
+                          kn: 'ಒಟ್ಟು ಭೂಮಿ (ಎಕರೆ)',
+                          te: 'మొత్తం భూమి (ఎకరాలు)',
+                          ta: 'மொத்த நிலம் (ஏக்கர்)',
+                          ml: 'ആകെ സ്ഥലം (ഏക്കർ)',
+                          mr: 'एकूण जमीन (एकर)',
+                        })}
                       </label>
                       <input
                         type="number"
@@ -822,7 +1407,15 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
 
                     <div>
                       <label className="block text-xs font-bold text-stone-700 mb-1">
-                        Contact Phone (संपर्क नंबर)
+                        {localeText({
+                          en: 'Contact Phone',
+                          hi: 'संपर्क नंबर',
+                          kn: 'ಸಂಪರ್ಕ ಸಂಖ್ಯೆ',
+                          te: 'సంప్రదింపు నంబరు',
+                          ta: 'தொடர்பு எண்',
+                          ml: 'ഫോൺ നമ്പർ',
+                          mr: 'संपर्क क्रमांक',
+                        })}
                       </label>
                       <input
                         type="text"
@@ -834,7 +1427,15 @@ export const FarmAdminUsersModal: React.FC<FarmAdminUsersModalProps> = ({
 
                     <div>
                       <label className="block text-xs font-bold text-stone-700 mb-1">
-                        Daily Milk Target (दैनिक दूध लक्ष्य)
+                        {localeText({
+                          en: 'Daily Milk Target',
+                          hi: 'दैनिक दूध लक्ष्य',
+                          kn: 'ದೈನಂದಿನ ಹಾಲು ಗುರಿ',
+                          te: 'రోజువారీ పాల లక్ష్యం',
+                          ta: 'தினசரி பால் இலக்கு',
+                          ml: 'പ്രതിദിന പാൽ ലക്ഷ്യം',
+                          mr: 'दैनिक दूध उद्दिष्ट',
+                        })}
                       </label>
                       <div className="flex items-center gap-2">
                         <input

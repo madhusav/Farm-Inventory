@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Farm, Animal } from '../types';
 import { ArrowUpRight, Sparkles } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface LineagePedigreeViewProps {
   farm: Farm;
@@ -11,6 +12,7 @@ export const LineagePedigreeView: React.FC<LineagePedigreeViewProps> = ({
   farm,
   onSelectAnimal,
 }) => {
+  const { t, localeText } = useLanguage();
   const [selectedAnimalId, setSelectedAnimalId] = useState<string>(
     farm.animals[0]?.id || ''
   );
@@ -62,7 +64,7 @@ export const LineagePedigreeView: React.FC<LineagePedigreeViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-stone-900 tracking-tight">
-            Family Tree & Parents (माता-पिता व खानदान)
+            {t('familyTree', 'Family Tree & Parents')}
           </h1>
           <p className="text-xs sm:text-sm text-stone-500 mt-1 font-medium">
             See who the Papa (father) and Mummy (mother) are, and check safe matches so newborn babies grow up strong!
@@ -197,10 +199,18 @@ export const LineagePedigreeView: React.FC<LineagePedigreeViewProps> = ({
         <div>
           <h2 className="text-base sm:text-lg font-extrabold text-stone-900 flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-emerald-700" />
-            <span>Safe Family Match Checker (सुरक्षित नस्ल जांच)</span>
+            <span>{t('safeMatch', 'Safe Family Match Checker')}</span>
           </h2>
           <p className="text-xs text-stone-500 mt-0.5">
-            Check if a male (Papa) and female (Mummy) are safe to pair so baby kids (मेमने) and lambs (भेड़ के बच्चे) are born healthy and vigorous.
+            {localeText({
+              en: 'Check if a male (father) and female (mother) are safe to pair so baby kids and lambs are born healthy and vigorous.',
+              hi: 'जांचें कि नर और मादा का मिलान सुरक्षित है या नहीं, ताकि मेमने स्वस्थ पैदा हों।',
+              kn: 'ಗಂಡು ಮತ್ತು ಹೆಣ್ಣು ಜೋಡಿ ಸುರಕ್ಷಿತವೇ ಎಂದು ಪರಿಶೀಲಿಸಿ, ಇದರಿಂದ ಮರಿಗಳು ಆರೋಗ್ಯಕರವಾಗಿ ಜನಿಸುತ್ತವೆ.',
+              te: 'పిల్లలు ఆరోగ్యంగా పుట్టేందుకు మగ మరియు ఆడ జీవాల జత సురక్షితమైనదో కాదో తనిఖీ చేయండి.',
+              ta: 'குட்டிகள் ஆரோக்கியமாக பிறக்க ஆடு மற்றும் கிடாவின் இனச்சேர்க்கை பாதுகாப்பானதா என சரிபார்க்கவும்.',
+              ml: 'കുഞ്ഞുങ്ങൾ ആരോഗ്യത്തോടെ ജനിക്കാൻ ആൺ-പെൺ ഇണചേരൽ സുരക്ഷിതമാണോ എന്ന് പരിശോധിക്കുക.',
+              mr: 'नर आणि मादीची जोडी सुरक्षित आहे का ते तपासा, जेणेकरून करडे निरोगी जन्माला येतील.'
+            })}
           </p>
         </div>
 
@@ -244,7 +254,7 @@ export const LineagePedigreeView: React.FC<LineagePedigreeViewProps> = ({
               Match Safety Result:
             </span>
             <div className={`text-sm sm:text-base font-extrabold mt-0.5 ${isHighRisk ? 'text-red-700' : 'text-emerald-800'}`}>
-              {isHighRisk ? '⚠️ Warning: Too Closely Related' : '✓ Safe Match (Good Family Mix)'}
+              {isHighRisk ? ('⚠️ ' + t('dangerMatch', 'Warning: Too Closely Related')) : ('✓ ' + t('safeMatch', 'Safe Match (Good Family Mix)'))}
             </div>
             <p className="text-xs text-stone-600 mt-1">
               {isHighRisk 
