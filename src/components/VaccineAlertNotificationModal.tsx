@@ -1,6 +1,7 @@
 import React from 'react';
 import { Farm, User, VaccineAlert, isVaccineManager } from '../types';
 import { useLanguage } from '../i18n/LanguageContext';
+import { AnimalAvatar } from './AnimalAvatar';
 import { 
   Bell, 
   X, 
@@ -122,18 +123,17 @@ export const VaccineAlertNotificationModal: React.FC<VaccineAlertNotificationMod
                   }`}
                 >
                   <div className="flex items-start gap-3.5">
-                    {alert.photoUrl ? (
-                      <img
-                        src={alert.photoUrl}
-                        alt={alert.animalName}
-                        referrerPolicy="no-referrer"
-                        className="w-14 h-14 rounded-2xl object-cover border border-stone-300 shrink-0"
+                    <div className="w-14 h-14 rounded-2xl overflow-hidden border border-stone-300 shrink-0">
+                      <AnimalAvatar 
+                        animal={{
+                          name: alert.animalName,
+                          species: alert.species,
+                          tagId: alert.animalTag,
+                          photoUrl: alert.photoUrl,
+                        }} 
+                        size="icon" 
                       />
-                    ) : (
-                      <div className="w-14 h-14 rounded-2xl bg-stone-200 flex items-center justify-center text-2xl shrink-0">
-                        {alert.species === 'Cow' ? '🐄' : alert.species === 'Goat' ? '🐐' : alert.species === 'Sheep' ? '🐑' : '🐔'}
-                      </div>
-                    )}
+                    </div>
 
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">

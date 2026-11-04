@@ -27,6 +27,7 @@ interface VaccinationScheduleViewProps {
   onBulkAddVaccine?: (animalIds: string[], vacData: Omit<VaccinationRecord, 'id' | 'animalId'>) => void;
   onBulkUpdateVaccine?: (vacIds: string[], updates: Partial<VaccinationRecord>) => void;
   onBulkDeleteVaccine?: (vacIds: string[]) => void;
+  onOpenSymptomChecker?: () => void;
 }
 
 const COMMON_VACCINES = [
@@ -53,6 +54,7 @@ export const VaccinationScheduleView: React.FC<VaccinationScheduleViewProps> = (
   onBulkAddVaccine,
   onBulkUpdateVaccine,
   onBulkDeleteVaccine,
+  onOpenSymptomChecker,
 }) => {
   const isAdmin = farm.adminUserId === currentUser.id;
   const currentMember = farm.members.find(m => m.userId === currentUser.id);
@@ -248,6 +250,19 @@ export const VaccinationScheduleView: React.FC<VaccinationScheduleViewProps> = (
 
         {/* Buttons: + Single Shot AND + Bulk Vaccinate Herd */}
         <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+          {/* Symptom Checker & Offline First Aid Button */}
+          {onOpenSymptomChecker && (
+            <button
+              type="button"
+              onClick={onOpenSymptomChecker}
+              className="flex-1 sm:flex-none min-h-[44px] px-3.5 py-2.5 rounded-xl bg-teal-800 hover:bg-teal-900 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-98 transition-all"
+              title="Open Offline Sheep & Goat Symptom Checker & First Aid"
+            >
+              <span className="text-base">🩺</span>
+              <span>Symptom Checker</span>
+            </button>
+          )}
+
           {canManageVaccine ? (
             <>
               {/* 1. Bulk Vaccinate Herd */}
@@ -309,6 +324,38 @@ export const VaccinationScheduleView: React.FC<VaccinationScheduleViewProps> = (
             className="self-end sm:self-auto min-h-[36px] px-3.5 py-1.5 rounded-xl bg-amber-800 text-white text-xs font-bold cursor-pointer shrink-0"
           >
             Filter Due
+          </button>
+        </div>
+      )}
+
+      {/* Sheep & Goat Symptom Checker Banner */}
+      {onOpenSymptomChecker && (
+        <div className="bg-gradient-to-r from-teal-50 via-emerald-50 to-stone-50 border border-teal-200/90 rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-teal-800 text-white flex items-center justify-center text-xl shrink-0 shadow-xs">
+              🩺
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-xs sm:text-sm font-black text-teal-950">
+                  Flock Symptom Checker & Offline First Aid
+                </h3>
+                <span className="px-2 py-0.5 rounded-full bg-teal-200 text-teal-900 text-[10px] font-black uppercase">
+                  100% Offline
+                </span>
+              </div>
+              <p className="text-xs text-teal-900/80 mt-0.5 font-medium leading-relaxed">
+                Observe bloat, persistent coughing, off-feed, bottle jaw, or sudden lameness? Select signs to get immediate standard veterinary first-aid and safety protocols.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onOpenSymptomChecker}
+            className="px-4 py-2 rounded-xl bg-teal-800 hover:bg-teal-900 text-white text-xs font-black shrink-0 flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-95 transition-all"
+          >
+            <span>Open Symptom Checker</span>
+            <span>→</span>
           </button>
         </div>
       )}

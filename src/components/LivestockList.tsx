@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Animal, Farm, User, VaccinationRecord } from '../types';
 import { useLanguage } from '../i18n/LanguageContext';
 import { db } from '../services/db';
@@ -11,6 +11,7 @@ import {
   Settings, 
   ArrowUpRight, 
   ChevronRight, 
+  ChevronLeft,
   AlertCircle,
   Edit2,
   CheckSquare,
@@ -20,9 +21,14 @@ import {
   Syringe,
   Check,
   AlertTriangle,
-  Target
+  Target,
+  Filter,
+  RotateCcw,
+  LayoutGrid,
+  LayoutList
 } from 'lucide-react';
 import { FarmTasksBanner } from './FarmTasksBanner';
+import { AnimalAvatar } from './AnimalAvatar';
 
 interface LivestockListProps {
   farm: Farm;
@@ -37,6 +43,14 @@ interface LivestockListProps {
   onOpenTasksModal?: (filter?: any) => void;
   onUpdateAnimal?: (animalId: string, updates: Partial<Animal>) => void;
   onBulkAddVaccine?: (animalIds: string[], vacData: Omit<VaccinationRecord, 'id' | 'animalId'>) => void;
+}
+
+export function getAgeInMonths(dob: string): number {
+  const birth = new Date(dob);
+  const now = new Date('2026-10-12');
+  if (isNaN(birth.getTime())) return 0;
+  let months = (now.getFullYear() - birth.getFullYear()) * 12 + (now.getMonth() - birth.getMonth());
+  return months < 0 ? 0 : months;
 }
 
 export function calculateAge(dob: string): string {
@@ -82,8 +96,56 @@ export const LivestockList: React.FC<LivestockListProps> = ({
 
   const [selectedSpecies, setSelectedSpecies] = useState<'All' | string>('All');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('All');
+  const [selectedBreedFilter, setSelectedBreedFilter] = useState<string>('All');
+  const [selectedAgeFilter, setSelectedAgeFilter] = useState<'All' | 'under_6m' | '6_to_12m' | '1_to_3y' | 'over_3y'>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // View Mode: 'icons' (3 to 4 per row on mobile) vs 'cards' (3 per row on desktop)
+  // Defaults to 'icons' on mobile devices
+  const [viewMode, setViewMode] = useState<'icons' | 'cards'>(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      return 'icons';
+    }
+    return 'icons'; // Default to icons view so 3-4 per row is immediately active
+  });
+
+  // Pagination State (20 animals per page)
+  const ITEMS_PER_PAGE = 20;
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const listTopRef = useRef<HTMLDivElement>(null);
+
+  // Automatically reset to Page 1 when tab/species, status filter, breed filter, age filter, or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedSpecies, selectedStatusFilter, selectedBreedFilter, selectedAgeFilter, searchQuery]);
+
+  // Dynamically extract breeds available in current farm and selected species
+  const availableBreeds = useMemo(() => {
+    const relevantAnimals = farm.animals.filter(a => selectedSpecies === 'All' || a.species === selectedSpecies);
+    const breeds = Array.from(new Set(relevantAnimals.map(a => a.breed).filter(Boolean)));
+    return breeds.sort((a, b) => a.localeCompare(b));
+  }, [farm.animals, selectedSpecies]);
+
+  // Auto-reset breed filter if selected breed is not present in the current species tab
+  useEffect(() => {
+    if (selectedBreedFilter !== 'All' && !availableBreeds.includes(selectedBreedFilter)) {
+      setSelectedBreedFilter('All');
+    }
+  }, [availableBreeds, selectedBreedFilter]);
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setSelectedBreedFilter('All');
+    setSelectedAgeFilter('All');
+    setSelectedStatusFilter('All');
+  };
+
+  const hasActiveFilters = 
+    searchQuery.trim() !== '' || 
+    selectedBreedFilter !== 'All' || 
+    selectedAgeFilter !== 'All' || 
+    selectedStatusFilter !== 'All';
 
   // Multi-animal selection for batch actions (vaccination & deletion)
   const [selectedAnimalIds, setSelectedAnimalIds] = useState<string[]>([]);
@@ -219,15 +281,87 @@ export const LivestockList: React.FC<LivestockListProps> = ({
       matchesStatus = a.healthStatus === 'Pregnant Care';
     }
 
-    // 3. Search query
-    const q = searchQuery.trim().toLowerCase();
-    const matchesQuery = !q || 
-      a.tagId.toLowerCase().includes(q) ||
-      a.name.toLowerCase().includes(q) ||
-      a.breed.toLowerCase().includes(q);
+    // 3. Breed filter
+    const matchesBreed = selectedBreedFilter === 'All' || a.breed.toLowerCase() === selectedBreedFilter.toLowerCase();
 
-    return matchesSpecies && matchesStatus && matchesQuery;
+    // 4. Age category filter
+    let matchesAge = true;
+    if (selectedAgeFilter !== 'All') {
+      const months = getAgeInMonths(a.dateOfBirth);
+      if (selectedAgeFilter === 'under_6m') {
+        matchesAge = months < 6;
+      } else if (selectedAgeFilter === '6_to_12m') {
+        matchesAge = months >= 6 && months <= 12;
+      } else if (selectedAgeFilter === '1_to_3y') {
+        matchesAge = months > 12 && months <= 36;
+      } else if (selectedAgeFilter === 'over_3y') {
+        matchesAge = months > 36;
+      }
+    }
+
+    // 5. Search query (matches Tag ID with or without punctuation, Breed, Age strings/keywords, Name, and Location)
+    const q = searchQuery.trim().toLowerCase();
+    let matchesQuery = !q;
+    if (q) {
+      const cleanQ = q.replace(/[^a-zA-Z0-9]/g, '');
+      const cleanTag = a.tagId.toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
+      const ageStr = calculateAge(a.dateOfBirth).toLowerCase();
+      const months = getAgeInMonths(a.dateOfBirth);
+
+      const tagMatch = a.tagId.toLowerCase().includes(q) || (cleanQ.length > 0 && cleanTag.includes(cleanQ));
+      const nameMatch = a.name.toLowerCase().includes(q);
+      const breedMatch = a.breed.toLowerCase().includes(q);
+      const ageTextMatch = ageStr.includes(q);
+      const locationMatch = (a.paddockLocation || '').toLowerCase().includes(q);
+
+      let ageKeywordMatch = false;
+      if (q === 'kid' || q === 'kids' || q === 'lamb' || q === 'lambs') {
+        ageKeywordMatch = months <= 12 || a.name.toLowerCase().includes(q);
+      } else if (q.includes('yr') || q.includes('year') || q.includes('mo') || q.includes('month')) {
+        ageKeywordMatch = ageStr.includes(q.replace(/\s+/g, ''));
+      }
+
+      matchesQuery = tagMatch || nameMatch || breedMatch || ageTextMatch || locationMatch || ageKeywordMatch;
+    }
+
+    return matchesSpecies && matchesStatus && matchesBreed && matchesAge && matchesQuery;
   });
+
+  // Pagination calculations (20 per page across all views like Whole Flock, Goats, Sheep)
+  const totalAnimals = filteredAnimals.length;
+  const totalPages = Math.max(1, Math.ceil(totalAnimals / ITEMS_PER_PAGE));
+
+  // Clamp current page if total count drops
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, totalAnimals);
+  const paginatedAnimals = filteredAnimals.slice(startIndex, endIndex);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || newPage > totalPages || newPage === currentPage) return;
+    setCurrentPage(newPage);
+    if (listTopRef.current) {
+      listTopRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const getPageNumbers = (): (number | string)[] => {
+    if (totalPages <= 5) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    if (currentPage <= 3) {
+      return [1, 2, 3, 4, '...', totalPages];
+    }
+    if (currentPage >= totalPages - 2) {
+      return [1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+    }
+    return [1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages];
+  };
 
   const allFilteredIds = filteredAnimals.map(a => a.id);
   const isAllSelected = filteredAnimals.length > 0 && filteredAnimals.every(a => selectedAnimalIds.includes(a.id));
@@ -377,7 +511,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({
       )}
 
       {/* Filter Bar: Swipeable on mobile, wrapping on desktop */}
-      <div className="space-y-2 pt-1">
+      <div ref={listTopRef} className="space-y-2 pt-1 scroll-mt-20">
         {/* Species Filter Tabs */}
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 -mx-1 px-1 sm:mx-0 sm:px-0 sm:flex-wrap">
           <button
@@ -410,34 +544,167 @@ export const LivestockList: React.FC<LivestockListProps> = ({
           })}
         </div>
 
-        {/* Search & Status Filter Dropdown */}
-        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
-          <div className="sm:col-span-7 relative">
-            <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+        {/* Search Bar & 3-Column Filter Controls (Tag ID, Breed, Age & Status) */}
+        <div className="space-y-2">
+          {/* Search Bar with Instant Clear */}
+          <div className="relative">
+            <Search className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t('searchPlaceholder', 'Search tag number, name, or breed...')}
-              className="w-full min-h-[44px] pl-9 pr-3 py-2 rounded-xl border border-stone-300 bg-white text-sm sm:text-xs text-stone-900 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-700"
+              placeholder={t('searchByTagBreedAge', 'Search by Tag ID (e.g. 101), Breed, Name, or Age...')}
+              className="w-full min-h-[44px] pl-10 pr-10 py-2.5 rounded-xl border border-stone-300 bg-white text-xs sm:text-sm text-stone-900 placeholder:text-stone-400 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-700 focus:border-emerald-700 shadow-2xs"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-100 cursor-pointer"
+                title="Clear search"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
 
-          <div className="sm:col-span-5">
-            <select
-              value={selectedStatusFilter}
-              onChange={(e) => setSelectedStatusFilter(e.target.value)}
-              className="w-full min-h-[44px] px-3 py-2 rounded-xl border border-stone-300 bg-white text-sm sm:text-xs font-bold text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-700 cursor-pointer"
-            >
-              <option value="All">{t('filterAll', 'Filter: Whole Flock (All)')}</option>
-              <option value="Healthy">🟢 {t('healthy', 'Healthy & Fit')}</option>
-              <option value="VaccineDue">💉 {t('vaccineDue', 'Vaccine Due')}</option>
-              <option value="BreedingMale">👑 {t('studBucksRams', 'Stud Bucks & Rams')}</option>
-              <option value="YoungKids">🐣 {t('kidsLambs', 'Kids & Lambs')}</option>
-              <option value="Pregnant">🤰 {t('pregnant', 'Pregnant Care')}</option>
-              <option value="NeedsCare">💊 {t('needsCare', 'Needs Medicine')}</option>
-            </select>
+          {/* 3 Responsive Filter Dropdowns: Breed, Age, and Status */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {/* Breed Filter */}
+            <div className="relative">
+              <select
+                value={selectedBreedFilter}
+                onChange={(e) => setSelectedBreedFilter(e.target.value)}
+                className={`w-full min-h-[42px] px-3 py-2 rounded-xl border text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-700 cursor-pointer transition-all ${
+                  selectedBreedFilter !== 'All'
+                    ? 'border-emerald-600 bg-emerald-50/70 text-emerald-950 font-black'
+                    : 'border-stone-300 bg-white text-stone-800'
+                }`}
+                aria-label="Filter by breed"
+              >
+                <option value="All">🏷️ {t('filterBreed', 'Filter by Breed')}: {t('allBreeds', 'All Breeds')}</option>
+                {availableBreeds.map(b => (
+                  <option key={b} value={b}>🏷️ {b}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Age Filter */}
+            <div className="relative">
+              <select
+                value={selectedAgeFilter}
+                onChange={(e) => setSelectedAgeFilter(e.target.value as any)}
+                className={`w-full min-h-[42px] px-3 py-2 rounded-xl border text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-700 cursor-pointer transition-all ${
+                  selectedAgeFilter !== 'All'
+                    ? 'border-emerald-600 bg-emerald-50/70 text-emerald-950 font-black'
+                    : 'border-stone-300 bg-white text-stone-800'
+                }`}
+                aria-label="Filter by age"
+              >
+                <option value="All">⏳ {t('filterAge', 'Filter by Age')}: {t('allAges', 'All Ages')}</option>
+                <option value="under_6m">🍼 {t('kidsUnder6m', 'Kids & Lambs (< 6 mos)')}</option>
+                <option value="6_to_12m">🌱 {t('young6to12m', 'Young Growing (6–12 mos)')}</option>
+                <option value="1_to_3y">💪 {t('adults1to3y', 'Prime Adults (1–3 yrs)')}</option>
+                <option value="over_3y">👑 {t('matureOver3y', 'Mature Adults (> 3 yrs)')}</option>
+              </select>
+            </div>
+
+            {/* Status Filter */}
+            <div className="relative">
+              <select
+                value={selectedStatusFilter}
+                onChange={(e) => setSelectedStatusFilter(e.target.value)}
+                className={`w-full min-h-[42px] px-3 py-2 rounded-xl border text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-700 cursor-pointer transition-all ${
+                  selectedStatusFilter !== 'All'
+                    ? 'border-emerald-600 bg-emerald-50/70 text-emerald-950 font-black'
+                    : 'border-stone-300 bg-white text-stone-800'
+                }`}
+                aria-label="Filter by health status"
+              >
+                <option value="All">🩺 {t('filterAll', 'Filter: Whole Flock (All)')}</option>
+                <option value="Healthy">🟢 {t('healthy', 'Healthy & Fit')}</option>
+                <option value="VaccineDue">💉 {t('vaccineDue', 'Vaccine Due')}</option>
+                <option value="BreedingMale">👑 {t('studBucksRams', 'Stud Bucks & Rams')}</option>
+                <option value="YoungKids">🐣 {t('kidsLambs', 'Kids & Lambs')}</option>
+                <option value="Pregnant">🤰 {t('pregnant', 'Pregnant Care')}</option>
+                <option value="NeedsCare">💊 {t('needsCare', 'Needs Medicine')}</option>
+              </select>
+            </div>
           </div>
+
+          {/* Active Filter Chips & Reset Filters Bar */}
+          {hasActiveFilters && (
+            <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-xs">
+              <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider mr-0.5">
+                {t('activeFilters', 'Active Filters') || 'Active'}:
+              </span>
+
+              {searchQuery && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-950 font-bold border border-emerald-300 text-xs">
+                  <span>🔍 "{searchQuery}"</span>
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="hover:text-red-700 cursor-pointer p-0.5 rounded"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+
+              {selectedBreedFilter !== 'All' && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-950 font-bold border border-emerald-300 text-xs">
+                  <span>🏷️ {selectedBreedFilter}</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBreedFilter('All')}
+                    className="hover:text-red-700 cursor-pointer p-0.5 rounded"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+
+              {selectedAgeFilter !== 'All' && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-950 font-bold border border-emerald-300 text-xs">
+                  <span>
+                    ⏳ {selectedAgeFilter === 'under_6m' ? t('kidsUnder6m', '< 6 mos') : selectedAgeFilter === '6_to_12m' ? t('young6to12m', '6–12 mos') : selectedAgeFilter === '1_to_3y' ? t('adults1to3y', '1–3 yrs') : t('matureOver3y', '> 3 yrs')}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedAgeFilter('All')}
+                    className="hover:text-red-700 cursor-pointer p-0.5 rounded"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+
+              {selectedStatusFilter !== 'All' && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-950 font-bold border border-emerald-300 text-xs">
+                  <span>
+                    🩺 {selectedStatusFilter}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedStatusFilter('All')}
+                    className="hover:text-red-700 cursor-pointer p-0.5 rounded"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-stone-200 hover:bg-stone-300 text-stone-800 font-bold text-xs cursor-pointer active:scale-95 transition-all ml-auto"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>{t('resetFilters', 'Reset Filters')}</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -459,9 +726,39 @@ export const LivestockList: React.FC<LivestockListProps> = ({
             </span>
           </label>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* View Mode Toggle: Small Icons (3-4 per row on mobile) vs Cards */}
+            <div className="flex items-center bg-white p-0.5 rounded-xl border border-stone-300 shadow-2xs">
+              <button
+                type="button"
+                onClick={() => setViewMode('icons')}
+                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  viewMode === 'icons'
+                    ? 'bg-emerald-800 text-white shadow-xs'
+                    : 'text-stone-600 hover:text-stone-900 hover:bg-stone-50'
+                }`}
+                title="Icons View (3 to 4 per row on mobile)"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span className="text-[11px] font-black">{t('iconView', 'Icons (3–4/row)')}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('cards')}
+                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  viewMode === 'cards'
+                    ? 'bg-emerald-800 text-white shadow-xs'
+                    : 'text-stone-600 hover:text-stone-900 hover:bg-stone-50'
+                }`}
+                title="Cards View (3 in a row)"
+              >
+                <LayoutList className="w-3.5 h-3.5" />
+                <span className="text-[11px] font-black">{t('cardView', 'Cards')}</span>
+              </button>
+            </div>
+
             {selectedAnimalIds.length > 0 ? (
-              <>
+              <div className="flex items-center gap-1.5">
                 <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 text-[11px] font-black font-mono">
                   {selectedAnimalIds.length} of {filteredAnimals.length} selected
                 </span>
@@ -472,12 +769,8 @@ export const LivestockList: React.FC<LivestockListProps> = ({
                 >
                   Clear
                 </button>
-              </>
-            ) : (
-              <span className="text-[11px] text-stone-500 font-normal">
-                Select animals for batch updates
-              </span>
-            )}
+              </div>
+            ) : null}
           </div>
         </div>
       )}
@@ -485,11 +778,26 @@ export const LivestockList: React.FC<LivestockListProps> = ({
       {/* Animals Grid: Mobile Clean Cards (Zero Overlapping, Layman-Friendly) */}
       {filteredAnimals.length === 0 ? (
         <div className="p-8 rounded-2xl border border-dashed border-stone-300 bg-white text-center space-y-3">
-          <div className="text-3xl">🐮</div>
+          <div className="text-3xl">🔍</div>
           <h3 className="text-sm font-bold text-stone-800">
-            {searchQuery || selectedStatusFilter !== 'All' ? 'No animals match this filter' : 'No animals here yet'}
+            {hasActiveFilters ? 'No animals match your search & filter criteria' : 'No animals here yet'}
           </h3>
-          <div className="flex items-center justify-center gap-2 pt-1">
+          <p className="text-xs text-stone-500 max-w-sm mx-auto">
+            {hasActiveFilters
+              ? 'Try adjusting your search query, breed, or age filters to find what you are looking for.'
+              : 'Start by adding your first sheep or goat to the flock diary.'}
+          </p>
+          <div className="flex items-center justify-center gap-2 pt-1 flex-wrap">
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="px-3.5 py-2 rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-900 font-bold text-xs flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>{t('resetFilters', 'Reset Filters')}</span>
+              </button>
+            )}
             <button
               onClick={onOpenAddModal}
               className="px-3.5 py-2 rounded-xl bg-emerald-800 text-white font-bold text-xs cursor-pointer"
@@ -504,9 +812,100 @@ export const LivestockList: React.FC<LivestockListProps> = ({
             </button>
           </div>
         </div>
+      ) : viewMode === 'icons' ? (
+        /* Mobile-First Icon Grid: 3 to 4 small animal icons per row */
+        <div className="grid grid-cols-3 min-[400px]:grid-cols-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 sm:gap-2.5">
+          {paginatedAnimals.map(animal => {
+            const pendingVac = farm.vaccinations.find(
+              v => v.animalId === animal.id && (v.status === 'Due Soon' || v.status === 'Overdue')
+            );
+            const animalAlert = alerts.find(al => al.animalId === animal.id);
+            const isAnimalSelected = selectedAnimalIds.includes(animal.id);
+
+            // Health Status styling
+            const currentHealth = animal.healthStatus || (pendingVac ? 'Vaccine Due' : 'Healthy & Fit');
+            let healthIcon = '🟢';
+            if (currentHealth === 'Needs Medicine' || currentHealth === 'Under Observation') {
+              healthIcon = '💊';
+            } else if (currentHealth === 'Vaccine Due') {
+              healthIcon = '💉';
+            } else if (currentHealth === 'Pregnant Care') {
+              healthIcon = '🤰';
+            }
+
+            return (
+              <div
+                key={animal.id}
+                onClick={() => onSelectAnimal(animal)}
+                className={`group relative bg-white rounded-2xl border transition-all p-2 flex flex-col items-center text-center cursor-pointer active:scale-95 select-none ${
+                  isAnimalSelected 
+                    ? 'border-emerald-600 ring-2 ring-emerald-500/40 bg-emerald-50/40 shadow-sm' 
+                    : 'border-stone-200 hover:border-emerald-600 shadow-2xs hover:shadow-sm'
+                }`}
+                title={`${animal.name} (#${animal.tagId}) — Tap to view details popup`}
+              >
+                {/* Multi-select checkbox button (top-right) */}
+                <button
+                  type="button"
+                  onClick={(e) => handleToggleSelectAnimal(e, animal.id)}
+                  className={`absolute top-1.5 right-1.5 z-10 w-5 h-5 rounded-md border flex items-center justify-center transition-all cursor-pointer ${
+                    isAnimalSelected
+                      ? 'bg-emerald-700 text-white border-emerald-800 shadow-xs'
+                      : 'bg-white/90 text-stone-300 border-stone-300 hover:border-emerald-600 hover:text-stone-600'
+                  }`}
+                  title={isAnimalSelected ? 'Deselect from batch action' : 'Select for batch action'}
+                >
+                  {isAnimalSelected ? (
+                    <Check className="w-3.5 h-3.5 stroke-[3]" />
+                  ) : (
+                    <span className="w-2 h-2 rounded-xs border border-stone-300" />
+                  )}
+                </button>
+
+                {/* Tag number badge (top-left) */}
+                <span className="absolute top-1.5 left-1.5 z-10 px-1 py-0.5 rounded font-mono font-black text-[9px] leading-none bg-stone-900/80 text-white shadow-2xs">
+                  #{animal.tagId}
+                </span>
+
+                {/* Animal Avatar Icon: Round squircle with graceful fallback */}
+                <div className="relative w-14 h-14 min-[400px]:w-16 min-[400px]:h-16 mt-3.5 mb-1.5 rounded-2xl overflow-hidden border-2 border-stone-200 bg-stone-100 shadow-2xs group-hover:scale-105 transition-transform shrink-0">
+                  <AnimalAvatar animal={animal} size="icon" />
+                  
+                  {/* Status dot in bottom right of photo */}
+                  <span 
+                    className="absolute bottom-0.5 right-0.5 text-[11px] bg-white/95 rounded-full px-0.5 shadow-2xs border border-stone-200 leading-none"
+                    title={currentHealth}
+                  >
+                    {animalAlert ? '⏰' : healthIcon}
+                  </span>
+                </div>
+
+                {/* Name */}
+                <span className="text-xs font-black text-stone-900 truncate w-full leading-tight mt-0.5">
+                  {animal.name}
+                </span>
+
+                {/* Species Emoji & Age */}
+                <span className="text-[10px] text-stone-500 font-bold truncate w-full">
+                  {getSpeciesEmoji(animal.species)} {calculateAge(animal.dateOfBirth)}
+                </span>
+
+                {/* Body Weight / Breed Pill */}
+                <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md mt-1 truncate max-w-full leading-none ${
+                  animal.purpose === 'Fattening' 
+                    ? 'text-amber-950 bg-amber-100/90 border border-amber-300' 
+                    : 'text-emerald-950 bg-emerald-100/90 border border-emerald-300/80'
+                }`}>
+                  {animal.currentWeightKg}kg · {animal.purpose === 'Fattening' ? '🥩' : '🧬'} {animal.breed}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
-          {filteredAnimals.map(animal => {
+        /* Detailed Cards Grid (3 in a row on desktop) */
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-3.5">
+          {paginatedAnimals.map(animal => {
             const pendingVac = farm.vaccinations.find(
               v => v.animalId === animal.id && (v.status === 'Due Soon' || v.status === 'Overdue')
             );
@@ -541,22 +940,17 @@ export const LivestockList: React.FC<LivestockListProps> = ({
               >
                 <div>
                   {/* Clean Visual Header: Image + Primary Details cleanly side by side */}
-                  <div className="p-3 sm:p-3.5 flex gap-2.5 sm:gap-3 items-start border-b border-stone-100 bg-[#FCFBF8]">
-                    {/* Animal Photo: Clean, rounded square with NO overlaid text */}
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border border-stone-200 bg-stone-100 shrink-0">
-                      <img
-                        src={animal.photoUrl}
-                        alt={animal.name}
-                        referrerPolicy="no-referrer"
-                        className="w-full h-full object-cover"
-                      />
+                  <div className="p-2.5 sm:p-3 flex gap-2 sm:gap-2.5 items-start border-b border-stone-100 bg-[#FCFBF8]">
+                    {/* Animal Photo: Compact, rounded square with graceful fallback */}
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden border border-stone-200 bg-stone-100 shrink-0">
+                      <AnimalAvatar animal={animal} size="card" />
                     </div>
 
                     {/* Animal Name, Tag, Species, Age */}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-1">
                         <div className="flex items-center gap-1 min-w-0">
-                          <span className="font-mono text-xs font-black text-emerald-900 bg-emerald-100/90 px-2 py-0.5 rounded border border-emerald-300/80 shrink-0">
+                          <span className="font-mono text-[11px] sm:text-xs font-black text-emerald-900 bg-emerald-100/90 px-1.5 py-0.5 rounded border border-emerald-300/80 shrink-0">
                             #{animal.tagId}
                           </span>
                           {onUpdateAnimal && (
@@ -567,20 +961,20 @@ export const LivestockList: React.FC<LivestockListProps> = ({
                               title="Update Tag Number"
                             >
                               <Edit2 className="w-2.5 h-2.5" />
-                              <span className="hidden xs:inline">Edit</span>
+                              <span className="hidden xs:inline">{t('edit', 'Edit')}</span>
                             </button>
                           )}
                         </div>
 
                         {/* Age & Multi-select Checkbox */}
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <span className="text-[11px] font-bold text-stone-500">
+                        <div className="flex items-center gap-1 shrink-0">
+                          <span className="text-[10px] sm:text-[11px] font-bold text-stone-500">
                             {calculateAge(animal.dateOfBirth)}
                           </span>
                           <button
                             type="button"
                             onClick={(e) => handleToggleSelectAnimal(e, animal.id)}
-                            className={`w-7 h-7 rounded-lg border cursor-pointer flex items-center justify-center transition-all ${
+                            className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg border cursor-pointer flex items-center justify-center transition-all ${
                               isAnimalSelected
                                 ? 'bg-emerald-700 text-white border-emerald-800 shadow-xs'
                                 : 'bg-white text-stone-400 border-stone-300 hover:text-stone-700'
@@ -588,29 +982,30 @@ export const LivestockList: React.FC<LivestockListProps> = ({
                             title={isAnimalSelected ? 'Deselect from batch action' : 'Select for batch action'}
                           >
                             {isAnimalSelected ? (
-                              <CheckSquare className="w-4 h-4" />
+                              <CheckSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                             ) : (
-                              <Square className="w-4 h-4" />
+                              <Square className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                             )}
                           </button>
                         </div>
                       </div>
 
-                      <h3 className="text-sm sm:text-base font-black text-stone-900 truncate mt-1">
+                      <h3 className="text-xs sm:text-sm font-black text-stone-900 truncate mt-1">
                         {animal.name}
                       </h3>
 
-                      <p className="text-xs text-stone-500 font-medium truncate mt-0.5">
+                      <p className="text-[11px] text-stone-500 font-medium truncate mt-0.5">
                         {getSpeciesEmoji(animal.species)} {animal.species} · {animal.breed} · {animal.sex}
+                        {animal.purpose === 'Fattening' ? ' · 🥩 Fattening' : ' · 🧬 Breeding'}
                       </p>
                     </div>
                   </div>
 
                   {/* Body: 2 Clean Status Badges (Health & Yield/Weight) */}
-                  <div className="p-3 space-y-2">
+                  <div className="p-2.5 sm:p-3 space-y-1.5">
                     {/* Vaccine Due Warning Banner (if due) */}
                     {animalAlert && (
-                      <div className="px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-950 font-bold text-[11px] flex items-center gap-1.5">
+                      <div className="px-2 py-0.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-950 font-bold text-[10px] sm:text-[11px] flex items-center gap-1">
                         <span>⏰</span>
                         <span className="truncate">
                           Shot: {animalAlert.vaccineName} ({animalAlert.daysLeft <= 0 ? 'Overdue!' : `in ${animalAlert.daysLeft}d`})
@@ -618,44 +1013,44 @@ export const LivestockList: React.FC<LivestockListProps> = ({
                       </div>
                     )}
 
-                    <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="grid grid-cols-2 gap-1.5 text-xs">
                       {/* Health */}
-                      <div className={`p-2 rounded-xl border flex items-center gap-1.5 truncate ${healthColor}`}>
-                        <span>{healthIcon}</span>
-                        <span className="font-bold truncate text-[11px]">
+                      <div className={`p-1.5 rounded-lg border flex items-center gap-1 truncate ${healthColor}`}>
+                        <span className="text-[11px]">{healthIcon}</span>
+                        <span className="font-bold truncate text-[10px] sm:text-[11px]">
                           {currentHealth}
                         </span>
                       </div>
 
                       {/* Weight Badge (Specialized for Sheep & Goats) */}
-                      <div className="p-2 rounded-xl border border-stone-200 bg-stone-50 text-stone-800 flex items-center gap-1.5 truncate">
-                        <span>{animal.species === 'Sheep' ? '🐑' : '🐐'}</span>
-                        <span className="font-bold truncate text-[11px]">
+                      <div className="p-1.5 rounded-lg border border-stone-200 bg-stone-50 text-stone-800 flex items-center gap-1 truncate">
+                        <span className="text-[11px]">{animal.species === 'Sheep' ? '🐑' : '🐐'}</span>
+                        <span className="font-bold truncate text-[10px] sm:text-[11px]">
                           {animal.currentWeightKg} kg body wt
                         </span>
                       </div>
                     </div>
 
                     {/* Breed & Location in 1 quiet line */}
-                    <div className="flex items-center justify-between text-[11px] text-stone-500 font-medium pt-0.5">
-                      <span className="truncate max-w-[130px]">{animal.breed}</span>
-                      <span className="truncate max-w-[140px] text-stone-400">{animal.paddockLocation}</span>
+                    <div className="flex items-center justify-between text-[10px] text-stone-500 font-medium pt-0.5">
+                      <span className="truncate max-w-[120px]">{animal.breed}</span>
+                      <span className="truncate max-w-[120px] text-stone-400">{animal.paddockLocation}</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Card Actions: Large touch buttons (min 40px height for mobile ergonomics) */}
-                <div className="px-3 pb-3 pt-1 flex items-center gap-2">
+                {/* Card Actions: Touch buttons */}
+                <div className="px-2.5 pb-2.5 sm:px-3 sm:pb-3 pt-0.5 flex items-center gap-1.5">
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       onSelectAnimal(animal);
                     }}
-                    className="flex-1 min-h-[40px] py-2 px-3 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-black flex items-center justify-center gap-1 shadow-2xs cursor-pointer active:scale-98 transition-all"
+                    className="flex-1 min-h-[34px] py-1.5 px-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-black flex items-center justify-center gap-1 shadow-2xs cursor-pointer active:scale-98 transition-all"
                   >
                     <span>{t('viewDiary', 'View Diary')}</span>
-                    <ChevronRight className="w-4 h-4 shrink-0" />
+                    <ChevronRight className="w-3.5 h-3.5 shrink-0" />
                   </button>
 
                   {/* Delete Button (Admin Only) */}
@@ -665,7 +1060,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({
                         <button
                           type="button"
                           onClick={(e) => handleConfirmDelete(e, animal.id)}
-                          className="min-h-[40px] px-2.5 py-2 rounded-xl bg-red-700 text-white text-xs font-black cursor-pointer"
+                          className="min-h-[34px] px-2 py-1.5 rounded-xl bg-red-700 text-white text-[11px] font-black cursor-pointer"
                         >
                           {t('deleteAnimal', 'Delete')}
                         </button>
@@ -675,7 +1070,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({
                             e.stopPropagation();
                             setDeleteConfirmId(null);
                           }}
-                          className="min-h-[40px] px-2.5 py-2 rounded-xl bg-stone-200 text-stone-700 text-xs font-bold cursor-pointer"
+                          className="min-h-[34px] px-2 py-1.5 rounded-xl bg-stone-200 text-stone-700 text-[11px] font-bold cursor-pointer"
                         >
                           {t('cancel', 'Cancel')}
                         </button>
@@ -684,10 +1079,10 @@ export const LivestockList: React.FC<LivestockListProps> = ({
                       <button
                         type="button"
                         onClick={(e) => handleDeleteClick(e, animal)}
-                        className="min-h-[40px] w-10 flex items-center justify-center rounded-xl border border-stone-200 hover:bg-red-50 text-stone-400 hover:text-red-700 transition-colors shrink-0 cursor-pointer"
+                        className="min-h-[34px] w-9 flex items-center justify-center rounded-xl border border-stone-200 hover:bg-red-50 text-stone-400 hover:text-red-700 transition-colors shrink-0 cursor-pointer"
                         title={t('deleteAnimal', 'Delete Animal')}
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     )
                   )}
@@ -695,6 +1090,103 @@ export const LivestockList: React.FC<LivestockListProps> = ({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Pagination Controls (shown after each 20 animals in the list) */}
+      {totalAnimals > ITEMS_PER_PAGE && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 pb-2 px-1 border-t border-stone-200/80">
+          {/* Summary / Range indicator */}
+          <div className="text-xs text-stone-600 font-medium text-center sm:text-left">
+            <span>{t('showing', 'Showing')} </span>
+            <strong className="text-stone-900 font-bold">{startIndex + 1}–{endIndex}</strong>
+            <span> {t('of', 'of')} </span>
+            <strong className="text-stone-900 font-bold">{totalAnimals}</strong>
+            <span className="text-stone-700 font-semibold">
+              {' '}{selectedSpecies === 'All' ? t('wholeFlock', 'animals') : (selectedSpecies === 'Goat' ? t('goats', 'Goats') : t('sheep', 'Sheep'))}
+            </span>
+            <span className="text-stone-400 text-[11px] ml-1.5 font-normal">
+              ({t('perPage', '20 per page')} · {t('page', 'Page')} {currentPage} {t('of', 'of')} {totalPages})
+            </span>
+          </div>
+
+          {/* Navigation Buttons */}
+          <div className="flex items-center gap-1.5 flex-wrap justify-center">
+            {/* Previous Button */}
+            <button
+              type="button"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className={`min-h-[38px] px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition-all ${
+                currentPage === 1
+                  ? 'bg-stone-100 text-stone-400 cursor-not-allowed border border-stone-200'
+                  : 'bg-white border border-stone-300 text-stone-700 hover:bg-stone-50 hover:text-stone-900 cursor-pointer shadow-2xs active:scale-95'
+              }`}
+              title="Previous Page"
+            >
+              <ChevronLeft className="w-4 h-4 shrink-0" />
+              <span>{t('previous', 'Prev')}</span>
+            </button>
+
+            {/* Page Number Pills */}
+            <div className="flex items-center gap-1 overflow-x-auto max-w-[200px] sm:max-w-none py-0.5">
+              {getPageNumbers().map((p, idx) => {
+                if (p === '...') {
+                  return (
+                    <span key={`ellipsis-${idx}`} className="px-1.5 py-1 text-xs text-stone-400 font-bold select-none">
+                      ...
+                    </span>
+                  );
+                }
+                const pageNum = p as number;
+                const isActive = pageNum === currentPage;
+                return (
+                  <button
+                    key={pageNum}
+                    type="button"
+                    onClick={() => handlePageChange(pageNum)}
+                    className={`min-w-[36px] h-[36px] px-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center ${
+                      isActive
+                        ? 'bg-emerald-800 text-white shadow-xs'
+                        : 'bg-white border border-stone-200 text-stone-700 hover:bg-stone-50 active:scale-95'
+                    }`}
+                    aria-current={isActive ? 'page' : undefined}
+                    title={`Page ${pageNum}`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Next Button */}
+            <button
+              type="button"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className={`min-h-[38px] px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition-all ${
+                currentPage === totalPages
+                  ? 'bg-stone-100 text-stone-400 cursor-not-allowed border border-stone-200'
+                  : 'bg-white border border-stone-300 text-stone-700 hover:bg-stone-50 hover:text-stone-900 cursor-pointer shadow-2xs active:scale-95'
+              }`}
+              title="Next Page"
+            >
+              <span>{t('next', 'Next')}</span>
+              <ChevronRight className="w-4 h-4 shrink-0" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* If list has 20 or fewer animals, show clear 20-per-page status indicator */}
+      {totalAnimals <= ITEMS_PER_PAGE && totalAnimals > 0 && (
+        <div className="pt-3 pb-2 px-1 text-center text-xs text-stone-500 font-medium border-t border-stone-200/70">
+          <span>{t('showing', 'Showing')} </span>
+          <strong className="text-stone-900 font-bold">{totalAnimals}</strong>
+          <span> {selectedSpecies === 'All' ? t('wholeFlock', 'animals') : (selectedSpecies === 'Goat' ? t('goats', 'Goats') : t('sheep', 'Sheep'))}</span>
+          <span className="text-stone-400 text-[11px] ml-1.5 font-normal">
+            ({t('perPage', '20 per page')} · {t('page', 'Page')} 1 {t('of', 'of')} 1)
+          </span>
         </div>
       )}
 

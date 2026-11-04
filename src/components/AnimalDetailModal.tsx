@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Animal, Species, Farm, User, GrowthMetric, VaccinationRecord, HealthRecord, AnimalHealthStatus, isVaccineManager } from '../types';
+import { Animal, Species, Farm, User, GrowthMetric, VaccinationRecord, HealthRecord, AnimalHealthStatus, isVaccineManager, AnimalPurpose, AnimalOrigin } from '../types';
 import { calculateAge } from './LivestockList';
 import { 
   X, 
@@ -15,9 +15,11 @@ import {
   Sparkles,
   ArrowUpRight,
   Camera,
-  Edit2
+  Edit2,
+  Info
 } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
+import { AnimalAvatar } from './AnimalAvatar';
 
 interface AnimalDetailModalProps {
   animal: Animal;
@@ -32,6 +34,7 @@ interface AnimalDetailModalProps {
   onDeleteAnimal: (animalId: string) => void;
   onUpdateAnimalPhoto: (animalId: string, newPhoto: string) => void;
   onUpdateAnimal?: (animalId: string, updates: Partial<Animal>) => void;
+  onOpenSymptomChecker?: (animalId?: string) => void;
 }
 
 export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
@@ -47,6 +50,7 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
   onDeleteAnimal,
   onUpdateAnimalPhoto,
   onUpdateAnimal,
+  onOpenSymptomChecker,
 }) => {
   const isAdmin = farm.adminUserId === currentUser.id;
   const { t, localeText } = useLanguage();
@@ -65,6 +69,9 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
   const [editLocation, setEditLocation] = useState(animal.paddockLocation);
   const [editWeight, setEditWeight] = useState(String(animal.currentWeightKg));
   const [editHealth, setEditHealth] = useState<AnimalHealthStatus>(animal.healthStatus || 'Healthy & Fit');
+  const [editPurpose, setEditPurpose] = useState<AnimalPurpose>(animal.purpose || 'Breeding');
+  const [editOrigin, setEditOrigin] = useState<AnimalOrigin>(animal.origin || 'Born on Farm');
+  const [editKnowsParents, setEditKnowsParents] = useState<boolean>(animal.knowsParents !== false);
 
   const handleOpenEdit = () => {
     setEditTagId(animal.tagId);
@@ -75,6 +82,9 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
     setEditLocation(animal.paddockLocation);
     setEditWeight(String(animal.currentWeightKg));
     setEditHealth(animal.healthStatus || 'Healthy & Fit');
+    setEditPurpose(animal.purpose || 'Breeding');
+    setEditOrigin(animal.origin || 'Born on Farm');
+    setEditKnowsParents(animal.knowsParents !== false);
     setShowEditModal(true);
   };
 
@@ -92,6 +102,9 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
       paddockLocation: editLocation.trim(),
       currentWeightKg: w,
       healthStatus: editHealth,
+      purpose: editPurpose,
+      origin: editOrigin,
+      knowsParents: editPurpose === 'Fattening' ? false : (editOrigin === 'Born on Farm' ? true : editKnowsParents),
     });
     setShowEditModal(false);
   };
@@ -225,6 +238,22 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
               <span className="text-[11px] sm:text-xs text-stone-600 font-bold truncate">
                 {animal.species} · {animal.breed} · {animal.sex}
               </span>
+              {/* Purpose Badge */}
+              <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                animal.purpose === 'Fattening'
+                  ? 'bg-amber-100 text-amber-950 border-amber-300'
+                  : 'bg-emerald-50 text-emerald-900 border-emerald-300'
+              }`}>
+                {animal.purpose === 'Fattening' ? `🥩 ${t('fattening', 'Fattening')}` : `🧬 ${t('breeding', 'Breeding')}`}
+              </span>
+              {/* Origin Badge */}
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                animal.origin === 'Brought from Outside'
+                  ? 'bg-purple-50 text-purple-900 border-purple-200'
+                  : 'bg-blue-50 text-blue-900 border-blue-200'
+              }`}>
+                {animal.origin === 'Brought from Outside' ? `🚚 ${t('broughtFromOutside', 'Outside')}` : `🏡 ${t('bornOnFarm', 'Born on Farm')}`}
+              </span>
               {onUpdateAnimal && (
                 <button
                   type="button"
@@ -292,14 +321,9 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
           {/* Top Identity Hero Card */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-5 items-stretch">
             
-            <div className="md:col-span-5 relative rounded-2xl overflow-hidden border border-stone-200 h-40 sm:h-52 md:h-auto md:min-h-[200px] bg-stone-100">
-              <img
-                src={animal.photoUrl}
-                alt={animal.name}
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-cover"
-              />
-              <label className="absolute bottom-2.5 right-2.5 px-2.5 py-1.5 rounded-xl bg-stone-900/85 hover:bg-stone-900 text-white text-xs font-bold flex items-center gap-1.5 backdrop-blur-xs cursor-pointer transition-colors shadow-md">
+            <div className="md:col-span-5 relative rounded-2xl overflow-hidden border border-stone-200 h-44 sm:h-52 md:h-auto md:min-h-[200px] bg-stone-100 flex items-center justify-center">
+              <AnimalAvatar animal={animal} size="hero" />
+              <label className="absolute bottom-2.5 right-2.5 px-2.5 py-1.5 rounded-xl bg-stone-900/85 hover:bg-stone-900 text-white text-xs font-bold flex items-center gap-1.5 backdrop-blur-xs cursor-pointer transition-colors shadow-md z-20">
                 <Camera className="w-3.5 h-3.5" />
                 <span>Change Photo</span>
                 <input
@@ -391,15 +415,37 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
               </div>
 
               {/* Parents summary */}
-              <div className="pt-2 border-t border-amber-200/60 flex flex-wrap items-center justify-between text-xs text-stone-700">
-                <span>
-                  <strong>Papa (Father):</strong> {animal.sireName} ({animal.sireTag})
-                </span>
-                <span> · </span>
-                <span>
-                  <strong>Mummy (Mother):</strong> {animal.damName} ({animal.damTag})
-                </span>
-              </div>
+              {animal.purpose === 'Fattening' ? (
+                <div className="pt-2 border-t border-amber-200/60 flex items-center justify-between text-xs text-amber-950">
+                  <span className="font-bold flex items-center gap-1.5">
+                    <span>🥩</span>
+                    <span>{t('fattening', 'Fattening Stock')} ({localeText({ en: 'Meat / Market', hi: 'मांस व बिक्री', kn: 'ಮಾಂಸ / ಮಾರುಕಟ್ಟೆ', te: 'మాంసం / మార్కెట్', ta: 'இறைச்சி / சந்தை', ml: 'മാംസം / വിപണി', mr: 'मटण / बाजार' })})</span>
+                  </span>
+                  <span className="text-[11px] text-amber-800 font-semibold bg-amber-100/70 px-2 py-0.5 rounded-full">
+                    {t('familyTreeNotNeeded', 'Family tree not tracked')}
+                  </span>
+                </div>
+              ) : animal.origin === 'Brought from Outside' && !animal.knowsParents && (!animal.sireName && !animal.damName) ? (
+                <div className="pt-2 border-t border-amber-200/60 flex items-center justify-between text-xs text-purple-950">
+                  <span className="font-bold flex items-center gap-1.5">
+                    <span>🚚</span>
+                    <span>{t('broughtFromOutside', 'Brought from Outside')} ({t('parentsUnknown', 'Foundation Stock')})</span>
+                  </span>
+                  <span className="text-[11px] text-purple-800 font-semibold bg-purple-100/70 px-2 py-0.5 rounded-full">
+                    Parents unknown
+                  </span>
+                </div>
+              ) : (
+                <div className="pt-2 border-t border-amber-200/60 flex flex-wrap items-center justify-between text-xs text-stone-700">
+                  <span>
+                    <strong>Papa (Father):</strong> {animal.sireName || 'Foundation Sire'} {animal.sireTag ? `(${animal.sireTag})` : ''}
+                  </span>
+                  <span> · </span>
+                  <span>
+                    <strong>Mummy (Mother):</strong> {animal.damName || 'Foundation Dam'} {animal.damTag ? `(${animal.damTag})` : ''}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -446,75 +492,146 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
           {/* TAB 1: SIMPLE FAMILY TREE (PAPA & MUMMY) */}
           {activeTab === 'lineage' && (
             <div className="space-y-5">
-              <div>
-                <h3 className="text-base font-extrabold text-stone-900">
-                  {t('familyTree', 'Animal Family Tree')}
-                </h3>
-                <p className="text-xs text-stone-500 mt-0.5">
-                  See who the Papa (father) and Mummy (mother) are. Tap on them to see their records!
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                
-                {/* Papa Card */}
-                <div className="p-3.5 sm:p-4 rounded-2xl bg-stone-50 border-2 border-stone-200 space-y-1.5 sm:space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-black text-stone-700 uppercase">
-                      🐐/🐑 Papa (Stud Buck / Ram)
-                    </span>
-                    <span className="font-mono text-xs font-bold text-stone-700 bg-white px-2 py-0.5 rounded border">
-                      Tag #{animal.sireTag}
-                    </span>
+              {animal.purpose === 'Fattening' ? (
+                /* Fattening Animal Notice */
+                <div className="p-6 rounded-3xl bg-amber-50/70 border-2 border-amber-300 text-center space-y-4">
+                  <div className="w-16 h-16 rounded-2xl bg-amber-200/80 text-3xl flex items-center justify-center mx-auto shadow-xs">
+                    🥩
                   </div>
-                  <h4 className="text-sm sm:text-base font-black text-stone-900">{animal.sireName}</h4>
-                  <p className="text-xs text-stone-600">Breed: {animal.sireBreed}</p>
-
-                  {sireInHerd ? (
-                    <button
-                      type="button"
-                      onClick={() => onSelectAnotherAnimal(sireInHerd)}
-                      className="mt-2 w-full py-1.5 px-3 rounded-xl bg-white border border-stone-300 hover:border-emerald-700 text-xs font-bold text-emerald-900 flex items-center justify-between cursor-pointer"
-                    >
-                      <span>See Papa's Diary on this Farm</span>
-                      <ArrowUpRight className="w-3.5 h-3.5" />
-                    </button>
-                  ) : (
-                    <p className="text-[11px] text-stone-400 italic">
-                      Foundation Sire from outside breed registry
+                  <div className="max-w-md mx-auto space-y-1.5">
+                    <h3 className="text-base sm:text-lg font-black text-amber-950">
+                      {t('familyTreeNotNeeded', 'Family tree is not tracked for fattening animals')}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-amber-900 leading-relaxed font-medium">
+                      {t('parentsNotTrackedFattening', 'Fattening animals are reared for meat and market; pedigree records are not needed.')}
                     </p>
-                  )}
-                </div>
-
-                {/* Mummy Card */}
-                <div className="p-3.5 sm:p-4 rounded-2xl bg-stone-50 border-2 border-stone-200 space-y-1.5 sm:space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-black text-stone-700 uppercase">
-                      🐐/🐑 Mummy (Doe / Ewe)
-                    </span>
-                    <span className="font-mono text-xs font-bold text-stone-700 bg-white px-2 py-0.5 rounded border">
-                      Tag #{animal.damTag}
-                    </span>
                   </div>
-                  <h4 className="text-sm sm:text-base font-black text-stone-900">{animal.damName}</h4>
-                  <p className="text-xs text-stone-600">Breed: {animal.damBreed}</p>
 
-                  {damInHerd ? (
-                    <button
-                      type="button"
-                      onClick={() => onSelectAnotherAnimal(damInHerd)}
-                      className="mt-2 w-full py-1.5 px-3 rounded-xl bg-white border border-stone-300 hover:border-emerald-700 text-xs font-bold text-emerald-900 flex items-center justify-between cursor-pointer"
-                    >
-                      <span>See Mummy's Diary on this Farm</span>
-                      <ArrowUpRight className="w-3.5 h-3.5" />
-                    </button>
-                  ) : (
-                    <p className="text-[11px] text-stone-400 italic">
-                      Foundation Dam from outside breed registry
-                    </p>
-                  )}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-w-lg mx-auto pt-2 text-left">
+                    <div className="p-3 rounded-2xl bg-white border border-amber-200">
+                      <span className="text-[10px] uppercase font-bold text-stone-500 block">Current Weight</span>
+                      <span className="text-base font-black text-stone-900 font-mono">{animal.currentWeightKg} kg</span>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-white border border-amber-200">
+                      <span className="text-[10px] uppercase font-bold text-stone-500 block">Target Weight</span>
+                      <span className="text-base font-black text-emerald-800 font-mono">{animal.targetMatureWeightKg} kg</span>
+                    </div>
+                    <div className="col-span-2 sm:col-span-1 p-3 rounded-2xl bg-white border border-amber-200">
+                      <span className="text-[10px] uppercase font-bold text-stone-500 block">Market Readiness</span>
+                      <span className="text-base font-black text-amber-800 font-mono">
+                        {Math.min(100, Math.round((animal.currentWeightKg / animal.targetMatureWeightKg) * 100))}%
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('growth')}
+                    className="px-4 py-2.5 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold cursor-pointer transition-all shadow-xs inline-flex items-center gap-1.5"
+                  >
+                    <span>⚖️ {localeText({ en: 'View Weight & Growth Records', hi: 'वजन व वृद्धि रिकॉर्ड देखें', kn: 'ತೂಕ ಮತ್ತು ಬೆಳವಣಿಗೆ ದಾಖಲೆಗಳನ್ನು ವೀಕ್ಷಿಸಿ', te: 'బరువు & పెరుగుదల రికార్డులను చూడండి', ta: 'எடை மற்றும் வளர்ச்சி பதிவுகளைக் காண்க', ml: 'തൂക്കവും വളർച്ചയും കാണുക', mr: 'वजन व वाढीच्या नोंदी पहा' })}</span>
+                    <ArrowUpRight className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-              </div>
+              ) : animal.origin === 'Brought from Outside' && !animal.knowsParents && (!animal.sireName && !animal.damName) ? (
+                /* Brought from outside with unknown parents */
+                <div className="p-5 rounded-3xl bg-purple-50/80 border-2 border-purple-200 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl shrink-0">🚚</span>
+                    <div>
+                      <h4 className="text-sm sm:text-base font-black text-purple-950">
+                        {t('parentsUnknown', 'Parents Unknown (Foundation Stock)')}
+                      </h4>
+                      <p className="text-xs text-purple-900 mt-1 leading-relaxed font-medium">
+                        {t('foundationStockDesc', 'Brought from outside with unknown ancestry. Serves as foundation breeding stock.')}
+                      </p>
+                      <div className="mt-2 text-xs text-purple-800 bg-white/80 p-2.5 rounded-xl border border-purple-200 font-medium">
+                        ✓ {localeText({
+                          en: 'Family tree does not show unverified or fake parents for market purchases. Kids and lambs born to this animal on your farm will establish its verified lineage below.',
+                          hi: 'मंडी खरीद के लिए फर्जी या खाली माता-पिता नहीं दिखाए जाते। इस पशु से आपके फार्म पर जन्मे बच्चे नीचे दिखेंगे।',
+                          kn: 'ಮಾರುಕಟ್ಟೆ ಖರೀದಿಗೆ ನಕಲಿ ಪೋಷಕರು ಕಾಣಿಸುವುದಿಲ್ಲ. ನಿಮ್ಮ ಫಾರ್ಮ್‌ನಲ್ಲಿ ಜನಿಸಿದ ಮರಿಗಳು ಕೆಳಗೆ ದಾಖಲಾಗುತ್ತವೆ.',
+                          te: 'సంత కొనుగోళ్లకు నకిలీ తల్లిదंड్రుల వివరాలు చూపబడవు. ఈ జీవానికి మీ ఫారమ్‌లో పుట్టిన పిల్లలు క్రింద కనిపిస్తాయి.',
+                          ta: 'சந்தை வாங்குதல்களுக்கு போலி பெற்றோர் காட்டப்படாது. உங்கள் பண்ணையில் பிறந்த குட்டிகள் கீழே உள்ளன.',
+                          ml: 'ചന്തയിൽ നിന്ന് വാങ്ങിയതിന് വ്യാജ രേഖകൾ ഉണ്ടാവില്ല. ഇവിടെ ജനിച്ച കുഞ്ഞുങ്ങൾ താഴെ കാണാം.',
+                          mr: 'बाजार खरेदीसाठी खोटे आई-वडील दाखवले जात नाहीत. या जनावरापासून तुमच्या फार्मवर जन्मलेली करडे खाली दिसतील.'
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Full Family Tree with Papa & Mummy Cards */
+                <>
+                  <div>
+                    <h3 className="text-base font-extrabold text-stone-900">
+                      {t('familyTree', 'Animal Family Tree')}
+                    </h3>
+                    <p className="text-xs text-stone-500 mt-0.5">
+                      See who the Papa (father) and Mummy (mother) are. Tap on them to see their records!
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Papa Card */}
+                    <div className="p-3.5 sm:p-4 rounded-2xl bg-stone-50 border-2 border-stone-200 space-y-1.5 sm:space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-stone-700 uppercase">
+                          🐐/🐑 Papa (Stud Buck / Ram)
+                        </span>
+                        <span className="font-mono text-xs font-bold text-stone-700 bg-white px-2 py-0.5 rounded border">
+                          Tag #{animal.sireTag || 'FOUNDATION'}
+                        </span>
+                      </div>
+                      <h4 className="text-sm sm:text-base font-black text-stone-900">{animal.sireName || 'Foundation Sire'}</h4>
+                      <p className="text-xs text-stone-600">Breed: {animal.sireBreed || 'Foundation Stock'}</p>
+
+                      {sireInHerd ? (
+                        <button
+                          type="button"
+                          onClick={() => onSelectAnotherAnimal(sireInHerd)}
+                          className="mt-2 w-full py-1.5 px-3 rounded-xl bg-white border border-stone-300 hover:border-emerald-700 text-xs font-bold text-emerald-900 flex items-center justify-between cursor-pointer"
+                        >
+                          <span>See Papa's Diary on this Farm</span>
+                          <ArrowUpRight className="w-3.5 h-3.5" />
+                        </button>
+                      ) : (
+                        <p className="text-[11px] text-stone-400 italic">
+                          Foundation Sire from outside breed registry
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Mummy Card */}
+                    <div className="p-3.5 sm:p-4 rounded-2xl bg-stone-50 border-2 border-stone-200 space-y-1.5 sm:space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-stone-700 uppercase">
+                          🐐/🐑 Mummy (Doe / Ewe)
+                        </span>
+                        <span className="font-mono text-xs font-bold text-stone-700 bg-white px-2 py-0.5 rounded border">
+                          Tag #{animal.damTag || 'FOUNDATION'}
+                        </span>
+                      </div>
+                      <h4 className="text-sm sm:text-base font-black text-stone-900">{animal.damName || 'Foundation Dam'}</h4>
+                      <p className="text-xs text-stone-600">Breed: {animal.damBreed || 'Foundation Stock'}</p>
+
+                      {damInHerd ? (
+                        <button
+                          type="button"
+                          onClick={() => onSelectAnotherAnimal(damInHerd)}
+                          className="mt-2 w-full py-1.5 px-3 rounded-xl bg-white border border-stone-300 hover:border-emerald-700 text-xs font-bold text-emerald-900 flex items-center justify-between cursor-pointer"
+                        >
+                          <span>See Mummy's Diary on this Farm</span>
+                          <ArrowUpRight className="w-3.5 h-3.5" />
+                        </button>
+                      ) : (
+                        <p className="text-[11px] text-stone-400 italic">
+                          Foundation Dam from outside breed registry
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* Good Traits Inherited */}
               <div className="space-y-2.5 sm:space-y-3">
@@ -522,7 +639,7 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
                   Good Qualities from Papa & Mummy:
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
-                  {animal.inheritedTraits.map((t, idx) => (
+                  {(animal.inheritedTraits || []).map((t, idx) => (
                     <div key={idx} className="p-3 sm:p-3.5 rounded-2xl bg-emerald-50/50 border border-emerald-200 space-y-1">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-black text-emerald-950">{t.traitName}</span>
@@ -823,6 +940,29 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
 
               {/* Doctor Visits */}
               <div className="space-y-3 pt-3 border-t border-stone-200">
+                {onOpenSymptomChecker && (
+                  <div className="p-3 bg-teal-50 border border-teal-200 rounded-2xl flex items-center justify-between gap-3 shadow-2xs">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-xl">🩺</span>
+                      <div>
+                        <div className="text-xs font-black text-teal-950">
+                          {animal.name} ({animal.tagId}) - {t('symptomChecker', 'Symptom Checker')}
+                        </div>
+                        <div className="text-[11px] text-teal-800 font-medium">
+                          Check observed symptoms & view immediate offline first-aid advice.
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onOpenSymptomChecker(animal.id)}
+                      className="px-3 py-1.5 rounded-xl bg-teal-800 hover:bg-teal-900 text-white text-xs font-black shrink-0 cursor-pointer shadow-xs active:scale-95 transition-all"
+                    >
+                      {t('symptomChecker', 'Check Symptoms')}
+                    </button>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-extrabold text-stone-900 flex items-center gap-1.5">
                     <span>🩺</span>
@@ -1058,6 +1198,47 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
                     <option value="Under Observation">👀 Under Observation</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Purpose & Origin */}
+              <div className="p-3 bg-stone-50 rounded-2xl border border-stone-200 space-y-2.5">
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-stone-700 block">{t('purpose', 'Animal Purpose')}</label>
+                    <select
+                      value={editPurpose}
+                      onChange={(e) => setEditPurpose(e.target.value as AnimalPurpose)}
+                      className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-bold bg-white text-stone-900"
+                    >
+                      <option value="Breeding">🧬 {t('breeding', 'Breeding')}</option>
+                      <option value="Fattening">🥩 {t('fattening', 'Fattening')}</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-stone-700 block">{t('origin', 'Animal Origin')}</label>
+                    <select
+                      value={editOrigin}
+                      onChange={(e) => setEditOrigin(e.target.value as AnimalOrigin)}
+                      className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-bold bg-white text-stone-900"
+                    >
+                      <option value="Born on Farm">🏡 {t('bornOnFarm', 'Born on Farm')}</option>
+                      <option value="Brought from Outside">🚚 {t('broughtFromOutside', 'Brought from Outside')}</option>
+                    </select>
+                  </div>
+                </div>
+
+                {editPurpose === 'Breeding' && editOrigin === 'Brought from Outside' && (
+                  <label className="flex items-center gap-2 text-xs font-medium text-stone-700 pt-1 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editKnowsParents}
+                      onChange={(e) => setEditKnowsParents(e.target.checked)}
+                      className="w-4 h-4 rounded text-purple-700 focus:ring-purple-600"
+                    />
+                    <span>{t('knowParentsCheck', 'I know the parents of this animal')}</span>
+                  </label>
+                )}
               </div>
 
               {/* Buttons */}

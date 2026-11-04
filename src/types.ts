@@ -179,6 +179,9 @@ export interface InheritedTrait {
   impactDescription: string;
 }
 
+export type AnimalPurpose = 'Breeding' | 'Fattening';
+export type AnimalOrigin = 'Born on Farm' | 'Brought from Outside';
+
 export interface Animal {
   id: string;
   tagId: string;
@@ -189,16 +192,19 @@ export interface Animal {
   dateOfBirth: string;
   photoUrl: string;
   paddockLocation: string;
+  purpose?: AnimalPurpose; // 'Breeding' (tracks family tree) or 'Fattening' (family tree not needed)
+  origin?: AnimalOrigin;   // 'Born on Farm' (has parents by default) or 'Brought from Outside'
+  knowsParents?: boolean;  // When brought from outside, whether user knows the parents
   status: 'Active' | 'Lactating' | 'Breeding Sire' | 'Laying' | 'Medical Watch' | 'Weaning';
   sireId: string | null;
-  sireName: string;
-  sireTag: string;
-  sireBreed: string;
+  sireName?: string;
+  sireTag?: string;
+  sireBreed?: string;
   damId: string | null;
-  damName: string;
-  damTag: string;
-  damBreed: string;
-  inheritedTraits: InheritedTrait[];
+  damName?: string;
+  damTag?: string;
+  damBreed?: string;
+  inheritedTraits?: InheritedTrait[];
   inbreedingCoefficientPct: number;
   birthWeightKg: number;
   currentWeightKg: number;

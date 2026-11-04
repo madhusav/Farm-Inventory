@@ -643,9 +643,31 @@ class FarmDatabase {
             f.healthRecords = [...INITIAL_FARMS[0].healthRecords];
           }
 
+          // Ensure starter flock on demo farm has all 24 animals to demonstrate 20/page pagination
+          if (f.id === 'FARM-7821' && f.animals.length < 24) {
+            const existingIds = new Set(f.animals.map(a => a.id));
+            INITIAL_FARMS[0].animals.forEach(stAnim => {
+              if (!existingIds.has(stAnim.id)) {
+                f.animals.push({ ...stAnim });
+              }
+            });
+          }
+
           f.animals.forEach(a => {
             a.milkStatus = undefined;
             a.dailyMilkLitres = undefined;
+            if (a.photoUrl && a.photoUrl.includes('data:image/svg+xml') && a.photoUrl.includes('>#')) {
+              a.photoUrl = a.photoUrl.replace(/>#([0-9]+)</g, '>%23$1<');
+            }
+            if (!a.purpose) {
+              a.purpose = 'Breeding';
+            }
+            if (!a.origin) {
+              a.origin = (!a.sireName && !a.damName && !a.sireId && !a.damId) ? 'Brought from Outside' : 'Born on Farm';
+            }
+            if (a.knowsParents === undefined) {
+              a.knowsParents = a.origin === 'Born on Farm' || Boolean(a.sireName || a.damName);
+            }
           });
         }
         // Ensure config has appName configured (default 'Testing')

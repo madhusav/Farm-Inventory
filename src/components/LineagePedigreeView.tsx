@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Farm, Animal } from '../types';
 import { ArrowUpRight, Sparkles } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
+import { AnimalAvatar } from './AnimalAvatar';
 
 interface LineagePedigreeViewProps {
   farm: Farm;
@@ -82,7 +83,7 @@ export const LineagePedigreeView: React.FC<LineagePedigreeViewProps> = ({
           >
             {farm.animals.map(a => (
               <option key={a.id} value={a.id}>
-                {a.name} (Tag #{a.tagId} · {a.species})
+                {a.name} (Tag #{a.tagId} · {a.species} {a.purpose === 'Fattening' ? '· 🥩 Fattening' : '· 🧬 Breeding'})
               </option>
             ))}
           </select>
@@ -96,12 +97,7 @@ export const LineagePedigreeView: React.FC<LineagePedigreeViewProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 pb-4 border-b border-stone-200">
           <div className="flex items-center gap-3.5 min-w-0">
             <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden border border-stone-200 shrink-0">
-              <img
-                src={currentAnimal.photoUrl}
-                alt={currentAnimal.name}
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-cover"
-              />
+              <AnimalAvatar animal={currentAnimal} size="card" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-xs font-mono text-emerald-950 font-bold truncate">
@@ -124,74 +120,146 @@ export const LineagePedigreeView: React.FC<LineagePedigreeViewProps> = ({
           </button>
         </div>
 
-        {/* 3-Tier Pedigree Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-          
-          {/* Box 1: The Animal */}
-          <div className="p-5 rounded-2xl bg-emerald-950 text-white space-y-2 shadow-xs">
-            <span className="text-[11px] font-bold text-emerald-300 uppercase tracking-wider block">
-              ⭐ Animal
-            </span>
-            <div className="text-lg font-black">{currentAnimal.name} (Tag #{currentAnimal.tagId})</div>
-            <div className="text-xs text-stone-300">
-              Weight Today: {currentAnimal.currentWeightKg} kg · {currentAnimal.currentProductivityValue}
+        {/* If Fattening: Family tree not tracked */}
+        {currentAnimal.purpose === 'Fattening' ? (
+          <div className="p-6 sm:p-8 rounded-2xl bg-amber-50/80 border-2 border-amber-300 text-center space-y-3">
+            <div className="w-14 h-14 rounded-2xl bg-amber-200/80 text-2xl flex items-center justify-center mx-auto shadow-xs">
+              🥩
             </div>
-            <div className="text-xs text-emerald-200 pt-2 border-t border-emerald-900 font-bold">
-              Status: {currentAnimal.status}
+            <div className="max-w-md mx-auto space-y-1">
+              <h3 className="text-base sm:text-lg font-black text-amber-950">
+                {t('familyTreeNotNeeded', 'Family tree is not tracked for fattening animals')}
+              </h3>
+              <p className="text-xs text-amber-900 leading-relaxed font-medium">
+                {t('parentsNotTrackedFattening', 'Fattening animals are reared for meat and market; pedigree records are not needed.')}
+              </p>
             </div>
-          </div>
-
-          {/* Box 2: Papa and Mummy */}
-          <div className="space-y-3">
-            <div className="p-3.5 sm:p-4 rounded-2xl bg-[#FFFDF7] border-2 border-amber-200 space-y-1">
-              <span className="text-[11px] font-black text-amber-900 uppercase tracking-wider block">
-                🐐/🐑 Papa (Stud Buck / Ram)
+            <div className="pt-2 flex flex-wrap justify-center gap-3 text-xs text-stone-600">
+              <span className="bg-white px-3 py-1 rounded-xl border border-amber-200 font-bold">
+                Weight: {currentAnimal.currentWeightKg} kg
               </span>
-              <div className="text-sm font-black text-stone-900">{currentAnimal.sireName} (Tag #{currentAnimal.sireTag})</div>
-              <div className="text-xs text-stone-600">Breed: {currentAnimal.sireBreed}</div>
-              {sireInHerd && (
-                <button
-                  type="button"
-                  onClick={() => setSelectedAnimalId(sireInHerd.id)}
-                  className="mt-1 text-xs text-emerald-800 font-bold hover:underline block cursor-pointer"
-                >
-                  See Papa's Family Tree →
-                </button>
-              )}
-            </div>
-
-            <div className="p-3.5 sm:p-4 rounded-2xl bg-[#FFFDF7] border-2 border-amber-200 space-y-1">
-              <span className="text-[11px] font-black text-amber-900 uppercase tracking-wider block">
-                🐐/🐑 Mummy (Doe / Ewe)
+              <span className="bg-white px-3 py-1 rounded-xl border border-amber-200 font-bold">
+                Target: {currentAnimal.targetMatureWeightKg} kg
               </span>
-              <div className="text-sm font-black text-stone-900">{currentAnimal.damName} (Tag #{currentAnimal.damTag})</div>
-              <div className="text-xs text-stone-600">Breed: {currentAnimal.damBreed}</div>
-              {damInHerd && (
-                <button
-                  type="button"
-                  onClick={() => setSelectedAnimalId(damInHerd.id)}
-                  className="mt-1 text-xs text-emerald-800 font-bold hover:underline block cursor-pointer"
-                >
-                  See Mummy's Family Tree →
-                </button>
-              )}
             </div>
+            <p className="text-xs text-stone-500 font-medium pt-1">
+              💡 Tip: Select a 🧬 <strong>Breeding</strong> animal from the dropdown above to view or build pedigree trees.
+            </p>
           </div>
-
-          {/* Box 3: Qualities and Babies */}
-          <div className="space-y-3">
-            <span className="text-[11px] font-bold text-stone-600 uppercase tracking-wider block">
-              Good Qualities & Baby Animals ({offspringInHerd.length})
-            </span>
-            {currentAnimal.inheritedTraits.map((t, idx) => (
-              <div key={idx} className="p-3 sm:p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs space-y-0.5">
-                <div className="font-extrabold text-emerald-950">{t.traitName}</div>
-                <div className="text-stone-600">{t.impactDescription}</div>
-                <div className="text-emerald-800 font-bold text-[11px]">Inherited from {t.inheritedFrom === 'Sire' ? 'Papa' : t.inheritedFrom === 'Dam' ? 'Mummy' : 'Both'}</div>
+        ) : currentAnimal.origin === 'Brought from Outside' && !currentAnimal.knowsParents && (!currentAnimal.sireName && !currentAnimal.damName) ? (
+          <div className="space-y-4">
+            <div className="p-5 rounded-2xl bg-purple-50/80 border-2 border-purple-200 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🚚</span>
+                <h4 className="text-sm font-black text-purple-950">
+                  {t('parentsUnknown', 'Parents Unknown (Foundation Stock)')}
+                </h4>
               </div>
-            ))}
+              <p className="text-xs text-purple-900 leading-relaxed font-medium">
+                {t('foundationStockDesc', 'Brought from outside with unknown ancestry. Serves as foundation breeding stock.')}
+              </p>
+              <p className="text-[11px] text-purple-800 font-medium pt-0.5">
+                ✓ Parents are not recorded for market purchases so no unverified ancestry is displayed. Its offspring born on this farm appear below.
+              </p>
+            </div>
+
+            {/* Offspring in Herd */}
+            <div className="space-y-2 pt-2">
+              <span className="text-xs font-black uppercase text-stone-700">
+                Kids & Lambs of {currentAnimal.name} on this Farm ({offspringInHerd.length})
+              </span>
+              {offspringInHerd.length === 0 ? (
+                <p className="text-xs text-stone-500 italic">No baby kids or lambs recorded yet.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {offspringInHerd.map(child => (
+                    <button
+                      key={child.id}
+                      type="button"
+                      onClick={() => setSelectedAnimalId(child.id)}
+                      className="text-left p-3 rounded-xl border border-stone-200 bg-white hover:border-emerald-700 flex items-center justify-between cursor-pointer"
+                    >
+                      <div>
+                        <div className="text-xs font-bold text-stone-900">{child.name} (Tag #{child.tagId})</div>
+                        <div className="text-[11px] text-stone-500">{child.breed} · Born {child.dateOfBirth}</div>
+                      </div>
+                      <ArrowUpRight className="w-3.5 h-3.5 text-emerald-800" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        ) : (
+          /* 3-Tier Pedigree Grid */
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+            
+            {/* Box 1: The Animal */}
+            <div className="p-5 rounded-2xl bg-emerald-950 text-white space-y-2 shadow-xs">
+              <span className="text-[11px] font-bold text-emerald-300 uppercase tracking-wider block">
+                ⭐ Animal
+              </span>
+              <div className="text-lg font-black">{currentAnimal.name} (Tag #{currentAnimal.tagId})</div>
+              <div className="text-xs text-stone-300">
+                Weight Today: {currentAnimal.currentWeightKg} kg · {currentAnimal.currentProductivityValue}
+              </div>
+              <div className="text-xs text-emerald-200 pt-2 border-t border-emerald-900 font-bold">
+                Status: {currentAnimal.status}
+              </div>
+            </div>
+
+            {/* Box 2: Papa and Mummy */}
+            <div className="space-y-3">
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-[#FFFDF7] border-2 border-amber-200 space-y-1">
+                <span className="text-[11px] font-black text-amber-900 uppercase tracking-wider block">
+                  🐐/🐑 Papa (Stud Buck / Ram)
+                </span>
+                <div className="text-sm font-black text-stone-900">{currentAnimal.sireName || 'Foundation Sire'} {currentAnimal.sireTag ? `(Tag #${currentAnimal.sireTag})` : ''}</div>
+                <div className="text-xs text-stone-600">Breed: {currentAnimal.sireBreed || 'Foundation Stock'}</div>
+                {sireInHerd && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedAnimalId(sireInHerd.id)}
+                    className="mt-1 text-xs text-emerald-800 font-bold hover:underline block cursor-pointer"
+                  >
+                    See Papa's Family Tree →
+                  </button>
+                )}
+              </div>
+
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-[#FFFDF7] border-2 border-amber-200 space-y-1">
+                <span className="text-[11px] font-black text-amber-900 uppercase tracking-wider block">
+                  🐐/🐑 Mummy (Doe / Ewe)
+                </span>
+                <div className="text-sm font-black text-stone-900">{currentAnimal.damName || 'Foundation Dam'} {currentAnimal.damTag ? `(Tag #${currentAnimal.damTag})` : ''}</div>
+                <div className="text-xs text-stone-600">Breed: {currentAnimal.damBreed || 'Foundation Stock'}</div>
+                {damInHerd && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedAnimalId(damInHerd.id)}
+                    className="mt-1 text-xs text-emerald-800 font-bold hover:underline block cursor-pointer"
+                  >
+                    See Mummy's Family Tree →
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Box 3: Qualities and Babies */}
+            <div className="space-y-3">
+              <span className="text-[11px] font-bold text-stone-600 uppercase tracking-wider block">
+                Good Qualities & Baby Animals ({offspringInHerd.length})
+              </span>
+              {(currentAnimal.inheritedTraits || []).map((t, idx) => (
+                <div key={idx} className="p-3 sm:p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs space-y-0.5">
+                  <div className="font-extrabold text-emerald-950">{t.traitName}</div>
+                  <div className="text-stone-600">{t.impactDescription}</div>
+                  <div className="text-emerald-800 font-bold text-[11px]">Inherited from {t.inheritedFrom === 'Sire' ? 'Papa' : t.inheritedFrom === 'Dam' ? 'Mummy' : 'Both'}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Breeding Pair Match Safety Checker */}
@@ -226,7 +294,7 @@ export const LineagePedigreeView: React.FC<LineagePedigreeViewProps> = ({
             >
               {farm.animals.map(a => (
                 <option key={a.id} value={a.id}>
-                  {a.name} (Tag #{a.tagId} · {a.sex})
+                  {a.name} (Tag #{a.tagId} · {a.sex}) {a.purpose === 'Fattening' ? '· 🥩 Fattening' : '· 🧬 Breeding'}
                 </option>
               ))}
             </select>
@@ -243,7 +311,7 @@ export const LineagePedigreeView: React.FC<LineagePedigreeViewProps> = ({
             >
               {farm.animals.map(a => (
                 <option key={a.id} value={a.id}>
-                  {a.name} (Tag #{a.tagId} · {a.sex})
+                  {a.name} (Tag #{a.tagId} · {a.sex}) {a.purpose === 'Fattening' ? '· 🥩 Fattening' : '· 🧬 Breeding'}
                 </option>
               ))}
             </select>

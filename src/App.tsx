@@ -35,6 +35,7 @@ import { SystemAdminDashboardModal } from './components/SystemAdminDashboardModa
 import { FarmTasksModal } from './components/FarmTasksModal';
 import { DEFAULT_USERS } from './data/initialData';
 import { useLanguage } from './i18n/LanguageContext';
+import { SymptomCheckerModal } from './components/SymptomCheckerModal';
 
 export function App() {
   const { syncUserLanguage, setLang } = useLanguage();
@@ -59,6 +60,8 @@ export function App() {
   const [tasksModalFilter, setTasksModalFilter] = useState<'all' | 'sheep' | 'goat' | 'targets' | 'reminders' | 'my_tasks' | 'completed'>('all');
   const [showLedgerModal, setShowLedgerModal] = useState(false);
   const [showSystemAdminModal, setShowSystemAdminModal] = useState(false);
+  const [showSymptomCheckerModal, setShowSymptomCheckerModal] = useState(false);
+  const [symptomCheckerAnimalId, setSymptomCheckerAnimalId] = useState<string | undefined>(undefined);
   const [selectedAnimal, setSelectedAnimal] = useState<Animal | null>(null);
   const [adminModalTab, setAdminModalTab] = useState<'team' | 'vaccines' | 'farm' | 'breeds' | 'database'>('team');
 
@@ -435,6 +438,10 @@ export function App() {
         onOpenTasksModal={openTasksModal}
         onOpenLedger={() => setShowLedgerModal(true)}
         onOpenSystemAdmin={() => setShowSystemAdminModal(true)}
+        onOpenSymptomChecker={() => {
+          setSymptomCheckerAnimalId(undefined);
+          setShowSymptomCheckerModal(true);
+        }}
         vaccineAlertsCount={alerts.length}
         tasksCount={farmTasks.filter(t => t.status !== 'completed').length}
         dueRemindersCount={dueReminders.length}
@@ -484,6 +491,10 @@ export function App() {
             onBulkAddVaccine={handleBulkAddVaccine}
             onBulkUpdateVaccine={handleBulkUpdateVaccine}
             onBulkDeleteVaccine={handleBulkDeleteVaccine}
+            onOpenSymptomChecker={() => {
+              setSymptomCheckerAnimalId(undefined);
+              setShowSymptomCheckerModal(true);
+            }}
           />
         )}
 
@@ -550,6 +561,10 @@ export function App() {
           onDeleteAnimal={handleDeleteAnimal}
           onUpdateAnimalPhoto={handleUpdateAnimalPhoto}
           onUpdateAnimal={handleUpdateAnimal}
+          onOpenSymptomChecker={(animalId) => {
+            setSymptomCheckerAnimalId(animalId);
+            setShowSymptomCheckerModal(true);
+          }}
         />
       )}
 
@@ -637,6 +652,25 @@ export function App() {
           onDeleteTask={handleDeleteTask}
           onUpdateTargetProgress={handleUpdateTargetProgress}
           onAcknowledgeReminder={handleAcknowledgeReminder}
+        />
+      )}
+
+      {/* Sheep & Goat Offline Symptom Checker & First Aid Modal */}
+      {showSymptomCheckerModal && currentFarm && (
+        <SymptomCheckerModal
+          farm={currentFarm}
+          isOpen={showSymptomCheckerModal}
+          onClose={() => {
+            setShowSymptomCheckerModal(false);
+            setSymptomCheckerAnimalId(undefined);
+          }}
+          initialAnimalId={symptomCheckerAnimalId}
+          onAnimalHealthLogged={(animalId) => {
+            const updatedAnimal = db.getCurrentFarm()?.animals.find(a => a.id === animalId);
+            if (updatedAnimal && selectedAnimal?.id === animalId) {
+              setSelectedAnimal(updatedAnimal);
+            }
+          }}
         />
       )}
 

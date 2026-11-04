@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Farm, User } from '../types';
 import { useLanguage } from '../i18n/LanguageContext';
 import { SUPPORTED_LANGUAGES, Language } from '../i18n/translations';
@@ -18,7 +18,9 @@ import {
   Scale,
   Receipt,
   ListTodo,
-  Target
+  Target,
+  User as UserIcon,
+  Phone
 } from 'lucide-react';
 import { CornerTemperature } from './CornerTemperature';
 import { PWAInstallButton } from './PWAInstallButton';
@@ -37,6 +39,7 @@ interface NavbarProps {
   onOpenTasksModal?: (filter?: any) => void;
   onOpenLedger?: () => void;
   onOpenSystemAdmin?: () => void;
+  onOpenSymptomChecker?: () => void;
   vaccineAlertsCount?: number;
   tasksCount?: number;
   dueRemindersCount?: number;
@@ -58,6 +61,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenTasksModal,
   onOpenLedger,
   onOpenSystemAdmin,
+  onOpenSymptomChecker,
   vaccineAlertsCount = 0,
   tasksCount = 0,
   dueRemindersCount = 0,
@@ -68,6 +72,27 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [copiedId, setCopiedId] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [showMobileDrawer, setShowMobileDrawer] = useState(false);
+  const [showUserDetails, setShowUserDetails] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close User Details menu on click outside or Escape key
+  useEffect(() => {
+    if (!showUserDetails) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setShowUserDetails(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowUserDetails(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showUserDetails]);
 
   const displayAppName = currentFarm.config?.appName || appName || 'Testing';
 
@@ -96,8 +121,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           
           {/* Left Zone: Brand & Farm Switcher */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
-            {/* Configured Application Name Badge */}
-            <div className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 bg-emerald-800 text-white rounded-xl sm:rounded-2xl text-xs font-black shrink-0 tracking-tight shadow-2xs">
+            {/* Desktop Only: Configured Application Name Badge */}
+            <div className="hidden sm:flex items-center gap-1 px-2 sm:px-2.5 py-1.5 bg-emerald-800 text-white rounded-xl sm:rounded-2xl text-xs font-black shrink-0 tracking-tight shadow-2xs">
               <span className="text-sm">🐐</span>
               <span className="font-extrabold max-w-[85px] sm:max-w-none truncate">{displayAppName}</span>
             </div>
@@ -105,13 +130,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Farm Selector Pill */}
             <button
               onClick={onOpenFarmSelection}
-              className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-xl sm:rounded-2xl bg-stone-100 hover:bg-stone-200 transition-all text-left group shrink-0 cursor-pointer max-w-[130px] sm:max-w-none"
+              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-xl sm:rounded-2xl bg-stone-100 hover:bg-stone-200 transition-all text-left group shrink-0 cursor-pointer max-w-[125px] sm:max-w-none shadow-2xs"
               title="Tap to Change Farm or Make New Farm"
             >
               <span className="text-base sm:text-xl">🚜</span>
               <div className="min-w-0">
                 <div className="text-xs font-black text-stone-900 group-hover:text-emerald-900 flex items-center gap-0.5 sm:gap-1">
-                  <span className="truncate max-w-[70px] sm:max-w-[130px] md:max-w-none">{currentFarm.name}</span>
+                  <span className="truncate max-w-[75px] xs:max-w-[110px] sm:max-w-[130px] md:max-w-none">{currentFarm.name}</span>
                   <ChevronDown className="w-3 h-3 text-stone-400 group-hover:text-stone-700 shrink-0" />
                 </div>
                 <div className="text-[10px] text-stone-500 font-medium truncate max-w-[120px] hidden sm:block">
@@ -119,6 +144,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
               </div>
             </button>
+
+            {/* Mobile Only: Live Corner Temperature (Stationed in the corner next to the farm) */}
+            <div className="sm:hidden shrink-0">
+              <CornerTemperature 
+                farm={currentFarm} 
+                onOpenAdminLocation={onOpenAdminLocation} 
+              />
+            </div>
 
             {/* Farm Code with Copy Button (Visible on Tablet/Desktop) */}
             <div className="hidden md:flex items-center gap-1.5 bg-emerald-50 border border-emerald-300 px-2 sm:px-2.5 py-1 rounded-xl shrink-0">
@@ -201,22 +234,16 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           </nav>
 
-          {/* Right Zone: Corner Weather, Alerts, Desktop Controls, and Mobile Drawer Trigger */}
+          {/* Right Zone: Alerts, Controls, User Icon & Corner Temperature */}
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-            
-            {/* Live Corner Temperature Widget (Compact Pill on Mobile, Full on Desktop) */}
-            <CornerTemperature 
-              farm={currentFarm} 
-              onOpenAdminLocation={onOpenAdminLocation} 
-            />
 
             {/* Vaccine Alert Notification Bell */}
             <button
               onClick={onOpenVaccineAlertsModal}
-              className={`relative p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+              className={`relative p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border text-xs font-bold items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
                 vaccineAlertsCount > 0
-                  ? 'border-amber-400 bg-amber-50 text-amber-950 hover:bg-amber-100 ring-2 ring-amber-300/60 animate-pulse'
-                  : 'border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-700'
+                  ? 'flex border-amber-400 bg-amber-50 text-amber-950 hover:bg-amber-100 ring-2 ring-amber-300/60 animate-pulse'
+                  : 'hidden sm:flex border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-700'
               }`}
               title="Vaccine Alerts & Due Notifications"
             >
@@ -231,11 +258,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </button>
 
-            {/* Sheep & Goat Tasks, Targets & Reminders Button */}
+            {/* Sheep & Goat Tasks, Targets & Reminders Button (Desktop/Tablet Only) */}
             {onOpenTasksModal && (
               <button
                 onClick={() => onOpenTasksModal('all')}
-                className={`relative p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+                className={`hidden md:flex relative p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border text-xs font-bold items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
                   dueRemindersCount > 0
                     ? 'border-purple-400 bg-purple-50 text-purple-950 hover:bg-purple-100 ring-2 ring-purple-300/60'
                     : 'border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-700'
@@ -310,8 +337,20 @@ export const Navbar: React.FC<NavbarProps> = ({
               title={t('ledger', 'Farm Money Ledger')}
             >
               <span className="text-emerald-800 font-black">₹</span>
-              <span>{t('ledger', 'Ledger')}</span>
+              <span className="hidden xl:inline">{t('ledger', 'Ledger')}</span>
             </button>
+
+            {/* Desktop Only: Symptom Checker & Offline First Aid Button */}
+            {onOpenSymptomChecker && (
+              <button
+                onClick={onOpenSymptomChecker}
+                className="hidden lg:flex p-2 sm:px-2.5 sm:py-1.5 rounded-xl border border-teal-300 bg-teal-50 hover:bg-teal-100 text-teal-950 text-xs font-black items-center gap-1.5 cursor-pointer shadow-2xs shrink-0"
+                title="Sheep & Goat Offline Symptom Checker & First Aid"
+              >
+                <span>🩺</span>
+                <span className="hidden xl:inline">{t('symptomChecker', 'Symptom Checker')}</span>
+              </button>
+            )}
 
             {/* Desktop Only: Farm Animals Setup Button */}
             <button
@@ -320,7 +359,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               title={t('manageSpeciesTitle', 'Animals Available on this Farm')}
             >
               <Settings className="w-4 h-4 text-stone-600" />
-              <span>{t('farmSettings', 'Animals')}</span>
+              <span className="hidden 2xl:inline">{t('farmSettings', 'Animals')}</span>
             </button>
 
             {/* Desktop Only: Admin Tool Button */}
@@ -334,7 +373,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               title="Farm Admin Tool: Helpers, Database, Vaccines & Settings"
             >
               <Users className="w-3.5 h-3.5 text-stone-600" />
-              <span className="hidden md:inline">
+              <span className="hidden xl:inline">
                 {isAdmin ? t('adminTool', 'Admin Tool') : t('farmHelpers', 'Farm Helpers')}
               </span>
               {pendingRequestsCount > 0 && (
@@ -356,7 +395,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 title="System Admin Dashboard: Approve / Reject Breed Proposals & Manage Universal Catalog"
               >
                 <span className="text-sm">🛡️</span>
-                <span className="hidden xl:inline">{t('systemAdmin', 'System Admin')}</span>
+                <span className="hidden 2xl:inline">{t('systemAdmin', 'System Admin')}</span>
                 {pendingBreedProposalsCount > 0 && (
                   <span className="w-4 h-4 rounded-full bg-purple-700 text-white text-[9px] font-black flex items-center justify-center animate-pulse">
                     {pendingBreedProposalsCount}
@@ -368,32 +407,211 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* In-App PWA Install Button for Offline Farm Use */}
             <PWAInstallButton variant="compact" className="hidden sm:flex" />
 
-            {/* Desktop Only: User Role Badge */}
-            <div className="hidden sm:flex items-center gap-2 border-l border-stone-200 pl-2 shrink-0">
-              <div className="text-right">
-                <div className="text-xs font-black text-stone-900 leading-tight truncate max-w-[80px] lg:max-w-[120px]">
-                  {currentUser.name.split(' ')[0]}
+            {/* USER ICON / AVATAR BUTTON & POPOVER (No text fullname in navbar! Click opens User Details) */}
+            <div className="relative shrink-0" ref={userMenuRef}>
+              <button
+                type="button"
+                onClick={() => setShowUserDetails(!showUserDetails)}
+                className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all cursor-pointer relative shadow-2xs ${
+                  showUserDetails
+                    ? 'ring-2 ring-emerald-600 bg-emerald-200 text-emerald-950 scale-105'
+                    : 'bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 text-emerald-900 hover:ring-2 hover:ring-emerald-400/60'
+                }`}
+                title={`${currentUser.name} (${roleTitle}) - ${t('userDetails', 'Click for User Details')}`}
+                aria-label="User details & profile"
+              >
+                <UserIcon className="w-4 h-4 text-emerald-800" />
+                {/* Role Status Dot */}
+                <span className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-white ${
+                  currentUser.isSuperAdmin 
+                    ? 'bg-purple-600' 
+                    : isAdmin 
+                      ? 'bg-amber-500' 
+                      : 'bg-emerald-600'
+                }`} />
+              </button>
+
+              {/* USER DETAILS POPOVER */}
+              {showUserDetails && (
+                <div className="absolute right-0 mt-2 w-[calc(100vw-28px)] max-w-xs sm:w-80 bg-white rounded-2xl shadow-2xl border border-stone-200 p-3.5 sm:p-4 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-3">
+                  
+                  {/* Top: Avatar & User Info */}
+                  <div className="flex items-start justify-between gap-2.5 border-b border-stone-100 pb-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-emerald-100 border border-emerald-300 text-emerald-950 font-black text-base sm:text-lg flex items-center justify-center shrink-0 shadow-2xs">
+                        {currentUser.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="text-xs sm:text-sm font-black text-stone-900 leading-tight truncate">
+                          {currentUser.name}
+                        </h4>
+                        <div className="text-[11px] text-stone-500 font-medium truncate flex items-center gap-1 mt-0.5">
+                          <Phone className="w-3 h-3 text-stone-400 shrink-0" />
+                          <span className="truncate">{currentUser.phone || currentUser.identifier || 'Farm User'}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <button
+                      onClick={() => setShowUserDetails(false)}
+                      className="w-7 h-7 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-500 flex items-center justify-center cursor-pointer transition-colors shrink-0"
+                      title="Close"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Role Badge Card */}
+                  <div className={`p-2.5 rounded-xl border flex items-center justify-between text-xs font-bold ${
+                    currentUser.isSuperAdmin
+                      ? 'bg-purple-50 border-purple-200 text-purple-950'
+                      : isAdmin
+                        ? 'bg-amber-50 border-amber-200 text-amber-950'
+                        : 'bg-emerald-50 border-emerald-200 text-emerald-950'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">
+                        {currentUser.isSuperAdmin ? '👑' : isAdmin ? '👑' : currentMember?.role === 'Veterinarian' ? '🩺' : '🚜'}
+                      </span>
+                      <div>
+                        <div className="text-[10px] uppercase font-black tracking-wider opacity-70">
+                          {t('userRole', 'Farm Role')}
+                        </div>
+                        <div className="font-black text-xs">
+                          {currentUser.isSuperAdmin ? 'Super Admin' : roleTitle}
+                        </div>
+                      </div>
+                    </div>
+                    {currentUser.isSuperAdmin && (
+                      <span className="px-2 py-0.5 rounded-full bg-purple-200 text-purple-900 text-[10px] font-black">
+                        All Farms
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Active Farm Context */}
+                  <div className="p-2.5 rounded-xl bg-stone-50 border border-stone-200/80 space-y-1.5 text-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="text-[10px] font-black uppercase text-stone-400 tracking-wider">
+                        {t('currentFarm', 'Current Farm')}
+                      </div>
+                      <button
+                        onClick={() => {
+                          setShowUserDetails(false);
+                          onOpenFarmSelection();
+                        }}
+                        className="text-[11px] font-black text-emerald-800 hover:text-emerald-950 hover:underline cursor-pointer"
+                      >
+                        {t('switchFarm', 'Switch Farm')} →
+                      </button>
+                    </div>
+                    
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="font-black text-stone-900 truncate">
+                          🚜 {currentFarm.name}
+                        </div>
+                        <div className="text-[11px] text-stone-500 truncate">
+                          📍 {currentFarm.location}
+                        </div>
+                      </div>
+                      
+                      <button
+                        onClick={handleCopyFarmId}
+                        className="px-2 py-1 rounded-lg bg-white border border-stone-200 text-stone-700 hover:bg-stone-100 text-[11px] font-bold flex items-center gap-1 cursor-pointer shrink-0 transition-all active:scale-95 shadow-2xs"
+                        title="Copy Farm Code"
+                      >
+                        <span className="font-mono text-emerald-900 font-black">#{currentFarm.id}</span>
+                        {copiedId ? <Check className="w-3 h-3 text-emerald-700" /> : <Copy className="w-3 h-3 text-stone-400" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Quick Actions List */}
+                  <div className="space-y-1 pt-0.5">
+                    <button
+                      onClick={() => {
+                        setShowUserDetails(false);
+                        onOpenTeamModal();
+                      }}
+                      className="w-full px-3 py-2 rounded-xl text-left text-xs font-bold text-stone-700 hover:bg-stone-100 flex items-center justify-between cursor-pointer transition-colors"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span>⚙️</span>
+                        <span>{isAdmin ? t('adminTool', 'Farm Admin Tool') : t('farmHelpers', 'Farm Helpers')}</span>
+                      </span>
+                      {pendingRequestsCount > 0 && (
+                        <span className="px-1.5 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-black">
+                          {pendingRequestsCount}
+                        </span>
+                      )}
+                    </button>
+
+                    {onOpenSystemAdmin && (
+                      <button
+                        onClick={() => {
+                          setShowUserDetails(false);
+                          onOpenSystemAdmin();
+                        }}
+                        className="w-full px-3 py-2 rounded-xl text-left text-xs font-bold text-purple-900 hover:bg-purple-50 flex items-center justify-between cursor-pointer transition-colors"
+                      >
+                        <span className="flex items-center gap-2">
+                          <span>🛡️</span>
+                          <span>{t('systemAdmin', 'System Admin Dashboard')}</span>
+                        </span>
+                        {pendingBreedProposalsCount > 0 && (
+                          <span className="px-1.5 py-0.5 rounded-full bg-purple-700 text-white text-[10px] font-black">
+                            {pendingBreedProposalsCount}
+                          </span>
+                        )}
+                      </button>
+                    )}
+
+                    {onOpenSymptomChecker && (
+                      <button
+                        onClick={() => {
+                          setShowUserDetails(false);
+                          onOpenSymptomChecker();
+                        }}
+                        className="w-full px-3 py-2 rounded-xl text-left text-xs font-bold text-teal-900 hover:bg-teal-50 flex items-center justify-between cursor-pointer transition-colors"
+                      >
+                        <span className="flex items-center gap-2">
+                          <span>🩺</span>
+                          <span>{t('symptomChecker', 'Symptom Checker & First Aid')}</span>
+                        </span>
+                        <span className="text-[10px] text-teal-700 font-black">Offline Guide</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Sign Out Action */}
+                  <div className="pt-2 border-t border-stone-100">
+                    <button
+                      onClick={() => {
+                        setShowUserDetails(false);
+                        onLogout();
+                      }}
+                      className="w-full px-3 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 text-xs font-black flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-2xs"
+                    >
+                      <LogOut className="w-4 h-4 text-red-600" />
+                      <span>{t('signOut', 'Sign Out')}</span>
+                    </button>
+                  </div>
+
                 </div>
-                <div className="text-[10px] font-bold">
-                  {currentUser.isSuperAdmin ? (
-                    <span className="text-purple-800 font-black">👑 Super Admin</span>
-                  ) : isAdmin ? (
-                    <span className="text-amber-800">👑 {roleTitle}</span>
-                  ) : (
-                    <span className="text-emerald-800">🚜 {roleTitle}</span>
-                  )}
-                </div>
-              </div>
+              )}
             </div>
 
-            {/* Desktop Only: Logout */}
-            <button
-              onClick={onLogout}
-              className="hidden sm:flex p-2 rounded-xl text-stone-400 hover:text-stone-800 hover:bg-stone-100 transition-colors cursor-pointer shrink-0"
-              title={t('signOut', 'Sign Out')}
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
+            {/* Visual Divider between User and Corner Weather */}
+            <div className="h-6 w-px bg-stone-200 mx-0.5 sm:mx-1 hidden sm:block shrink-0" />
+
+            {/* Desktop Only: LIVE CORNER TEMPERATURE WIDGET (Positioned in the corner where it has dedicated breathing room) */}
+            <div className="hidden sm:flex shrink-0 items-center pl-0.5">
+              <CornerTemperature 
+                farm={currentFarm} 
+                onOpenAdminLocation={onOpenAdminLocation} 
+              />
+            </div>
 
             {/* MOBILE ONLY: Menu Drawer Trigger (Opens All Admin, Tools, and Farm Settings cleanly) */}
             <button
@@ -527,6 +745,34 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </span>
                   <span className="text-stone-300 text-xs">→</span>
                 </div>
+              </button>
+            )}
+
+            {/* Offline Sheep & Goat Symptom Checker in Mobile Drawer */}
+            {onOpenSymptomChecker && (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMobileDrawer(false);
+                  onOpenSymptomChecker();
+                }}
+                className="w-full p-3 rounded-2xl bg-gradient-to-r from-teal-900 via-emerald-950 to-stone-900 text-white flex items-center justify-between cursor-pointer shadow-xs active:scale-98 transition-all border border-teal-500/30"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xl">🩺</span>
+                  <div className="text-left">
+                    <div className="text-xs font-black flex items-center gap-2">
+                      <span>{t('symptomChecker', 'Symptom Checker & First Aid')}</span>
+                      <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/40 text-emerald-200 text-[9px] font-black uppercase">
+                        Offline
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-teal-200 font-medium">
+                      Bloat, cough, worms, diarrhea & emergency steps
+                    </div>
+                  </div>
+                </div>
+                <span className="text-stone-300 text-xs">→</span>
               </button>
             )}
 

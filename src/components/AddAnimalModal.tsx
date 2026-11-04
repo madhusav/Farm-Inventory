@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Animal, Species, Farm, User } from '../types';
+import { Animal, Species, Farm, User, AnimalPurpose, AnimalOrigin } from '../types';
 import { db } from '../services/db';
 import { 
   COW_ILLUSTRATION, 
@@ -7,7 +7,7 @@ import {
   SHEEP_ILLUSTRATION, 
   CHICKEN_ILLUSTRATION 
 } from '../data/initialData';
-import { X, Plus, Camera, Sparkles } from 'lucide-react';
+import { X, Plus, Camera, Sparkles, Check, Info } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 
 interface AddAnimalModalProps {
@@ -41,6 +41,11 @@ export const AddAnimalModal: React.FC<AddAnimalModalProps> = ({
   const [paddockLocation, setPaddockLocation] = useState('Goat Shed East');
   const [status, setStatus] = useState<Animal['status']>('Active');
   const [customPhotoUrl, setCustomPhotoUrl] = useState<string>('');
+
+  // Purpose & Origin (Breeding vs Fattening, Born on Farm vs Brought from Outside)
+  const [purpose, setPurpose] = useState<AnimalPurpose>('Breeding');
+  const [origin, setOrigin] = useState<AnimalOrigin>('Born on Farm');
+  const [knowsParents, setKnowsParents] = useState<boolean>(false);
 
   // Parent Sire & Dam
   const [selectedSireId, setSelectedSireId] = useState<string>('custom');
@@ -103,13 +108,57 @@ export const AddAnimalModal: React.FC<AddAnimalModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const sireObj = farm.animals.find(a => a.id === selectedSireId);
-    const damObj = farm.animals.find(a => a.id === selectedDamId);
+    const isFattening = purpose === 'Fattening';
+    const isBornOnFarm = origin === 'Born on Farm';
+    // If breeding and born on farm, parents are tracked by default.
+    // If brought from outside, only tracked if knowsParents is true.
+    const shouldTrackParents = !isFattening && (isBornOnFarm || knowsParents);
+
+    const sireObj = shouldTrackParents && selectedSireId !== 'custom' 
+      ? farm.animals.find(a => a.id === selectedSireId) 
+      : undefined;
+    const damObj = shouldTrackParents && selectedDamId !== 'custom' 
+      ? farm.animals.find(a => a.id === selectedDamId) 
+      : undefined;
+
+    const sName = shouldTrackParents 
+      ? (sireObj ? sireObj.name : customSireName.trim() || undefined)
+      : undefined;
+    const sTag = shouldTrackParents 
+      ? (sireObj ? sireObj.tagId : customSireTag.trim() || undefined)
+      : undefined;
+    const sBreed = shouldTrackParents 
+      ? (sireObj ? sireObj.breed : breed)
+      : undefined;
+
+    const dName = shouldTrackParents 
+      ? (damObj ? damObj.name : customDamName.trim() || undefined)
+      : undefined;
+    const dTag = shouldTrackParents 
+      ? (damObj ? damObj.tagId : customDamTag.trim() || undefined)
+      : undefined;
+    const dBreed = shouldTrackParents 
+      ? (damObj ? damObj.breed : breed)
+      : undefined;
 
     const bw = parseFloat(birthWeightKg) || 5;
     const cw = parseFloat(currentWeightKg) || 50;
     const tw = parseFloat(targetMatureWeightKg) || 100;
     const isDairy = species === 'Cow' || species === 'Buffalo';
+
+    // Tailored traits based on purpose & origin
+    let traits = [
+      {
+        traitName: traitName.trim() || (isFattening ? 'Rapid Weight Gain' : 'Healthy Family Line'),
+        inheritedFrom: (isFattening ? 'Both' : (sName && dName ? 'Both' : 'Sire')) as 'Sire' | 'Dam' | 'Both',
+        scoreOrGrade: isFattening ? 'Fattening Grade A' : '5 Stars ★★★★★',
+        impactDescription: isFattening 
+          ? 'Fast meat growth and feed conversion for market.'
+          : (shouldTrackParents 
+              ? `Lineage from ${sName || 'Father'} and ${dName || 'Mother'}.`
+              : 'Foundation breeding stock brought from outside without parental records.'),
+      },
+    ];
 
     const newAnimal: Animal = {
       id: `anim-${Date.now()}`,
@@ -121,35 +170,33 @@ export const AddAnimalModal: React.FC<AddAnimalModalProps> = ({
       dateOfBirth,
       photoUrl: customPhotoUrl || SPECIES_ILLUSTRATIONS[species] || COW_ILLUSTRATION,
       paddockLocation: paddockLocation.trim(),
+      purpose,
+      origin,
+      knowsParents: isFattening ? false : (isBornOnFarm ? true : knowsParents),
       status,
-      sireId: sireObj ? sireObj.id : null,
-      sireName: sireObj ? sireObj.name : customSireName.trim() || 'Foundation Sire',
-      sireTag: sireObj ? sireObj.tagId : customSireTag.trim() || 'SIRE-01',
-      sireBreed: sireObj ? sireObj.breed : breed,
-      damId: damObj ? damObj.id : null,
-      damName: damObj ? damObj.name : customDamName.trim() || 'Foundation Dam',
-      damTag: damObj ? damObj.tagId : customDamTag.trim() || 'DAM-01',
-      damBreed: damObj ? damObj.breed : breed,
-      inheritedTraits: [
-        {
-          traitName: traitName.trim() || 'Healthy Family Line',
-          inheritedFrom: 'Both',
-          scoreOrGrade: '5 Stars ★★★★★',
-          impactDescription: `Baby animal from ${sireObj ? sireObj.name : customSireName} and ${damObj ? damObj.name : customDamName}.`,
-        },
-      ],
-      inbreedingCoefficientPct: 0.5,
+      sireId: shouldTrackParents && sireObj ? sireObj.id : null,
+      sireName: sName,
+      sireTag: sTag,
+      sireBreed: sBreed,
+      damId: shouldTrackParents && damObj ? damObj.id : null,
+      damName: dName,
+      damTag: dTag,
+      damBreed: dBreed,
+      inheritedTraits: traits,
+      inbreedingCoefficientPct: isFattening ? 0 : (shouldTrackParents ? 0.5 : 0),
       birthWeightKg: bw,
       currentWeightKg: cw,
       targetMatureWeightKg: tw,
-      productivityLabel: species === 'Cow' || species === 'Buffalo'
+      productivityLabel: isFattening
+        ? 'Market Readiness'
+        : species === 'Cow' || species === 'Buffalo'
         ? 'Daily Milk' 
         : species === 'Goat' 
         ? 'Kids & Breeding' 
         : species === 'Sheep' 
         ? 'Yearly Wool' 
         : 'Eggs Each Week',
-      currentProductivityValue: productivityValue,
+      currentProductivityValue: isFattening ? `${cw} kg (Fattening)` : productivityValue,
       healthStatus: 'Healthy & Fit',
       milkStatus: isDairy 
         ? (sex === 'Male' ? 'Not Milking (Male/Kid)' : 'Giving Milk')
@@ -184,7 +231,7 @@ export const AddAnimalModal: React.FC<AddAnimalModalProps> = ({
           dailyYieldUnit: species === 'Chicken' ? 'eggs/wk' : 'Litres/day',
           recordedBy: currentUser.name,
           recordedById: currentUser.id,
-          notes: 'Added to farm diary today.',
+          notes: isFattening ? 'Added for fattening & market gain.' : 'Added to farm diary today.',
         },
       ],
     };
@@ -375,161 +422,390 @@ export const AddAnimalModal: React.FC<AddAnimalModalProps> = ({
             </div>
           </div>
 
-          {/* Family Section (Papa & Mummy) */}
+          {/* Step 2: Purpose (Breeding vs Fattening) */}
           <div className="p-4 rounded-2xl bg-[#FFFDF7] border-2 border-amber-200 space-y-3">
-            <h4 className="text-xs font-black text-amber-950 uppercase">
-              {localeText({
-                en: '2. Parents Information',
-                hi: '2. माता-पिता की जानकारी',
-                kn: '2. ಪೋಷಕರ ಮಾಹಿತಿ',
-                te: '2. తల్లిదండ్రుల సమాచారం',
-                ta: '2. பெற்றோர் விவரங்கள்',
-                ml: '2. മാതാപിതാക്കളുടെ വിവരം',
-                mr: '2. आई-वडिलांची माहिती'
-              })}
-            </h4>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Sire (Father) */}
-              <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1">
-                  {species === 'Goat'
-                    ? localeText({
-                        en: 'Sire / Father (Stud Buck)',
-                        hi: 'पिता / नर (बकरा)',
-                        kn: 'ತಂದೆ / ಗಂಡು (ಬೊಕ್ಕ)',
-                        te: 'తండ్రి / మగ (పోతు)',
-                        ta: 'தந்தை / ஆண் (கடா)',
-                        ml: 'പിതാവ് / ആൺ (കൊറ്റൻ)',
-                        mr: 'वडील / नर (बोकड)'
-                      })
-                    : localeText({
-                        en: 'Sire / Father (Stud Ram)',
-                        hi: 'पिता / नर (मेढ़ा)',
-                        kn: 'ತಂದೆ / ಗಂಡು (ಟಗರು)',
-                        te: 'తండ్రి / మగ (పొట్టేలు)',
-                        ta: 'தந்தை / ஆண் (கிடா)',
-                        ml: 'പിതാവ് / ആൺ (മുട്ടൻ)',
-                        mr: 'वडील / नर (मेंढा)'
-                      })}
-                </label>
-                <select
-                  value={selectedSireId}
-                  onChange={(e) => setSelectedSireId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white text-xs mb-1.5"
-                >
-                  <option value="custom">
-                    + {localeText({
-                      en: "Type Father's Name Below",
-                      hi: 'नीचे पिता का नाम लिखें',
-                      kn: 'ಕೆಳಗೆ ತಂದೆಯ ಹೆಸರು ಬರೆಯಿರಿ',
-                      te: 'క్రింద తండ్రి పేరు రాయండి',
-                      ta: 'கீழே தந்தை பெயரை எழுதவும்',
-                      ml: 'താഴെ പിതാവിന്റെ പേര് എഴുതുക',
-                      mr: 'खाली वडिलांचे नाव लिहा'
-                    })}
-                  </option>
-                  {farm.animals.map(a => (
-                    <option key={a.id} value={a.id}>
-                      {a.name} (Tag #{a.tagId} · {a.breed})
-                    </option>
-                  ))}
-                </select>
-                {selectedSireId === 'custom' && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      type="text"
-                      value={customSireName}
-                      onChange={(e) => setCustomSireName(e.target.value)}
-                      placeholder={localeText({ en: 'Sire Name', hi: 'पिता का नाम', kn: 'ತಂದೆಯ ಹೆಸರು', te: 'తండ్రి పేరు', ta: 'தந்தை பெயர்', ml: 'പിതാവിന്റെ പേര്', mr: 'वडिलांचे नाव' })}
-                      className="px-2 py-1.5 rounded-lg border border-stone-300 bg-white text-xs"
-                    />
-                    <input
-                      type="text"
-                      value={customSireTag}
-                      onChange={(e) => setCustomSireTag(e.target.value)}
-                      placeholder={localeText({ en: 'Sire Tag', hi: 'टैग नंबर', kn: 'ಟ್ಯಾಗ್ ಸಂಖ್ಯೆ', te: 'ట్యాగ్ నంబర్', ta: 'டேக் எண்', ml: 'ടാഗ് നമ്പർ', mr: 'टॅग क्रमांक' })}
-                      className="px-2 py-1.5 rounded-lg border border-stone-300 bg-white text-xs font-mono uppercase"
-                    />
-                  </div>
-                )}
+            <div>
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-black text-amber-950 uppercase">
+                  2. {t('purpose', 'Animal Purpose')}
+                </h4>
+                <span className="text-[11px] font-bold text-amber-800">
+                  {purpose === 'Breeding' ? '🧬 Breeding Stock' : '🥩 Fattening Stock'}
+                </span>
               </div>
-
-              {/* Dam (Mother) */}
-              <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1">
-                  {species === 'Goat'
-                    ? localeText({
-                        en: 'Dam / Mother (Breeder Doe)',
-                        hi: 'माता / मादा (बकरी)',
-                        kn: 'ತಾಯಿ / ಹೆಣ್ಣು (ಆಡು)',
-                        te: 'తల్లి / ఆడ (మేక)',
-                        ta: 'தாய் / பெண் (வெள்ளாடு)',
-                        ml: 'മാതാവ് / പെൺ (ആട്)',
-                        mr: 'आई / मादी (शेळी)'
-                      })
-                    : localeText({
-                        en: 'Dam / Mother (Breeder Ewe)',
-                        hi: 'माता / मादा (भेड़)',
-                        kn: 'ತಾಯಿ / ಹೆಣ್ಣು (ಕುರಿ)',
-                        te: 'తల్లి / ఆడ (గొర్రె)',
-                        ta: 'தாய் / பெண் (செம்மறி)',
-                        ml: 'മാതാവ് / പെൺ (ചെമ്മരിയാട്)',
-                        mr: 'आई / मादी (मेंढी)'
-                      })}
-                </label>
-                <select
-                  value={selectedDamId}
-                  onChange={(e) => setSelectedDamId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white text-xs mb-1.5"
-                >
-                  <option value="custom">
-                    + {localeText({
-                      en: "Type Mother's Name Below",
-                      hi: 'नीचे माता का नाम लिखें',
-                      kn: 'ಕೆಳಗೆ ತಾಯಿಯ ಹೆಸರು ಬರೆಯಿರಿ',
-                      te: 'క్రింద తల్లి పేరు రాయండి',
-                      ta: 'கீழே தாய் பெயரை எழுதவும்',
-                      ml: 'താഴെ മാതാവിന്റെ പേര് എഴുതുക',
-                      mr: 'खाली आईचे नाव लिहा'
-                    })}
-                  </option>
-                  {farm.animals.map(a => (
-                    <option key={a.id} value={a.id}>
-                      {a.name} (Tag #{a.tagId} · {a.breed})
-                    </option>
-                  ))}
-                </select>
-                {selectedDamId === 'custom' && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      type="text"
-                      value={customDamName}
-                      onChange={(e) => setCustomDamName(e.target.value)}
-                      placeholder="Mummy Name"
-                      className="px-2 py-1.5 rounded-lg border border-stone-300 bg-white text-xs"
-                    />
-                    <input
-                      type="text"
-                      value={customDamTag}
-                      onChange={(e) => setCustomDamTag(e.target.value)}
-                      placeholder="Mummy Tag"
-                      className="px-2 py-1.5 rounded-lg border border-stone-300 bg-white text-xs font-mono uppercase"
-                    />
-                  </div>
-                )}
-              </div>
+              <p className="text-[11px] text-stone-600 font-medium mt-0.5">
+                {localeText({
+                  en: 'Is this animal kept for breeding offspring, or for fattening and meat sale?',
+                  hi: 'क्या यह पशु बच्चे पैदा करने (ब्रीडिंग) के लिए है या वजन बढ़ाकर बेचने (फैटनिंग) के लिए?',
+                  kn: 'ಈ ಪ್ರಾಣಿ ಮರಿಗಳನ್ನು ಪಡೆಯಲು (ಬ್ರೀಡಿಂಗ್) ಅಥವಾ ತೂಕ ಹೆಚ್ಚಿಸಿ ಮಾರಾಟ ಮಾಡಲು (ಫ್ಯಾಟನಿಂಗ್)?',
+                  te: 'ఈ జీవం సంతానోత్పత్తి కోసమా లేక బరువు పెంచి విక్రయించడానికా?',
+                  ta: 'இந்த கால்நடை இனப்பெருக்கத்திற்கா அல்லது எடை ஏற்றி விற்பனை செய்யவா?',
+                  ml: 'ഈ മൃഗം പ്രജനനത്തിനാണോ അതോ ഭാരം കൂട്ടി വിൽക്കാനാണോ?',
+                  mr: 'हे जनावर पैदाशीसाठी (ब्रीडिंग) आहे की वजन वाढवून विक्रीसाठी (फॅटनिंग)?'
+                })}
+              </p>
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => setPurpose('Breeding')}
+                className={`p-3 rounded-2xl border-2 text-left transition-all cursor-pointer flex items-start gap-3 ${
+                  purpose === 'Breeding'
+                    ? 'border-emerald-600 bg-emerald-50/80 shadow-xs ring-1 ring-emerald-500'
+                    : 'border-stone-200 bg-white hover:border-stone-300'
+                }`}
+              >
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-base ${
+                  purpose === 'Breeding' ? 'bg-emerald-600 text-white' : 'bg-stone-100 text-stone-600'
+                }`}>
+                  🧬
+                </div>
+                <div>
+                  <div className="text-xs font-black text-stone-900 flex items-center gap-1.5">
+                    <span>{t('breeding', 'Breeding')}</span>
+                    {purpose === 'Breeding' && <Check className="w-3.5 h-3.5 text-emerald-700" />}
+                  </div>
+                  <p className="text-[11px] text-stone-500 font-medium mt-0.5 leading-tight">
+                    {t('breedingDesc', 'For producing kids/lambs (family tree tracked)')}
+                  </p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPurpose('Fattening')}
+                className={`p-3 rounded-2xl border-2 text-left transition-all cursor-pointer flex items-start gap-3 ${
+                  purpose === 'Fattening'
+                    ? 'border-amber-600 bg-amber-50/80 shadow-xs ring-1 ring-amber-500'
+                    : 'border-stone-200 bg-white hover:border-stone-300'
+                }`}
+              >
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-base ${
+                  purpose === 'Fattening' ? 'bg-amber-600 text-white' : 'bg-stone-100 text-stone-600'
+                }`}>
+                  🥩
+                </div>
+                <div>
+                  <div className="text-xs font-black text-stone-900 flex items-center gap-1.5">
+                    <span>{t('fattening', 'Fattening (Meat / Market)')}</span>
+                    {purpose === 'Fattening' && <Check className="w-3.5 h-3.5 text-amber-700" />}
+                  </div>
+                  <p className="text-[11px] text-stone-500 font-medium mt-0.5 leading-tight">
+                    {t('fatteningDesc', 'For meat & market sale (family tree not needed)')}
+                  </p>
+                </div>
+              </button>
+            </div>
+
+            {/* If Fattening: Family Tree is not needed */}
+            {purpose === 'Fattening' && (
+              <div className="p-3.5 rounded-xl bg-amber-50/90 border border-amber-300 text-amber-950 flex items-start gap-3">
+                <span className="text-xl shrink-0">🥩</span>
+                <div>
+                  <h5 className="text-xs font-black">
+                    {t('familyTreeNotNeeded', 'Family tree is not tracked for fattening animals')}
+                  </h5>
+                  <p className="text-[11px] text-amber-900 mt-0.5 leading-relaxed font-medium">
+                    {t('parentsNotTrackedFattening', 'Fattening animals are reared for meat and market; pedigree records are not needed.')}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* If Breeding: Ask Origin (Born on Farm vs Brought from Outside) */}
+            {purpose === 'Breeding' && (
+              <div className="pt-2 border-t border-amber-200/80 space-y-3">
+                <div>
+                  <h4 className="text-xs font-black text-amber-950 uppercase">
+                    3. {t('origin', 'Animal Origin')}
+                  </h4>
+                  <p className="text-[11px] text-stone-600 font-medium mt-0.5">
+                    {localeText({
+                      en: 'Was this animal born on your farm, or brought from outside?',
+                      hi: 'क्या यह पशु आपके फार्म में पैदा हुआ, या बाहर (मंडी/अन्य फार्म) से लाया गया?',
+                      kn: 'ಈ ಪ್ರಾಣಿ ನಿಮ್ಮ ಫಾರ್ಮ್‌ನಲ್ಲಿ ಜನಿಸಿದ್ದೇ ಅಥವಾ ಹೊರಗಿನಿಂದ ತಂದಿದ್ದೇ?',
+                      te: 'ఈ జీవం మీ ఫారమ్‌లోనే పుట్టిందా లేక బయట నుండి తెచ్చారా?',
+                      ta: 'இந்த கால்நடை உங்கள் பண்ணையிலேயே பிறந்ததா அல்லது வெளியில் இருந்து கொண்டு வரப்பட்டதா?',
+                      ml: 'ഈ മൃഗം നിങ്ങളുടെ ഫാമിൽ ജനിച്ചതാണോ അതോ പുറത്തുനിന്ന് കൊണ്ടുവന്നതാണോ?',
+                      mr: 'हे जनावर तुमच्या फार्मवर जन्मले आहे की बाहेरून (बाजार/इतर फार्म) आणले आहे?'
+                    })}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOrigin('Born on Farm');
+                      setKnowsParents(true);
+                    }}
+                    className={`p-3 rounded-2xl border-2 text-left transition-all cursor-pointer flex items-start gap-3 ${
+                      origin === 'Born on Farm'
+                        ? 'border-emerald-600 bg-emerald-50/80 shadow-xs ring-1 ring-emerald-500'
+                        : 'border-stone-200 bg-white hover:border-stone-300'
+                    }`}
+                  >
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-base ${
+                      origin === 'Born on Farm' ? 'bg-emerald-600 text-white' : 'bg-stone-100 text-stone-600'
+                    }`}>
+                      🏡
+                    </div>
+                    <div>
+                      <div className="text-xs font-black text-stone-900 flex items-center gap-1.5">
+                        <span>{t('bornOnFarm', 'Born in the Farm')}</span>
+                        {origin === 'Born on Farm' && <Check className="w-3.5 h-3.5 text-emerald-700" />}
+                      </div>
+                      <p className="text-[11px] text-stone-500 font-medium mt-0.5 leading-tight">
+                        {t('bornOnFarmDesc', 'Born here (parents tracked from flock)')}
+                      </p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOrigin('Brought from Outside');
+                      setKnowsParents(false);
+                    }}
+                    className={`p-3 rounded-2xl border-2 text-left transition-all cursor-pointer flex items-start gap-3 ${
+                      origin === 'Brought from Outside'
+                        ? 'border-purple-600 bg-purple-50/80 shadow-xs ring-1 ring-purple-500'
+                        : 'border-stone-200 bg-white hover:border-stone-300'
+                    }`}
+                  >
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-base ${
+                      origin === 'Brought from Outside' ? 'bg-purple-600 text-white' : 'bg-stone-100 text-stone-600'
+                    }`}>
+                      🚚
+                    </div>
+                    <div>
+                      <div className="text-xs font-black text-stone-900 flex items-center gap-1.5">
+                        <span>{t('broughtFromOutside', 'Brought from Outside')}</span>
+                        {origin === 'Brought from Outside' && <Check className="w-3.5 h-3.5 text-purple-700" />}
+                      </div>
+                      <p className="text-[11px] text-stone-500 font-medium mt-0.5 leading-tight">
+                        {t('broughtFromOutsideDesc', 'Purchased from market or external source')}
+                      </p>
+                    </div>
+                  </button>
+                </div>
+
+                {/* If Brought from Outside: Ask with Checkbox if user knows parents */}
+                {origin === 'Brought from Outside' && (
+                  <div className="space-y-2">
+                    <label className="flex items-start gap-3 p-3 bg-white border-2 border-stone-200 rounded-2xl cursor-pointer hover:border-purple-400 transition-all">
+                      <input
+                        type="checkbox"
+                        checked={knowsParents}
+                        onChange={(e) => setKnowsParents(e.target.checked)}
+                        className="w-4 h-4 mt-0.5 rounded border-stone-300 text-purple-700 focus:ring-purple-600 cursor-pointer"
+                      />
+                      <div>
+                        <span className="text-xs font-black text-stone-900 block">
+                          {t('knowParentsCheck', 'I know the parents (Sire/Dam) of this animal')}
+                        </span>
+                        <span className="text-[11px] text-stone-500 font-medium block mt-0.5">
+                          {localeText({
+                            en: 'Check if you have known pedigree records from the seller/breeder.',
+                            hi: 'यदि विक्रेता या पुराने फार्म से माता-पिता की पक्की जानकारी है तभी चेक करें।',
+                            kn: 'ಮಾರಾಟಗಾರರಿಂದ ತಂದೆ-ತಾಯಿಯ ಖಚಿತ ಮಾಹಿತಿ ಇದ್ದರೆ ಮಾತ್ರ ಗುರುತು ಹಾಕಿ.',
+                            te: 'విక్రేత లేదా మునుపటి ఫారం నుంచి తల్లిదండ్రుల ఖచ్చితమైన సమాచారం ఉంటే ఎంచుకోండి.',
+                            ta: 'முந்தைய வளர்ப்பாளரிடம் இருந்து பெற்றோர் பற்றிய விபரம் தெரிந்தால் மட்டும் டிக் செய்யவும்.',
+                            ml: 'വിൽപ്പനക്കാരനിൽ നിന്ന് മാതാപിതാക്കളുടെ ശരിയായ വിവരം ലഭിച്ചിട്ടുണ്ടെങ്കിൽ മാത്രം ടിക്ക് ചെയ്യുക.',
+                            mr: 'विक्रेत्याकडून आई-वडिलांची खात्रीशीर माहिती मिळालेली असेल तरच टिक करा.'
+                          })}
+                        </span>
+                      </div>
+                    </label>
+
+                    {!knowsParents && (
+                      <div className="p-3 rounded-xl bg-purple-50/80 border border-purple-200 text-purple-950 flex items-start gap-2.5">
+                        <Info className="w-4 h-4 text-purple-700 shrink-0 mt-0.5" />
+                        <div className="text-[11px] font-medium leading-relaxed">
+                          <strong>{t('parentsUnknown', 'Parents Unknown (Foundation Stock)')}:</strong>{' '}
+                          {t('foundationStockDesc', 'Brought from outside with unknown ancestry. Serves as foundation breeding stock.')}
+                          <span className="block mt-1 text-purple-800">
+                            ✓ {localeText({
+                              en: 'Family tree will not show empty or unverified parents for this animal.',
+                              hi: 'इस पशु के लिए खानदान में खाली या फर्जी माता-पिता नहीं दिखाए जाएंगे।',
+                              kn: 'ಈ ಪ್ರಾಣಿಗೆ ಕುಟುಂಬ ಮರದಲ್ಲಿ ಖಾಲಿ ಅಥವಾ ಅಜ್ಞಾತ ಪೋಷಕರು ಕಾಣಿಸುವುದಿಲ್ಲ.',
+                              te: 'ఈ జీవానికి కుటుంబ వృక్షంలో ఖాళీ లేదా నకిలీ తల్లిదండ్రులు కనిపించరు.',
+                              ta: 'இந்த கால்நடைக்கு குடும்ப மரத்தில் வெற்று அல்லது போலி பெற்றோர் காட்டப்பட மாட்டாது.',
+                              ml: 'ഈ മൃഗത്തിന് കുടുംബ വൃക്ഷത്തിൽ ശൂന്യമായ മാതാപിതാക്കളുടെ വിവരം കാണിക്കില്ല.',
+                              mr: 'या जनावरासाठी वंशावळीत रिकामे किंवा खोटे आई-वडील दिसणार नाहीत.'
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* If Born on Farm OR Brought from Outside with knowsParents === true: Show Sire & Dam inputs */}
+                {(origin === 'Born on Farm' || knowsParents) && (
+                  <div className="pt-2 border-t border-amber-200/80 space-y-3">
+                    <h5 className="text-xs font-black text-amber-950 uppercase flex items-center justify-between">
+                      <span>4. {localeText({
+                        en: 'Papa & Mummy Information',
+                        hi: 'माता-पिता की जानकारी',
+                        kn: 'ತಂದೆ-ತಾಯಿಯ ಮಾಹಿತಿ',
+                        te: 'తల్లిదండ్రుల వివరాలు',
+                        ta: 'பெற்றோர் விவரங்கள்',
+                        ml: 'മാതാപിതാക്കളുടെ വിവരം',
+                        mr: 'आई-वडिलांची माहिती'
+                      })}</span>
+                      <span className="text-[10px] text-emerald-800 font-bold bg-emerald-100 px-2 py-0.5 rounded-full">
+                        {origin === 'Born on Farm' ? 'Flock Lineage' : 'Verified Pedigree'}
+                      </span>
+                    </h5>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Sire (Father) */}
+                      <div>
+                        <label className="block text-xs font-bold text-stone-700 mb-1">
+                          {species === 'Goat'
+                            ? localeText({
+                                en: 'Sire / Father (Stud Buck)',
+                                hi: 'पिता / नर (बकरा)',
+                                kn: 'ತಂದೆ / ಗಂಡು (ಬೊಕ್ಕ)',
+                                te: 'తండ్రి / మగ (పోతు)',
+                                ta: 'தந்தை / ஆண் (கடா)',
+                                ml: 'പിതാവ് / ആൺ (കൊറ്റൻ)',
+                                mr: 'वडील / नर (बोकड)'
+                              })
+                            : localeText({
+                                en: 'Sire / Father (Stud Ram)',
+                                hi: 'पिता / नर (मेढ़ा)',
+                                kn: 'ತಂದೆ / ಗಂಡು (ಟಗರು)',
+                                te: 'తండ్రి / మగ (పొట్టేలు)',
+                                ta: 'தந்தை / ஆண் (கிடா)',
+                                ml: 'പിതാവ് / ആൺ (മുട്ടൻ)',
+                                mr: 'वडील / नर (मेंढा)'
+                              })}
+                        </label>
+                        <select
+                          value={selectedSireId}
+                          onChange={(e) => setSelectedSireId(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white text-xs mb-1.5 font-bold"
+                        >
+                          <option value="custom">
+                            + {localeText({
+                              en: "Type Father's Name Below",
+                              hi: 'नीचे पिता का नाम लिखें',
+                              kn: 'ಕೆಳಗೆ ತಂದೆಯ ಹೆಸರು ಬರೆಯಿರಿ',
+                              te: 'క్రింద తండ్రి పేరు రాయండి',
+                              ta: 'கீழே தந்தை பெயரை எழுதவும்',
+                              ml: 'താഴെ പിതാവിന്റെ പേര് എഴുതുക',
+                              mr: 'खाली वडिलांचे नाव लिहा'
+                            })}
+                          </option>
+                          {farm.animals.map(a => (
+                            <option key={a.id} value={a.id}>
+                              {a.name} (Tag #{a.tagId} · {a.breed})
+                            </option>
+                          ))}
+                        </select>
+                        {selectedSireId === 'custom' && (
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              value={customSireName}
+                              onChange={(e) => setCustomSireName(e.target.value)}
+                              placeholder={localeText({ en: 'Sire Name', hi: 'पिता का नाम', kn: 'ತಂದೆಯ ಹೆಸರು', te: 'తండ్రి పేరు', ta: 'தந்தை பெயர்', ml: 'പിതാവിന്റെ പേര്', mr: 'वडिलांचे नाव' })}
+                              className="px-2 py-1.5 rounded-lg border border-stone-300 bg-white text-xs"
+                            />
+                            <input
+                              type="text"
+                              value={customSireTag}
+                              onChange={(e) => setCustomSireTag(e.target.value)}
+                              placeholder={localeText({ en: 'Sire Tag', hi: 'टैग नंबर', kn: 'ಟ್ಯಾಗ್ ಸಂಖ್ಯೆ', te: 'ట్యాగ్ నంబర్', ta: 'டேக் எண்', ml: 'ടാഗ് നമ്പർ', mr: 'टॅग क्रमांक' })}
+                              className="px-2 py-1.5 rounded-lg border border-stone-300 bg-white text-xs font-mono uppercase"
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Dam (Mother) */}
+                      <div>
+                        <label className="block text-xs font-bold text-stone-700 mb-1">
+                          {species === 'Goat'
+                            ? localeText({
+                                en: 'Dam / Mother (Breeder Doe)',
+                                hi: 'माता / मादा (बकरी)',
+                                kn: 'ತಾಯಿ / ಹೆಣ್ಣು (ಆಡು)',
+                                te: 'తల్లి / ఆడ (మేక)',
+                                ta: 'தாய் / பெண் (வெள்ளாடு)',
+                                ml: 'മാതാവ് / പെൺ (ആട്)',
+                                mr: 'आई / मादी (शेळी)'
+                              })
+                            : localeText({
+                                en: 'Dam / Mother (Breeder Ewe)',
+                                hi: 'माता / मादा (भेड़)',
+                                kn: 'ತಾಯಿ / ಹೆಣ್ಣು (ಕುರಿ)',
+                                te: 'తల్లి / ఆడ (గొర్రె)',
+                                ta: 'தாய் / பெண் (செம்மறி)',
+                                ml: 'മാതാവ് / പെൺ (ചെമ്മരിയാട്)',
+                                mr: 'आई / मादी (मेंढी)'
+                              })}
+                        </label>
+                        <select
+                          value={selectedDamId}
+                          onChange={(e) => setSelectedDamId(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white text-xs mb-1.5 font-bold"
+                        >
+                          <option value="custom">
+                            + {localeText({
+                              en: "Type Mother's Name Below",
+                              hi: 'नीचे माता का नाम लिखें',
+                              kn: 'ಕೆಳಗೆ ತಾಯಿಯ ಹೆಸರು ಬರೆಯಿರಿ',
+                              te: 'క్రింద తల్లి పేరు రాయండి',
+                              ta: 'கீழே தாய் பெயரை எழுதவும்',
+                              ml: 'താഴെ മാതാവിന്റെ പേര് എഴുതുക',
+                              mr: 'खाली आईचे नाव लिहा'
+                            })}
+                          </option>
+                          {farm.animals.map(a => (
+                            <option key={a.id} value={a.id}>
+                              {a.name} (Tag #{a.tagId} · {a.breed})
+                            </option>
+                          ))}
+                        </select>
+                        {selectedDamId === 'custom' && (
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              value={customDamName}
+                              onChange={(e) => setCustomDamName(e.target.value)}
+                              placeholder="Mummy Name"
+                              className="px-2 py-1.5 rounded-lg border border-stone-300 bg-white text-xs"
+                            />
+                            <input
+                              type="text"
+                              value={customDamTag}
+                              onChange={(e) => setCustomDamTag(e.target.value)}
+                              placeholder="Mummy Tag"
+                              className="px-2 py-1.5 rounded-lg border border-stone-300 bg-white text-xs font-mono uppercase"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-bold text-stone-700 mb-1">
-                Good Family Quality (e.g. Gives sweet A2 milk)
+                {purpose === 'Fattening' ? 'Fattening Goal / Breed Trait' : 'Good Family Quality (e.g. Twin birth line)'}
               </label>
               <input
                 type="text"
                 value={traitName}
                 onChange={(e) => setTraitName(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white text-xs"
+                placeholder={purpose === 'Fattening' ? 'Rapid Weight Gain & Market Finishing' : 'Twin kids ability & hardy frame'}
+                className="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white text-xs font-medium"
               />
             </div>
           </div>

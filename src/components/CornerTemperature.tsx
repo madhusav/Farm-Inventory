@@ -244,7 +244,7 @@ export const CornerTemperature: React.FC<CornerTemperatureProps> = ({
 
       {/* Floating Corner Details Popover (Guaranteed to fit on mobile viewports) */}
       {showPopover && (
-        <div className="absolute right-0 mt-2 w-[calc(100vw-32px)] max-w-xs sm:w-80 bg-white rounded-2xl shadow-2xl border border-stone-200 p-3.5 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-3">
+        <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-[calc(100vw-32px)] max-w-xs sm:w-80 bg-white rounded-2xl shadow-2xl border border-stone-200 p-3.5 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-3">
           
           {/* Header */}
           <div className="flex items-start justify-between gap-2 border-b border-stone-100 pb-2.5">

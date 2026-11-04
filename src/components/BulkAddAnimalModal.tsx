@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Farm, User, Animal, Species, AnimalHealthStatus, AnimalMilkStatus } from '../types';
+import { Farm, User, Animal, Species, AnimalHealthStatus, AnimalMilkStatus, AnimalPurpose, AnimalOrigin } from '../types';
 import { 
   COW_ILLUSTRATION, 
   GOAT_ILLUSTRATION, 
@@ -8,7 +8,7 @@ import {
 } from '../data/initialData';
 import { useLanguage } from '../i18n/LanguageContext';
 import { db } from '../services/db';
-import { X, Check, Tag } from 'lucide-react';
+import { X, Check, Tag, Info } from 'lucide-react';
 
 interface BulkAddAnimalModalProps {
   farm: Farm;
@@ -96,6 +96,11 @@ export const BulkAddAnimalModal: React.FC<BulkAddAnimalModalProps> = ({
   });
   const [healthStatus, setHealthStatus] = useState<AnimalHealthStatus>('Healthy & Fit');
   const [milkStatus, setMilkStatus] = useState<AnimalMilkStatus>('Giving Milk');
+
+  // Purpose & Origin for bulk herd
+  const [purpose, setPurpose] = useState<AnimalPurpose>('Breeding');
+  const [origin, setOrigin] = useState<AnimalOrigin>('Brought from Outside');
+  const [knowsParents, setKnowsParents] = useState<boolean>(false);
 
   // Species check: milk status ONLY for Cow or Buffalo
   const isDairySpecies = species === 'Cow' || species === 'Buffalo';
@@ -306,6 +311,10 @@ export const BulkAddAnimalModal: React.FC<BulkAddAnimalModalProps> = ({
       const weightVariation = (Math.sin(i * 1.5) * 0.05 + 1);
       const curWeight = Math.round(avgWeight * weightVariation * 10) / 10;
 
+      const isFattening = purpose === 'Fattening';
+      const isBornOnFarm = origin === 'Born on Farm';
+      const shouldTrackParents = !isFattening && (isBornOnFarm || knowsParents);
+
       const newAnimal: Animal = {
         id: `anim-bulk-${Date.now()}-${i}`,
         tagId,
@@ -316,32 +325,37 @@ export const BulkAddAnimalModal: React.FC<BulkAddAnimalModalProps> = ({
         dateOfBirth: '2024-05-10',
         photoUrl: illustration,
         paddockLocation: shedLocation,
+        purpose,
+        origin,
+        knowsParents: isFattening ? false : (isBornOnFarm ? true : knowsParents),
         status: animalStatus,
         healthStatus,
         milkStatus: animalMilk,
         dailyMilkLitres: dailyLiters,
         sireId: null,
-        sireName: 'Foundation Sire',
-        sireTag: `${cleanPrefix}SIRE`,
-        sireBreed: breed,
+        sireName: shouldTrackParents ? 'Foundation Sire' : undefined,
+        sireTag: shouldTrackParents ? `${cleanPrefix}SIRE` : undefined,
+        sireBreed: shouldTrackParents ? breed : undefined,
         damId: null,
-        damName: 'Foundation Dam',
-        damTag: `${cleanPrefix}DAM`,
-        damBreed: breed,
+        damName: shouldTrackParents ? 'Foundation Dam' : undefined,
+        damTag: shouldTrackParents ? `${cleanPrefix}DAM` : undefined,
+        damBreed: shouldTrackParents ? breed : undefined,
         inheritedTraits: [
           {
-            traitName: 'Hardy Pasture Immunity',
+            traitName: isFattening ? 'Market Weight Finishing' : 'Hardy Pasture Immunity',
             inheritedFrom: 'Both',
-            scoreOrGrade: 'Strong Grade A',
-            impactDescription: 'Naturally resilient against weather changes and common farm diseases.',
+            scoreOrGrade: isFattening ? 'Fattening Grade A' : 'Strong Grade A',
+            impactDescription: isFattening 
+              ? 'Rapid weight gain and premium muscle build.'
+              : (shouldTrackParents ? 'Naturally resilient against weather changes and common farm diseases.' : 'First generation foundation breeding line.'),
           },
         ],
-        inbreedingCoefficientPct: 0.1,
+        inbreedingCoefficientPct: 0,
         birthWeightKg: Math.round(avgWeight * 0.1 * 10) / 10,
         currentWeightKg: curWeight,
         targetMatureWeightKg: Math.round(targetMatureWeight),
-        productivityLabel: prodLabel,
-        currentProductivityValue: sex === 'Male' ? 'Breeding Sire' : prodVal,
+        productivityLabel: isFattening ? 'Market Readiness' : prodLabel,
+        currentProductivityValue: isFattening ? `${curWeight} kg (Fattening)` : (sex === 'Male' ? 'Breeding Sire' : prodVal),
         createdAt: today,
         createdBy: currentUser.name,
         growthHistory: [
@@ -680,6 +694,105 @@ export const BulkAddAnimalModal: React.FC<BulkAddAnimalModalProps> = ({
                     </button>
                   </div>
                 </div>
+              </div>
+            )}
+          </div>
+
+          {/* Purpose & Origin Configuration */}
+          <div className="p-3.5 rounded-2xl bg-[#FFFDF7] border-2 border-amber-200 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-amber-950 uppercase tracking-wider">
+                {t('purpose', 'Animal Purpose')} & {t('origin', 'Origin')}
+              </span>
+              <span className="text-[11px] font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded-full">
+                {purpose === 'Breeding' ? '🧬 Breeding Lot' : '🥩 Fattening Lot'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setPurpose('Breeding')}
+                className={`p-2.5 rounded-xl border-2 text-left cursor-pointer transition-all ${
+                  purpose === 'Breeding'
+                    ? 'border-emerald-600 bg-emerald-50 text-emerald-950 font-black ring-1 ring-emerald-500'
+                    : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 text-xs">
+                  <span>🧬</span>
+                  <span>{t('breeding', 'Breeding')}</span>
+                </div>
+                <span className="text-[10px] text-stone-500 block font-normal mt-0.5">
+                  Kids/lambs produced
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPurpose('Fattening')}
+                className={`p-2.5 rounded-xl border-2 text-left cursor-pointer transition-all ${
+                  purpose === 'Fattening'
+                    ? 'border-amber-600 bg-amber-50 text-amber-950 font-black ring-1 ring-amber-500'
+                    : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 text-xs">
+                  <span>🥩</span>
+                  <span>{t('fattening', 'Fattening')}</span>
+                </div>
+                <span className="text-[10px] text-stone-500 block font-normal mt-0.5">
+                  Meat & market sales
+                </span>
+              </button>
+            </div>
+
+            {purpose === 'Fattening' ? (
+              <p className="text-[11px] text-amber-900 bg-amber-50 p-2.5 rounded-xl border border-amber-200 font-medium">
+                🥩 {t('parentsNotTrackedFattening', 'Fattening animals are reared for meat and market; pedigree records are not needed.')}
+              </p>
+            ) : (
+              <div className="space-y-2 pt-1 border-t border-amber-200/60">
+                <label className="text-[11px] font-bold text-stone-700 block">
+                  {t('origin', 'Origin')}:
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOrigin('Brought from Outside');
+                      setKnowsParents(false);
+                    }}
+                    className={`p-2 rounded-xl border text-xs font-bold text-center cursor-pointer transition-all ${
+                      origin === 'Brought from Outside'
+                        ? 'border-purple-600 bg-purple-50 text-purple-950 font-black ring-1 ring-purple-500'
+                        : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
+                    }`}
+                  >
+                    🚚 {t('broughtFromOutside', 'Brought from Outside')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOrigin('Born on Farm');
+                      setKnowsParents(true);
+                    }}
+                    className={`p-2 rounded-xl border text-xs font-bold text-center cursor-pointer transition-all ${
+                      origin === 'Born on Farm'
+                        ? 'border-emerald-600 bg-emerald-50 text-emerald-950 font-black ring-1 ring-emerald-500'
+                        : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
+                    }`}
+                  >
+                    🏡 {t('bornOnFarm', 'Born in the Farm')}
+                  </button>
+                </div>
+
+                {origin === 'Brought from Outside' && (
+                  <div className="text-[11px] text-purple-900 bg-purple-50/70 p-2 rounded-xl border border-purple-200 font-medium flex items-center gap-1.5">
+                    <Info className="w-3.5 h-3.5 text-purple-700 shrink-0" />
+                    <span>Outside purchases enter as foundation breeding stock with clean pedigrees.</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
