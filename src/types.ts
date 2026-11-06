@@ -319,7 +319,7 @@ export interface FarmTask {
 }
 
 export interface Farm {
-  id: string; // unique farm ID (e.g. FARM-7821)
+  id: string; // unique farm ID (e.g. FARM-1001)
   name: string;
   adminUserId: string; // ID of farm creator / admin
   adminName: string;

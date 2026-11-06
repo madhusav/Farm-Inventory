@@ -37,7 +37,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const [showLangMenu, setShowLangMenu] = useState(false);
 
   // Sign In fields
-  const [loginPhone, setLoginPhone] = useState('9876543210');
+  const [loginPhone, setLoginPhone] = useState('');
   const [loginPin, setLoginPin] = useState('1234');
   const [loginMethod, setLoginMethod] = useState<'pin' | 'otp'>('otp');
   const [loginError, setLoginError] = useState('');
@@ -916,47 +916,41 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <ArrowRight className="w-4 h-4" />
             </button>
 
-            {/* Quick 1-Tap Demo Logins */}
+            {/* Quick 1-Tap Login */}
             <div className="pt-2 border-t border-stone-100">
               <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider block mb-2 text-center">
                 {localeText({
-                  en: 'Demo Accounts (1-Tap):',
-                  hi: 'त्वरित डेमो खाते (1-टैप):',
-                  kn: 'ಡೆಮೊ ಖಾತೆಗಳು (1-ಟ್ಯಾಪ್):',
-                  te: 'డెమో ఖాతాలు (1-ట్యాప్):',
-                  ta: 'டெமோ கணக்குகள் (1-தட்டு):',
-                  ml: 'ഡെമോ അക്കൗണ്ടുകൾ (1-ടാപ്പ്):',
-                  mr: 'डेमो खाती (1-टॅप):'
+                  en: 'Quick 1-Tap Login:',
+                  hi: 'त्वरित 1-टैप लॉगिन:',
+                  kn: 'ತ್ವರಿತ 1-ಟ್ಯಾಪ್ ಲಾಗಿನ್:',
+                  te: 'త్వరిత 1-ట్యాప్ లాగిన్:',
+                  ta: 'விரைவு 1-தட்டு உள்நுழைவு:',
+                  ml: 'ദ്രുത 1-ടാപ്പ് ലോഗിൻ:',
+                  mr: 'झटपट 1-टॅप लॉगिन:'
                 })}
               </span>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => onLogin(DEFAULT_USERS[0])}
-                  className="px-2.5 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-950 text-xs font-bold text-left cursor-pointer transition-all truncate"
-                  title="Log in as System Admin (madhusav@gmail.com)"
+                  className="px-3 py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-950 text-xs font-bold text-left cursor-pointer transition-all truncate"
+                  title="Log in as Madhu S (madhusav@gmail.com)"
                 >
                   <span className="block truncate text-purple-900 font-black">🛡️ Madhu S</span>
                   <span className="text-[10px] text-purple-700 block truncate">System Admin (madhusav@gmail.com)</span>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => onLogin(DEFAULT_USERS[2])}
-                  className="px-2.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-950 text-xs font-bold text-left cursor-pointer transition-all truncate"
-                >
-                  <span className="block truncate font-black">👑 Ramesh Patel</span>
-                  <span className="text-[10px] text-emerald-800 block truncate">Farm Boss (FARM-7821)</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => onLogin(DEFAULT_USERS[3])}
-                  className="px-2.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 border border-stone-200 text-stone-800 text-xs font-bold text-left cursor-pointer transition-all truncate"
-                >
-                  <span className="block truncate font-bold">🚜 Suresh Kumar</span>
-                  <span className="text-[10px] text-stone-500 block truncate">Herdsman Helper</span>
-                </button>
+                {DEFAULT_USERS[2] && (
+                  <button
+                    type="button"
+                    onClick={() => onLogin(DEFAULT_USERS[2])}
+                    className="px-3 py-2.5 rounded-xl bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-950 text-xs font-bold text-left cursor-pointer transition-all truncate"
+                    title="Log in as Dr. Priya Sharma (Flock Vet)"
+                  >
+                    <span className="block truncate font-black text-teal-900">🩺 Dr. Priya Sharma</span>
+                    <span className="text-[10px] text-teal-700 block truncate">Flock Veterinarian</span>
+                  </button>
+                )}
               </div>
             </div>
           </form>

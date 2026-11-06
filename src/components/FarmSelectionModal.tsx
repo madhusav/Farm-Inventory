@@ -493,7 +493,7 @@ export const FarmSelectionModal: React.FC<FarmSelectionModalProps> = ({
                     type="text"
                     value={farmSearchQuery}
                     onChange={(e) => setFarmSearchQuery(e.target.value)}
-                    placeholder="Type Farm Code (e.g. FARM-7821) or Farm Name..."
+                    placeholder="Type Farm Code (e.g. FARM-1001) or Farm Name..."
                     className="w-full min-h-[44px] pl-10 pr-4 py-2.5 rounded-xl border border-stone-300 text-sm font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
                   />
                 </div>

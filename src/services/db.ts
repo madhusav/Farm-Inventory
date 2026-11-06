@@ -18,10 +18,10 @@ import {
 } from '../types';
 import { DEFAULT_USERS, INITIAL_FARMS } from '../data/initialData';
 
-const STORAGE_USERS_KEY = 'farmtrack_mysql_users_v3';
-const STORAGE_FARMS_KEY = 'farmtrack_mysql_farms_v3';
-const STORAGE_CURRENT_USER_KEY = 'farmtrack_mysql_curr_user_v3';
-const STORAGE_CURRENT_FARM_KEY = 'farmtrack_mysql_curr_farm_v3';
+const STORAGE_USERS_KEY = 'farmtrack_mysql_users_v4';
+const STORAGE_FARMS_KEY = 'farmtrack_mysql_farms_v4';
+const STORAGE_CURRENT_USER_KEY = 'farmtrack_mysql_curr_user_v4';
+const STORAGE_CURRENT_FARM_KEY = 'farmtrack_mysql_curr_farm_v4';
 const STORAGE_APP_NAME_KEY = 'farmtrack_app_name_config';
 const STORAGE_GLOBAL_BREEDS_KEY = 'farmtrack_global_breeds_v1';
 const STORAGE_BREED_PROPOSALS_KEY = 'farmtrack_breed_proposals_v1';
@@ -273,10 +273,10 @@ export const DEFAULT_BREED_PROPOSALS: BreedProposal[] = [
     primaryPurpose: 'Meat',
     characteristics: 'Indigenous mountain goat with jet black coat, bronze eyes, curved horns, and high resistance to tick-borne illnesses and foot rot in damp weather.',
     averageMatureWeightKg: 34,
-    proposedByFarmId: 'FARM-7821',
-    proposedByFarmName: 'Gokul Pure Dairy & Livestock',
-    proposedByUserId: 'user-admin-1',
-    proposedByUserName: 'Ramesh Patel',
+    proposedByFarmId: 'FARM-1001',
+    proposedByFarmName: 'My Sheep & Goat Farm',
+    proposedByUserId: 'user-superadmin-madhu',
+    proposedByUserName: 'Madhu S',
     status: 'pending',
     createdAt: '2026-10-25T11:20:00Z',
   },
@@ -288,10 +288,10 @@ export const DEFAULT_BREED_PROPOSALS: BreedProposal[] = [
     primaryPurpose: 'Meat',
     characteristics: 'Signature bilobed fat cushion at base of tail for energy storage during dry spells, heavy live weight gain on thorny shrubs, distinct convex head.',
     averageMatureWeightKg: 65,
-    proposedByFarmId: 'FARM-7821',
-    proposedByFarmName: 'Gokul Pure Dairy & Livestock',
-    proposedByUserId: 'user-admin-1',
-    proposedByUserName: 'Ramesh Patel',
+    proposedByFarmId: 'FARM-1001',
+    proposedByFarmName: 'My Sheep & Goat Farm',
+    proposedByUserId: 'user-superadmin-madhu',
+    proposedByUserName: 'Madhu S',
     status: 'pending',
     createdAt: '2026-10-26T08:45:00Z',
   },
@@ -303,10 +303,10 @@ export const DEFAULT_BREED_PROPOSALS: BreedProposal[] = [
     primaryPurpose: 'Meat',
     characteristics: 'Tall graceful meat goat with black body and distinct white/tan stripes on face and legs; thrives in dry scrublands with outstanding drought resistance.',
     averageMatureWeightKg: 38,
-    proposedByFarmId: 'FARM-7821',
-    proposedByFarmName: 'Gokul Pure Dairy & Livestock',
-    proposedByUserId: 'user-admin-1',
-    proposedByUserName: 'Ramesh Patel',
+    proposedByFarmId: 'FARM-1001',
+    proposedByFarmName: 'My Sheep & Goat Farm',
+    proposedByUserId: 'user-superadmin-madhu',
+    proposedByUserName: 'Madhu S',
     status: 'approved',
     adminNotes: 'Verified with ICAR-NBAGR accession registry. High genetic conservation value.',
     createdAt: '2026-10-15T09:30:00Z',
@@ -331,263 +331,10 @@ export const DEFAULT_FARM_CONFIG: FarmConfig = {
   ]
 };
 
-export const DEFAULT_FINANCIAL_RECORDS: FinancialRecord[] = [
-  {
-    id: 'fin-1',
-    farmId: 'FARM-7821',
-    date: '2026-10-12',
-    type: 'income',
-    category: 'Livestock Sale',
-    amount: 32000,
-    title: 'Sale of 4 Jamnapari Weaned Kids',
-    notes: 'Sold to neighboring breeding farm @ ₹8,000 each',
-    recordedBy: 'Ramesh Patel',
-    createdAt: '2026-10-12T08:30:00Z',
-  },
-  {
-    id: 'fin-2',
-    farmId: 'FARM-7821',
-    date: '2026-10-11',
-    type: 'expense',
-    category: 'Feed & Fodder',
-    amount: 6500,
-    title: 'Groundnut Dry Hay & Subabul Leaves Fodder',
-    notes: '2 cart loads for goat and sheep flock feeding',
-    recordedBy: 'Ramesh Patel',
-    createdAt: '2026-10-11T10:15:00Z',
-  },
-  {
-    id: 'fin-3',
-    farmId: 'FARM-7821',
-    date: '2026-10-10',
-    type: 'income',
-    category: 'Wool & Hair',
-    amount: 18500,
-    title: 'Autumn Shearing Deccani Raw Wool Fleece Sale',
-    notes: '125 kg raw wool sold to local blanket weaver cooperative',
-    recordedBy: 'Ramesh Patel',
-    createdAt: '2026-10-10T09:00:00Z',
-  },
-  {
-    id: 'fin-4',
-    farmId: 'FARM-7821',
-    date: '2026-10-09',
-    type: 'expense',
-    category: 'Vaccination',
-    amount: 1800,
-    title: 'PPR Goat Plague & Enterotoxemia (ET) Vaccines',
-    notes: 'Annual flock preventative immunization',
-    recordedBy: 'Dr. Priya Sharma',
-    createdAt: '2026-10-09T14:30:00Z',
-  },
-  {
-    id: 'fin-5',
-    farmId: 'FARM-7821',
-    date: '2026-10-08',
-    type: 'income',
-    category: 'Manure & Fertilizer',
-    amount: 6200,
-    title: 'Organic Goat Pellet Manure & Sheep Dung',
-    notes: '30 bags sold to pomegranate and guava orchard farmers',
-    recordedBy: 'Suresh Kumar',
-    createdAt: '2026-10-08T11:00:00Z',
-  },
-  {
-    id: 'fin-6',
-    farmId: 'FARM-7821',
-    date: '2026-10-06',
-    type: 'expense',
-    category: 'Medicine & Doctor',
-    amount: 950,
-    title: 'Albendazole Dewormer Suspension & Liver Tonic',
-    notes: 'Pre-winter preventative deworming drench for goats and sheep',
-    recordedBy: 'Dr. Priya Sharma',
-    createdAt: '2026-10-06T16:00:00Z',
-  },
-  {
-    id: 'fin-7',
-    farmId: 'FARM-7821',
-    date: '2026-10-04',
-    type: 'expense',
-    category: 'Worker Wages',
-    amount: 5000,
-    title: 'Herdsman Flock Grazing Monthly Allowance',
-    notes: 'Payment for daily pasture grazing and pen cleaning',
-    recordedBy: 'Ramesh Patel',
-    createdAt: '2026-10-04T18:00:00Z',
-  },
-  {
-    id: 'fin-8',
-    farmId: 'FARM-7821',
-    date: '2026-09-28',
-    type: 'income',
-    category: 'Livestock Sale',
-    amount: 24000,
-    title: 'Sale of 2 Breeding Nellore Rams',
-    notes: 'Sold to local pastoralists for flock genetic improvement',
-    recordedBy: 'Ramesh Patel',
-    createdAt: '2026-09-28T10:00:00Z',
-  },
-];
+export const DEFAULT_FINANCIAL_RECORDS: FinancialRecord[] = [];
 
-export const INITIAL_FARM_TASKS: FarmTask[] = [
-  {
-    id: 'task-flock-1',
-    farmId: 'FARM-7821',
-    title: 'Autumn Shearing Campaign for Deccani Sheep Flock',
-    description: 'Shear all adult and yearling sheep before cold nights set in. Clean and grade raw wool fleece into wool bags.',
-    species: 'Sheep',
-    category: 'Shearing',
-    priority: 'High',
-    status: 'in_progress',
-    assignedToUserId: 'user-staff-1',
-    assignedToName: 'Suresh Kumar (Farm Helper)',
-    assignedToRole: 'Herdsman',
-    target: {
-      enabled: true,
-      targetValue: 40,
-      currentValue: 26,
-      unit: 'sheep',
-    },
-    dueDate: '2026-10-18',
-    dueTime: '08:30',
-    reminder: {
-      enabled: true,
-      audience: 'all_members',
-      timing: '1_day_before',
-      customNote: 'Prepare shearing clippers, clean oil, and tar antiseptic for skin nicks.',
-      isAcknowledged: false,
-    },
-    createdByUserId: 'user-admin-1',
-    createdByUserName: 'Ramesh Patel (Farm Owner)',
-    createdAt: '2026-10-10T09:00:00Z',
-  },
-  {
-    id: 'task-flock-2',
-    farmId: 'FARM-7821',
-    title: 'Pre-Winter Deworming Drench (Albendazole)',
-    description: 'Oral drenching of all sheep and goats with broad-spectrum dewormer against liver flukes and roundworms.',
-    species: 'Both',
-    category: 'Deworming',
-    priority: 'Urgent',
-    status: 'pending',
-    assignedToUserId: 'user-vet-1',
-    assignedToName: 'Dr. Priya Sharma (Animal Doctor)',
-    assignedToRole: 'Veterinarian',
-    target: {
-      enabled: true,
-      targetValue: 50,
-      currentValue: 15,
-      unit: 'animals',
-    },
-    dueDate: '2026-10-15',
-    dueTime: '10:00',
-    reminder: {
-      enabled: true,
-      audience: 'all_members',
-      timing: 'on_due_date',
-      customNote: 'Administer on empty stomach in morning before letting flock out to pasture.',
-      isAcknowledged: false,
-    },
-    createdByUserId: 'user-admin-1',
-    createdByUserName: 'Ramesh Patel (Farm Owner)',
-    createdAt: '2026-10-11T11:00:00Z',
-  },
-  {
-    id: 'task-flock-3',
-    farmId: 'FARM-7821',
-    title: 'Anti-Tick & Mite Dip Bath for Goats',
-    description: 'Run flock through dipping vat trench with Cypermethrin ectoparasiticide solution to eliminate ticks and lice.',
-    species: 'Goat',
-    category: 'Dipping & Bath',
-    priority: 'Medium',
-    status: 'pending',
-    assignedToUserId: 'user-staff-1',
-    assignedToName: 'Suresh Kumar (Farm Helper)',
-    assignedToRole: 'Herdsman',
-    target: {
-      enabled: true,
-      targetValue: 30,
-      currentValue: 0,
-      unit: 'goats',
-    },
-    dueDate: '2026-10-20',
-    dueTime: '14:00',
-    reminder: {
-      enabled: true,
-      audience: 'admins_only',
-      timing: '2_days_before',
-      customNote: 'Verify dip vat drain plug and test chemical dilution ratio.',
-      isAcknowledged: false,
-    },
-    createdByUserId: 'user-admin-1',
-    createdByUserName: 'Ramesh Patel (Farm Owner)',
-    createdAt: '2026-10-12T07:00:00Z',
-  },
-  {
-    id: 'task-flock-4',
-    farmId: 'FARM-7821',
-    title: 'Growing Kids & Lambs 90-Day Weight Target Audit',
-    description: 'Weigh all 3-month-old Sirohi and Boer kids on digital hanging scale. Record ADG (Average Daily Gain). Target: >= 16 kg.',
-    species: 'Both',
-    category: 'Weight Check',
-    priority: 'Medium',
-    status: 'in_progress',
-    assignedToUserId: 'user-admin-1',
-    assignedToName: 'Ramesh Patel (Farm Owner)',
-    assignedToRole: 'Admin',
-    target: {
-      enabled: true,
-      targetValue: 20,
-      currentValue: 12,
-      unit: 'kids & lambs',
-    },
-    dueDate: '2026-10-16',
-    dueTime: '16:00',
-    reminder: {
-      enabled: true,
-      audience: 'assigned_only',
-      timing: '1_day_before',
-      isAcknowledged: false,
-    },
-    createdByUserId: 'user-admin-1',
-    createdByUserName: 'Ramesh Patel (Farm Owner)',
-    createdAt: '2026-10-08T10:00:00Z',
-  },
-  {
-    id: 'task-flock-5',
-    farmId: 'FARM-7821',
-    title: 'Hoof Trimming Round for Rams and Stud Bucks',
-    description: 'Inspect claws for overgrowth and foot rot; trim neatly with specialized hoof shears to prevent lameness during breeding season.',
-    species: 'Sheep',
-    category: 'Hoof Trimming',
-    priority: 'Low',
-    status: 'completed',
-    assignedToUserId: 'user-staff-1',
-    assignedToName: 'Suresh Kumar (Farm Helper)',
-    assignedToRole: 'Herdsman',
-    target: {
-      enabled: true,
-      targetValue: 10,
-      currentValue: 10,
-      unit: 'rams/bucks',
-    },
-    dueDate: '2026-10-09',
-    dueTime: '11:00',
-    reminder: {
-      enabled: false,
-      audience: 'assigned_only',
-      timing: 'on_due_date',
-      isAcknowledged: true,
-    },
-    createdByUserId: 'user-admin-1',
-    createdByUserName: 'Ramesh Patel (Farm Owner)',
-    createdAt: '2026-10-05T08:00:00Z',
-    completedAt: '2026-10-09T12:30:00Z',
-    completedByUserName: 'Suresh Kumar',
-    completionNotes: 'All 10 stud rams trimmed cleanly. Applied copper sulphate spray to two minor heel scrapes.',
-  },
-];
+export const INITIAL_FARM_TASKS: FarmTask[] = [];
+
 
 class FarmDatabase {
   private users: User[] = [];
@@ -604,9 +351,23 @@ class FarmDatabase {
 
   private loadFromStorage() {
     try {
+      // Clean up legacy v3 keys if present
+      try {
+        localStorage.removeItem('farmtrack_mysql_users_v3');
+        localStorage.removeItem('farmtrack_mysql_farms_v3');
+        localStorage.removeItem('farmtrack_mysql_curr_farm_v3');
+      } catch {
+        // ignore
+      }
+
       const savedUsers = localStorage.getItem(STORAGE_USERS_KEY);
       if (savedUsers) {
-        this.users = JSON.parse(savedUsers);
+        const parsed: User[] = JSON.parse(savedUsers);
+        // Exclude legacy Ramesh Patel and Suresh Kumar accounts
+        this.users = parsed.filter(u => u.id !== 'user-admin-1' && u.id !== 'user-staff-1');
+        if (this.users.length === 0) {
+          this.users = [...DEFAULT_USERS];
+        }
       } else {
         // First-time starter users
         this.users = [...DEFAULT_USERS];
@@ -615,18 +376,29 @@ class FarmDatabase {
       const savedFarms = localStorage.getItem(STORAGE_FARMS_KEY);
       if (savedFarms) {
         const parsed: Farm[] = JSON.parse(savedFarms);
-        this.farms = parsed.map(f => ({
-          ...f,
-          financialRecords: f.financialRecords && f.financialRecords.length > 0 ? f.financialRecords : [...DEFAULT_FINANCIAL_RECORDS],
-          tasks: f.tasks && f.tasks.length > 0 ? f.tasks : (f.id === 'FARM-7821' ? [...INITIAL_FARM_TASKS] : []),
-        }));
+        // Exclude legacy FARM-7821 and FARM-4402 (Ramesh Patel / Suresh Kumar farms)
+        this.farms = parsed
+          .filter(f => f.id !== 'FARM-7821' && f.id !== 'FARM-4402')
+          .map(f => ({
+            ...f,
+            financialRecords: f.financialRecords || [],
+            tasks: f.tasks || [],
+          }));
+        if (this.farms.length === 0) {
+          this.farms = INITIAL_FARMS.map(f => ({
+            ...f,
+            config: { ...DEFAULT_FARM_CONFIG },
+            financialRecords: [],
+            tasks: [],
+          }));
+        }
       } else {
         // Initial setup
         this.farms = INITIAL_FARMS.map(f => ({
           ...f,
           config: { ...DEFAULT_FARM_CONFIG },
-          financialRecords: [...DEFAULT_FINANCIAL_RECORDS],
-          tasks: f.id === 'FARM-7821' ? [...INITIAL_FARM_TASKS] : [],
+          financialRecords: [],
+          tasks: [],
         }));
       }
 
@@ -634,25 +406,7 @@ class FarmDatabase {
       this.farms.forEach(f => {
         f.primarySpecies = ['Goat', 'Sheep'];
         if (Array.isArray(f.animals)) {
-          const phase1Animals = f.animals.filter(a => a.species === 'Goat' || a.species === 'Sheep');
-          if (phase1Animals.length > 0) {
-            f.animals = phase1Animals;
-          } else {
-            f.animals = [...INITIAL_FARMS[0].animals];
-            f.vaccinations = [...INITIAL_FARMS[0].vaccinations];
-            f.healthRecords = [...INITIAL_FARMS[0].healthRecords];
-          }
-
-          // Ensure starter flock on demo farm has all 24 animals to demonstrate 20/page pagination
-          if (f.id === 'FARM-7821' && f.animals.length < 24) {
-            const existingIds = new Set(f.animals.map(a => a.id));
-            INITIAL_FARMS[0].animals.forEach(stAnim => {
-              if (!existingIds.has(stAnim.id)) {
-                f.animals.push({ ...stAnim });
-              }
-            });
-          }
-
+          f.animals = f.animals.filter(a => a.species === 'Goat' || a.species === 'Sheep');
           f.animals.forEach(a => {
             a.milkStatus = undefined;
             a.dailyMilkLitres = undefined;
@@ -669,6 +423,8 @@ class FarmDatabase {
               a.knowsParents = a.origin === 'Born on Farm' || Boolean(a.sireName || a.damName);
             }
           });
+        } else {
+          f.animals = [];
         }
         // Ensure config has appName configured (default 'Testing')
         f.config = {
@@ -2090,7 +1846,8 @@ class FarmDatabase {
     this.farms = INITIAL_FARMS.map(f => ({
       ...f,
       config: { ...DEFAULT_FARM_CONFIG },
-      tasks: f.id === 'FARM-7821' ? [...INITIAL_FARM_TASKS] : [],
+      tasks: [],
+      financialRecords: [],
     }));
     this.globalBreeds = [...DEFAULT_GLOBAL_BREEDS];
     this.breedProposals = [...DEFAULT_BREED_PROPOSALS];
