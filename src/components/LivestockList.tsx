@@ -43,6 +43,7 @@ interface LivestockListProps {
   onOpenTasksModal?: (filter?: any) => void;
   onUpdateAnimal?: (animalId: string, updates: Partial<Animal>) => void;
   onBulkAddVaccine?: (animalIds: string[], vacData: Omit<VaccinationRecord, 'id' | 'animalId'>) => void;
+  onOpenAdminLocation?: () => void;
 }
 
 export function getAgeInMonths(dob: string): number {
@@ -89,6 +90,7 @@ export const LivestockList: React.FC<LivestockListProps> = ({
   onOpenTasksModal,
   onUpdateAnimal,
   onBulkAddVaccine,
+  onOpenAdminLocation,
 }) => {
   const { t } = useLanguage();
   const isAdmin = farm.adminUserId === currentUser.id;

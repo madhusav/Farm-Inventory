@@ -36,6 +36,7 @@ import { FarmTasksModal } from './components/FarmTasksModal';
 import { DEFAULT_USERS } from './data/initialData';
 import { useLanguage } from './i18n/LanguageContext';
 import { SymptomCheckerModal } from './components/SymptomCheckerModal';
+import { WeatherModal } from './components/WeatherModal';
 
 export function App() {
   const { syncUserLanguage, setLang } = useLanguage();
@@ -61,6 +62,7 @@ export function App() {
   const [showLedgerModal, setShowLedgerModal] = useState(false);
   const [showSystemAdminModal, setShowSystemAdminModal] = useState(false);
   const [showSymptomCheckerModal, setShowSymptomCheckerModal] = useState(false);
+  const [showWeatherModal, setShowWeatherModal] = useState(false);
   const [symptomCheckerAnimalId, setSymptomCheckerAnimalId] = useState<string | undefined>(undefined);
   const [selectedAnimal, setSelectedAnimal] = useState<Animal | null>(null);
   const [adminModalTab, setAdminModalTab] = useState<'team' | 'vaccines' | 'farm' | 'breeds' | 'database'>('team');
@@ -442,6 +444,7 @@ export function App() {
           setSymptomCheckerAnimalId(undefined);
           setShowSymptomCheckerModal(true);
         }}
+        onOpenWeatherModal={() => setShowWeatherModal(true)}
         vaccineAlertsCount={alerts.length}
         tasksCount={farmTasks.filter(t => t.status !== 'completed').length}
         dueRemindersCount={dueReminders.length}
@@ -468,6 +471,10 @@ export function App() {
             onOpenTasksModal={openTasksModal}
             onUpdateAnimal={handleUpdateAnimal}
             onBulkAddVaccine={handleBulkAddVaccine}
+            onOpenAdminLocation={() => {
+              setAdminModalTab('farm');
+              setShowTeamModal(true);
+            }}
           />
         )}
 
@@ -670,6 +677,19 @@ export function App() {
             if (updatedAnimal && selectedAnimal?.id === animalId) {
               setSelectedAnimal(updatedAnimal);
             }
+          }}
+        />
+      )}
+
+      {/* Local Weather & Daily Grazing Guidance Modal Popup */}
+      {showWeatherModal && currentFarm && (
+        <WeatherModal
+          farm={currentFarm}
+          onClose={() => setShowWeatherModal(false)}
+          onOpenAdminLocation={() => {
+            setShowWeatherModal(false);
+            setAdminModalTab('farm');
+            setShowTeamModal(true);
           }}
         />
       )}

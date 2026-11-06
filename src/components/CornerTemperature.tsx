@@ -15,6 +15,7 @@ import { Language } from '../i18n/translations';
 export interface CornerTemperatureProps {
   farm: Farm;
   onOpenAdminLocation?: () => void;
+  onClick?: () => void;
   className?: string;
 }
 
@@ -135,6 +136,7 @@ export function getPrimaryFarmerTip(temp: number, langOrIsHi: Language | boolean
 export const CornerTemperature: React.FC<CornerTemperatureProps> = ({
   farm,
   onOpenAdminLocation,
+  onClick,
   className = '',
 }) => {
   const { lang, localeText } = useLanguage();
@@ -226,9 +228,15 @@ export const CornerTemperature: React.FC<CornerTemperatureProps> = ({
       {/* Compact Corner Temperature Pill */}
       <button
         type="button"
-        onClick={() => setShowPopover(!showPopover)}
+        onClick={() => {
+          if (onClick) {
+            onClick();
+          } else {
+            setShowPopover(!showPopover);
+          }
+        }}
         className="px-2 sm:px-2.5 py-1.5 rounded-xl border border-amber-200/90 bg-amber-50/70 hover:bg-amber-100/80 text-stone-800 text-xs font-black flex items-center gap-1 sm:gap-1.5 transition-all shadow-2xs cursor-pointer active:scale-95 shrink-0"
-        title={`Live Weather for ${resolvedCoords.label} (Set in Admin Tool). Tap for details.`}
+        title={`Live Weather & Grazing Dashboard for ${resolvedCoords.label}. Tap for details.`}
       >
         <span className="text-sm shrink-0 leading-none">
           {weatherDesc.emoji}
@@ -243,7 +251,7 @@ export const CornerTemperature: React.FC<CornerTemperatureProps> = ({
       </button>
 
       {/* Floating Corner Details Popover (Guaranteed to fit on mobile viewports) */}
-      {showPopover && (
+      {showPopover && !onClick && (
         <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-[calc(100vw-32px)] max-w-xs sm:w-80 bg-white rounded-2xl shadow-2xl border border-stone-200 p-3.5 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-3">
           
           {/* Header */}

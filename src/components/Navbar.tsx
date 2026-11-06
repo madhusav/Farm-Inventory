@@ -40,6 +40,7 @@ interface NavbarProps {
   onOpenLedger?: () => void;
   onOpenSystemAdmin?: () => void;
   onOpenSymptomChecker?: () => void;
+  onOpenWeatherModal?: () => void;
   vaccineAlertsCount?: number;
   tasksCount?: number;
   dueRemindersCount?: number;
@@ -62,6 +63,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenLedger,
   onOpenSystemAdmin,
   onOpenSymptomChecker,
+  onOpenWeatherModal,
   vaccineAlertsCount = 0,
   tasksCount = 0,
   dueRemindersCount = 0,
@@ -145,11 +147,12 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             </button>
 
-            {/* Mobile Only: Live Corner Temperature (Stationed in the corner next to the farm) */}
-            <div className="sm:hidden shrink-0">
+            {/* Live Weather Icon Next to the Farm (Mobile & Desktop) */}
+            <div className="shrink-0 flex items-center">
               <CornerTemperature 
                 farm={currentFarm} 
-                onOpenAdminLocation={onOpenAdminLocation} 
+                onOpenAdminLocation={onOpenAdminLocation}
+                onClick={onOpenWeatherModal}
               />
             </div>
 
@@ -600,17 +603,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                 </div>
               )}
-            </div>
-
-            {/* Visual Divider between User and Corner Weather */}
-            <div className="h-6 w-px bg-stone-200 mx-0.5 sm:mx-1 hidden sm:block shrink-0" />
-
-            {/* Desktop Only: LIVE CORNER TEMPERATURE WIDGET (Positioned in the corner where it has dedicated breathing room) */}
-            <div className="hidden sm:flex shrink-0 items-center pl-0.5">
-              <CornerTemperature 
-                farm={currentFarm} 
-                onOpenAdminLocation={onOpenAdminLocation} 
-              />
             </div>
 
             {/* MOBILE ONLY: Menu Drawer Trigger (Opens All Admin, Tools, and Farm Settings cleanly) */}
